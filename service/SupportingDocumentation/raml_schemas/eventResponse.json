@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "EventResponse",
+  "title": "EventResponse",
+  "description": "One scheduled event",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifier of event"
+    },
+    "startTime": {
+      "type": "string",
+      "description": "Start time. If not specified, the implementation uses the current system time as the default value. Used to schedule a periodic backup"
+    },
+    "stopTime": {
+      "type": "string",
+      "description": "Stop time. If no stop-time present the event continues indefinitely. Used to schedule a periodic backup"
+    },
+    "minutes": {
+      "type": "integer",
+      "description": "The number of minutes. Used to schedule a periodic backup"
+    },
+    "hours": {
+      "type": "integer",
+      "description": "The number of hours. Used to schedule a periodic backup"
+    },
+    "days": {
+      "type": "integer",
+      "description": "The number of days. Used to schedule a periodic backup"
+    },
+    "weeks": {
+      "type": "integer",
+      "description": "The number of weeks. Used to schedule a periodic backup"
+    }
+  }
+}

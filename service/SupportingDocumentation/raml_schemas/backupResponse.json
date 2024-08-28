@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "BackupResponse",
+  "title": "BackupResponse",
+  "description": "Backup information",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identity of the backup"
+    },
+    "name": {
+      "type": "string",
+      "description": "Backup name, provided by the Applications Operations Engineer"
+    },
+    "creationTime": {
+      "type": "string",
+      "description": "Date and time when the backup was created, i.e., start time of backup procedure"
+    },
+    "creationType": {
+      "type": "string",
+      "description": "Creation type; whether manually created or automatically via scheduler",
+      "enum": ["MANUAL","SCHEDULED","SYSTEM_CREATED"]
+    },
+    "status": {
+      "type": "string",
+      "description": "Status of the backup",
+      "enum": ["COMPLETE","INCOMPLETE","CORRUPTED"]
+    },
+    "userLabel": {
+      "type": "string",
+      "description": "Label for free use"
+    },
+    "softwareVersions": {
+      "type": "array",
+      "description": "The administrative data portion of active software versions as specified in the software inventory management, when the backup is created",
+      "items": [
+        {
+          "type": "object",
+          "description": "One softwareVersion",
+          "properties": {
+            "productName": {
+              "type": "string",
+              "description": "Name of the product"
+            },
+            "productNumber": {
+              "type": "string",
+              "description": "Product number of the product"
+            },
+            "productRevision": {
+              "type": "string",
+              "description": "Revision state of the product"
+            },
+            "date": {
+              "type": "string",
+              "description": "Production date of the product"
+            },
+            "description": {
+              "type": "string",
+              "description": "Free text description of the product"
+            },
+            "type": {
+              "type": "string",
+              "description": "Free text description of the product type"
+            }
+          },
+          "required": [
+            "productName",
+            "productNumber",
+            "productRevision",
+            "date",
+            "description",
+            "type"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "creationTime",
+    "creationType",
+    "status",
+    "softwareVersions"
+  ]
+}

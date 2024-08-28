@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="info" packages="com.ericsson.adp.mgmt.socket.appender">
+    <Appenders>
+        <BufferedSyslogAppender name="BufferedSyslogAppender" host="10.120.217.249" port="5014" maxSize="3" >
+<!--            configured without security for sake of testing, security config left in to act as an example-->
+<!--            <StreamSslConfiguration privatekey="/run/sec/certs/logtransformer/ltclientkey.pem"-->
+<!--                    certificate="/run/sec/certs/logtransformer/ltclientcert.pem"-->
+<!--                    ca="/run/sec/cas/siptls/cacertbundle.pem"-->
+<!--                    keystore="/tmp/test.p12"-->
+<!--                    caAlias="siptls"-->
+<!--                    certAlias="LT"/>-->
+            <!--RFC5424Layout Parameters for host, port-->
+            <RFC5424Layout appName="eric-ctrl-bro" newLine="true"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </BufferedSyslogAppender>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{YYYY-MM-dd'T'HH:mm:ss.sssXXX} %p %c{1}: %m%n"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="BufferedSyslogAppender"/>
+        </Root>
+        <Logger name="com.ericsson.adp.mgmt.eric-log4j2-socket-appender" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+    </Loggers>
+</Configuration>

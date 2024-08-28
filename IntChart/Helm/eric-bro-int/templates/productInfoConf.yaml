@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product-info-conf
+  annotations:
+    ericsson.com/product-name: "Test Application"
+    ericsson.com/product-number: "APR XXX XX/X"
+    ericsson.com/product-revision: "R1A"
+    ericsson.com/production-date: "2019-05-17T14:12:44+00:00"
+    ericsson.com/description: "Test Application Drop 15"
+    ericsson.com/type: "Predelivery"
+    ericsson.com/semantic-version: "6.5.0"
+    ericsson.com/commercial-version: "6.5"
+data:

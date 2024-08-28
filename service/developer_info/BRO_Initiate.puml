@@ -1,0 +1,63 @@
+@startuml
+Title BRO Initialize
+boundary ApplicationReadyEvent
+control OrchestratorInitializer
+control BackupManagerRepository
+control CMMediatorService
+control BackupManagerFileService
+control ScheduledEventHandler
+entity BackupManager
+collections BackupManagers
+
+== Initialization ==
+note left: ApplicationReadyEvent
+ApplicationReadyEvent -> OrchestratorInitializer :initialize 
+activate OrchestratorInitializer
+OrchestratorInitializer -> BackupManagerRepository:initializeBackupManagers
+note right: Lock the access to BackupManagerRepository
+BackupManagerRepository -> BackupManagerFileService: getbackupManagers
+activate BackupManagerRepository
+loop each Backup Manager
+    BackupManagerRepository -> BackupManager: createBackupManager
+    activate BackupManagerRepository
+    BackupManagerRepository -[#DarkBlue]-> BackupManagerRepository: getHousekeepingInformation
+    note left #FFAAAA
+Read the number of backups and compare against
+the defined HK value. 
+If it is higher than the value registered on HK,
+it updates the HK value and tries to notify in Mediator.
+    end Note
+    deactivate BackupManagerRepository
+    BackupManagerRepository -> BackupManagers: add Backup Manager
+    BackupManager->BackupManager: getActions
+    BackupManager->BackupManager: getBackups
+    BackupManagerRepository --> ScheduledEventHandler:schedulePeriodicEvents
+    note left
+    When persist events, 
+    it notifies to Mediator
+    end Note
+    BackupManagerRepository --> ScheduledEventHandler:scheduleCalendarEvents
+end
+deactivate BackupManagerRepository
+
+OrchestratorInitializer -[#Red]-> CMMediatorService : initCMMediator
+note left #FFAAAA
+At this point, once 
+the Mediator server is ready
+the entire schema and 
+full configuration is post 
+in Mediator
+end Note
+OrchestratorInitializer -> BackupManagerRepository: finishInitialization
+activate BackupManagerRepository
+BackupManagerRepository -> BackupManagerRepository: createBackupManager
+BackupManagerRepository -> BackupManagerRepository: unlock
+note right: Unlock the access to BackupManagerRepository
+deactivate BackupManagerRepository
+alt s3Config_isEnabled case
+OrchestratorInitializer -> OrchestratorInitializer:buildPVCMetric
+OrchestratorInitializer -> BackupManagerFileService: createDummyFile
+end
+deactivate OrchestratorInitializer
+
+@enduml

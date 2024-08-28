@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "BackupsResponse",
+  "title": "BackupsResponse",
+  "description": "All backups",
+  "type": "object",
+  "properties": {
+    "backups": {
+      "type": "array",
+      "description": "All backups",
+      "items": [
+        {
+          "type": "object",
+          "description": "One backup",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Identity of the backup"
+            },
+            "name": {
+              "type": "string",
+              "description": "Backup name, provided by the Applications Operations Engineer"
+            },
+            "creationTime": {
+              "type": "string",
+              "description": "Date and time when the backup was created, i.e., start time of backup procedure"
+            },
+            "status": {
+              "type": "string",
+              "description": "Status of the backup",
+              "enum": ["COMPLETE","INCOMPLETE","CORRUPTED"]
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "creationTime",
+            "status"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "backups"
+  ]
+}

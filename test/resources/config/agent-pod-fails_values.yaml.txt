@@ -1,0 +1,31 @@
+images:
+  testagent:
+    name: bro-test-agent-basic
+    tag: 9.1.1-911-SNAPSHOT
+
+brAgent:
+  commandArgs: "/usr/bin/java -Dlog4j.configurationFile=/var/log/ericsson/log4j2.xml -jar /testagent/brotestagent.jar /testagent/application.properties"
+  brLabelValue: "agent-pod-fails"
+  backupTypeList:
+  properties:
+    fileName: "application.properties"
+    applicationProperties:
+      #this value will be taken from the values global.adpBR.broServiceName
+      orchestrator.host: eric-ctrl-bro
+      #this value will be taken from the values global.adpBR.broGrpcServicePort
+      orchestrator.port: 3000
+      #this value will be taken from the values brAgent.brLabelValue
+      test.agent.id: ""
+      #this value will be taken from the first brAgent.backupTypeList.backupType
+      test.agent.scope: ""
+      test.agent.softwareVersion.description: agent-pod-fails
+      test.agent.softwareVersion.productionDate: 2019-09-26
+      test.agent.softwareVersion.productName: agent-pod-fails
+      test.agent.softwareVersion.productNumber: CXC 111 11/1
+      test.agent.softwareVersion.type: data
+      test.agent.softwareVersion.revision: R1
+      test.agent.fragment.backup.data.path:
+      test.agent.fragment.custom.backup.data.path:
+      test.agent.download.location: /restoredata
+      # this value is used for BRO test purposes ONLY. This must be left empty otherwise.
+      test.agent.agentBehavior:

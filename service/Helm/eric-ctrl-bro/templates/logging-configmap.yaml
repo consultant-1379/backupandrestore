@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-logging
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+data:
+  {{ .Values.bro.logging.log4j2File }}: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Configuration name="BROLog4j" status="off" monitorInterval="5">
+      <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+          {{- if eq .Values.bro.logging.consoleFormat "json" }}
+          <JsonTemplateLayout eventTemplateUri="file://{{ .Values.bro.logging.logDirectory }}/JsonLogTemplate.json" locationInfoEnabled="true"/>
+          {{- else }}
+          <PatternLayout pattern="%d{YYYY-MM-dd'T'HH:mm:ss.sssXXX} %p %c{1}: %m%n"/>
+          {{- end }}
+          <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor|JSSE TLS 1.3|Encryptor config not found).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </Console>
+        {{- with . }}
+        {{- $logstreaming := include "eric-ctrl-bro.logstreaming" . | fromYaml }}
+        {{/* direct or dual log streaming method enables tcp */}}
+        {{- if or (eq "direct" (get $logstreaming "logOutput")) (eq "dual" (get $logstreaming "logOutput")) }}
+        <BufferedSocketAppender name="BufferedSocketAppender" host="{{ $logstreaming.logtransformer.host }}" port="{{ $logstreaming.logtransformer.port }}">
+          {{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") }}
+          <StreamSslConfiguration privatekey="/run/secrets/certs/logtransformer/ltclientkey.pem"
+                  certificate="/run/secrets/certs/logtransformer/ltclientcert.pem"
+                  ca="/run/secrets/cas/siptls/cacertbundle.pem"
+                  keystore="/temp/ltEndpointKeystore.12"
+                  caAlias="siptls"
+                  certAlias="LT"/>
+          {{- end }}
+          <!-- Really we should use the json layout defined below but that's an interface change-->
+          <RFC5424Layout appName="eric-ctrl-bro" newLine="true" newLineEscape="\n">
+            <LoggerFields>
+              <KeyValuePair key="namespace" value="${env:POD_NAMESPACE}"/>
+              <KeyValuePair key="container_name" value="${env:CONTAINER_NAME}"/>
+            </LoggerFields>
+          </RFC5424Layout>
+          <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor|JSSE TLS 1.3|Encryptor config not found).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </BufferedSocketAppender>
+        <BufferedSocketAppender name="Security_Log_BufferedSocket" host="{{ $logstreaming.logtransformer.host }}" port="{{ $logstreaming.logtransformer.port }}">
+          {{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") }}
+          <StreamSslConfiguration privatekey="/run/secrets/certs/logtransformer/ltclientkey.pem"
+                  certificate="/run/secrets/certs/logtransformer/ltclientcert.pem"
+                  ca="/run/secrets/cas/siptls/cacertbundle.pem"
+                  keystore="/temp/ltEndpointKeystore.12"
+                  caAlias="siptls"
+                  certAlias="LT"/>
+          {{- end }}
+          <RFC5424Layout appName="eric-ctrl-bro" facility="AUTH" newLine="true" newLineEscape="\n">
+            <LoggerFields>
+              <KeyValuePair key="namespace" value="${env:POD_NAMESPACE}"/>
+              <KeyValuePair key="container_name" value="${env:CONTAINER_NAME}"/>
+            </LoggerFields>
+          </RFC5424Layout>
+          <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor|JSSE TLS 1.3|Encryptor config not found).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </BufferedSocketAppender>
+        {{- end }}
+        {{- end }}
+
+      </Appenders>
+      <Loggers>
+        <Logger name="com.ericsson.adp.mgmt.backupandrestore" level="{{ include "eric-ctrl-bro.log.level" . }}">
+        </Logger>
+        <Logger name="org.apache" level="{{ .Values.bro.logging.log4j2Level }}" additivity="false">
+          <AppenderRef ref="Console"/>
+        </Logger>
+        <Root level="{{ include "eric-ctrl-bro.log.rootLevel" . }}">
+          {{- with . }}
+          {{- $logstreaming := include "eric-ctrl-bro.logstreaming" . | fromYaml }}
+          {{/* indirect log streaming method enables console output */}}
+          {{- if or (eq "indirect" (get $logstreaming "logOutput")) (eq "dual" (get $logstreaming "logOutput")) }}
+          <AppenderRef ref="Console"/>
+          {{- end }}
+          {{/* direct or dual log streaming method enables tcp output*/}}
+          {{- if or (eq "direct" (get $logstreaming "logOutput")) (eq "dual" (get $logstreaming "logOutput")) }}
+          <AppenderRef ref="BufferedSocketAppender"/>
+          {{- end }}
+          {{- end }}
+        </Root>
+        <Logger name="SECURITY_EVENT" level="{{ include "eric-ctrl-bro.log.level" . }}" additivity="false">
+          {{- with . }}
+          {{- $logstreaming := include "eric-ctrl-bro.logstreaming" . | fromYaml }}
+          {{/* indirect log streaming method enables console output */}}
+          {{- if or (eq "indirect" (get $logstreaming "logOutput")) (eq "dual" (get $logstreaming "logOutput")) }}
+          <AppenderRef ref="Console"/>
+          {{- end }}
+          {{/* direct or dual log streaming method enables tcp output*/}}
+          {{- if or (eq "direct" (get $logstreaming "logOutput")) (eq "dual" (get $logstreaming "logOutput")) }}
+          <AppenderRef ref="Security_Log_BufferedSocket"/>
+          {{- end }}
+          {{- end }}
+        </Logger>
+      </Loggers>
+    </Configuration>
+  "JsonLogTemplate.json": |
+    {
+      "version" : "1.2.0",
+      "timestamp" : {
+        "$resolver": "timestamp",
+        "pattern": {
+          "format": "YYYY-MM-dd'T'HH:mm:ss.SSSXXX"
+        }
+      },
+      "severity" : {
+        "$resolver": "pattern",
+        "pattern": "%level{WARN=warning,DEBUG=debug,ERROR=error,INFO=info,lowerCase=true}%throwable{none}"
+      },
+      "service_id": "{{ template "eric-ctrl-bro.name" . }}",
+      "metadata": {
+        "category": {
+          "$resolver": "mdc",
+          "key": "category"
+        },
+        "pod_name": "${env:POD_NAME}",
+        "container_name": "${env:CONTAINER_NAME}",
+        "namespace": "${env:POD_NAMESPACE}"
+      },
+      "message": {
+        "$resolver": "message",
+        "stringified": true
+      },
+      "facility": {
+        "$resolver": "mdc",
+        "key": "facility"
+      },
+      "extra_data" : {
+        "exception": {
+          "$resolver": "exception",
+          "field": "stackTrace",
+          "stackTrace": {
+            "stringified": true
+          }
+        },
+        "location" : {
+          "class" : {
+            "$resolver": "source",
+            "field" : "className"
+          }
+        }
+      }
+    }

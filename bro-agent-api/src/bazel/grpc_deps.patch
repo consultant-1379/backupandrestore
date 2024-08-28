@@ -1,0 +1,39 @@
+diff -Naur grpc-1.27.0.orig/bazel/grpc_deps.bzl grpc-1.27.0/bazel/grpc_deps.bzl
+--- bazel/grpc_deps.bzl	2020-02-04 17:04:33.000000000 +0000
++++ bazel/grpc_deps.bzl	2020-03-27 18:19:43.469615807 +0000
+@@ -131,7 +131,7 @@
+             name = "boringssl",
+             # NOTE: This URL generates a tarball containing dynamic date
+             # information, so the sha256 is not consistent.
+-            url = "https://boringssl.googlesource.com/boringssl/+archive/83da28a68f32023fd3b95a8ae94991a07b1f6c62.tar.gz",
++            url = "https://arm.sero.gic.ericsson.se/artifactory/proj-vims-generic-local/3pp/github/boringssl/boringssl-83da28a68f32023fd3b95a8ae94991a07b1f6c62.tar.gz",
+         )
+ 
+     if "zlib" not in native.existing_rules():
+@@ -148,7 +148,7 @@
+             name = "com_google_protobuf",
+             sha256 = "51398b0b97b353c1c226d0ade0bae80c80380e691cba7c1a108918986784a1c7",
+             strip_prefix = "protobuf-29cd005ce1fe1a8fabf11e325cb13006a6646d59",
+-            url = "https://github.com/google/protobuf/archive/29cd005ce1fe1a8fabf11e325cb13006a6646d59.tar.gz",
++            url = "https://arm.sero.gic.ericsson.se/artifactory/proj-vims-generic-local/3pp/github/protobuf/protobuf-29cd005ce1fe1a8fabf11e325cb13006a6646d59.tar.gz",
+         )
+ 
+     if "com_github_google_googletest" not in native.existing_rules():
+@@ -234,7 +234,7 @@
+             name = "upb",
+             sha256 = "e9c136e56b98c8eb48ad1c9f8df4a6348e99f9f336ee6199c4259a312c2e3598",
+             strip_prefix = "upb-d8f3d6f9d415b31f3ce56d46791706c38fa311bc",
+-            url = "https://github.com/protocolbuffers/upb/archive/d8f3d6f9d415b31f3ce56d46791706c38fa311bc.tar.gz",
++            url = "https://arm.sero.gic.ericsson.se/artifactory/proj-vims-generic-local/3pp/github/upb/upb-d8f3d6f9d415b31f3ce56d46791706c38fa311bc.tar.gz",
+         )
+     if "envoy_api" not in native.existing_rules():
+         http_archive(
+@@ -254,7 +254,7 @@
+     if "build_bazel_rules_apple" not in native.existing_rules():
+         http_archive(
+             name = "build_bazel_rules_apple",
+-            url = "https://github.com/bazelbuild/rules_apple/archive/b869b0d3868d78a1d4ffd866ccb304fb68aa12c3.tar.gz",
++            url = "https://arm.sero.gic.ericsson.se/artifactory/proj-vims-generic-local/3pp/github/rules_apple/rules_apple-b869b0d3868d78a1d4ffd866ccb304fb68aa12c3.tar.gz",
+             strip_prefix = "rules_apple-b869b0d3868d78a1d4ffd866ccb304fb68aa12c3",
+             sha256 = "bdc8e66e70b8a75da23b79f1f8c6207356df07d041d96d2189add7ee0780cf4e",
+         )

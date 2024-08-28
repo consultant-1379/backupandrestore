@@ -1,0 +1,54 @@
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    environment {
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+    }
+    stages {
+        stage('Prepare bob') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Setup Namespace') {
+            when { expression { (params.SETUP_NAMESPACE) } }
+            steps {
+                withCredentials([
+                    file(credentialsId: 'hoff068', variable: 'KUBECONFIG'),
+                    file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                    file(credentialsId: 'hub-armdocker-config-json', variable: 'ARMDOCKER_CONF')
+                ]) {
+                    sh './bob/bob -r service/ruleset.weekly.nsrecreation.yaml ns-recreation'
+                    sh './bob/bob -r service/ruleset.intchart.setup.yaml setup-env'
+                }
+            }
+        }
+        stage('Remove BRO from IntChart') {
+            when { expression { (!params.DEPLOY_BRO) } }
+            steps {
+                sh "sed -i '/eric-ctrl-bro/,+2 d' IntChart/Helm/eric-bro-int/Chart.yaml"
+
+            }
+        }
+        stage('Deploy Intchart') {
+            when { expression { (params.DEPLOY_INTCHART) } }
+            steps {
+                withCredentials([
+                    file(credentialsId: 'hoff068', variable: 'KUBECONFIG'),
+                ]) {
+                    sh "sed -i 's/bro-intchart-monitoring/bro-intchart-monitoring-${env.NAMESPACE}/g' IntChart/Helm/eric-bro-int/values.yaml"
+                    sh "helm3 dep up IntChart/Helm/eric-bro-int"
+                    sh "helm3 install ${env.RELEASE_NAME} IntChart/Helm/eric-bro-int --set global.pullSecret=armdocker --namespace=${env.NAMESPACE}"
+                }
+            }
+        }
+    }
+}

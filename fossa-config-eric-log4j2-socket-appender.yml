@@ -1,0 +1,7 @@
+lazy-fossa:
+  directory: "eric-log4j2-socket-appender"
+  project: "Log4j2 Socket Appender"
+  team: "ADP-BRO-PlanB"
+  primary-list: "fossa/appender_parents.txt"
+  version: 1.0.11
+  product-structure: "fossa/product_structure.yaml"

@@ -1,0 +1,25 @@
+TEST FW ACCESS ON THE KAAS
+==========================
+
+The TestFw creates a Test Pod which performs Helm and Kubectl commands.
+Roles and RoleBindings need to be created to allow the test pod to perform these commands.
+
+For running nose_auto tests on your namespace, update the "namespace" fields in the below files and "kubectl apply" them on your namespace.
+
+1. testfw_role_k8s.yaml (Kubectl)
+2. testfw_bind_k8s.yaml (Kubectl)
+3. testfw_role.yaml (Helm)
+4. testfw_bind.yaml (Helm)
+
+For running sys_test tests on your namespace you do not need to install a Role, you just bind the ClusterRole to your namespaced default service account.
+To do this, update the "namespace" fields in the below file/s and "kubectl apply" them on your namespace.
+
+1. testfw_systest_bind.yaml
+2. testfw_role.yaml and testfw_bind.yaml (If not already installed on your namespace from BRO cluster tests)(Helm Permissions)
+
+If the cluster is rerolled then the below need to be applied.
+NOTE: Any changes to cluster wide resources should be discussed with the team before being changed
+
+1. testfw_role.yaml (Helm Permissions)
+2. testfw_systest_role.yaml
+3. testfw_systest_bind.yaml (Updated and applied for every namespace required)

@@ -1,0 +1,30 @@
+{{- if .Values.global -}}
+{{- if and .Values.global.networkPolicy .Values.networkPolicy -}}
+{{- if and .Values.global.networkPolicy.enabled .Values.networkPolicy.enabled -}}
+{{- if and .Values.bro.enableNotifications (eq (include "eric-ctrl-bro.kvdbrd.enabled" .) "true") -}}
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-kvdbrd-allow
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "eric-ctrl-bro.name" . }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ include "eric-ctrl-bro.kvdbrd.hostname" . }}
+    ports:
+    - port: {{ include "eric-ctrl-bro.kvdbrd.port" . }}
+      protocol: TCP
+    - port: {{ include "eric-ctrl-bro.kvdbrd.tlsPort" . }}
+      protocol: TCP
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

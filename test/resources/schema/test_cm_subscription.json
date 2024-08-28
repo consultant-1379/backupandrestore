@@ -1,0 +1,7 @@
+{
+   "id": "example-sub",
+   "configName": "ericsson-bro-test",
+   "event": ["configUpdated"],
+   "callback": "http://localhost:8090/notif",
+   "updateNotificationFormat": "patch"
+}

@@ -1,0 +1,110 @@
+modelVersion: 2.0
+
+docker-images:
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+
+properties:
+  - repo-path: proj-adp-eric-ctrl-broint-internal
+  - arm-helm-chart-repo: https://arm.sero.gic.ericsson.se/artifactory/${repo-path}
+  - test-helm-chart-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-test-internal-helm
+  - helm-chart-name: eric-bro-int
+  - helm-destination-folder: 'IntChart/helm-target'
+
+env:
+  - PWD
+  - RELEASE (default=false)
+  - KUBECONFIG
+  - API_TOKEN
+  - CI_USER
+  - ARMDOCKER_CONF
+  - USERS_YAML
+  - BRANCH
+  - NAMESPACE
+  - PYTHON_FILE (default=bro_cmm.py)
+
+var:
+  - version
+  - CHART_REPO
+  - CHART_REPO_SUFFIX
+
+rules:
+  generate-version:
+    - task: version
+      docker-image: adp-release-auto
+      cmd: version-handler generate
+           --is-release ${env.RELEASE}
+           --output version
+           --git-repo-path .
+
+  setup-repo-path:
+    - task: is-master
+      cmd:
+        - echo "-helm-local" > .bob/var.CHART_REPO_SUFFIX
+        - echo "${arm-helm-chart-repo}-helm" > .bob/var.CHART_REPO
+    - task: is-dev
+      cmd:
+        - echo "${arm-helm-chart-repo}-dev-helm" > .bob/var.CHART_REPO
+        - echo '-dev-helm-local/${env.BRANCH}' > .bob/var.CHART_REPO_SUFFIX
+        - echo ${var.version}-${env.BRANCH} > .bob/var.version
+        - sed -i "0,/>0.0.0-0/s//${var.version}/" IntChart/Helm/eric-bro-int/Chart.yaml
+        - sed -i "s|internal-helm|internal-dev-helm|g" IntChart/Helm/eric-bro-int/Chart.yaml
+
+  lint:
+    - task: helm-lint-v3
+      docker-image: adp-release-auto
+      cmd: helm lint IntChart/Helm/${helm-chart-name}
+
+  image:
+    - task: helm-package
+      docker-image: adp-release-auto
+      cmd: helm-package
+           --folder IntChart/Helm/${helm-chart-name}
+           --workdir .bob --output ${helm-destination-folder}
+           --version ${var.version}
+           --helm-user ${env.CI_USER}
+           --arm-api-token ${env.API_TOKEN}
+  push:
+    - task: helm-upload-snapshot
+      docker-image: adp-release-auto
+      cmd:
+        - upload_file.sh --filename=${helm-destination-folder}/${helm-chart-name}-${var.version}.tgz --repository=${arm-helm-chart-repo}${var.CHART_REPO_SUFFIX}/${helm-chart-name} --api-token=${env.API_TOKEN}
+  testdeploy:
+    - task: verify-snapshot-on-k8s
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.ARMDOCKER_CONF}:${env.ARMDOCKER_CONF}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+      cmd:
+        - kubectl --namespace ${env.NAMESPACE} delete secret --all
+        - kubectl --namespace ${env.NAMESPACE} delete serviceaccount --all
+        - kubectl --namespace ${env.NAMESPACE} delete pdb --all
+        - kubectl --namespace ${env.NAMESPACE} delete services --all
+        - kubectl --namespace ${env.NAMESPACE} delete statefulsets --all
+        - kubectl --namespace ${env.NAMESPACE} delete deployments --all
+        - kubectl --namespace ${env.NAMESPACE} delete jobs --all
+        - kubectl create secret generic eric-sec-access-mgmt-creds -n ${env.NAMESPACE} --from-literal=pguserid=pguserplanb --from-literal=pgpasswd=pgpwplanb --from-literal=kcadminid=adminplanb --from-literal=kcpasswd=kcpwb@Planb1
+        - kubectl create secret generic armdocker --from-file=.dockerconfigjson=${env.ARMDOCKER_CONF} --type=kubernetes.io/dockerconfigjson --namespace ${env.NAMESPACE}
+        - kubectl create secret generic docdb-secret --from-literal=custom-user=tester --from-literal=custom-pwd=testpsw --from-literal=super-pwd=supertestpsw --from-literal=metrics-pwd=metricspsw --from-literal=replica-user=replicauser --from-literal=replica-pwd=replicapwd --namespace ${env.NAMESPACE}
+        - kubectl create secret generic eric-data-distributed-coordinator-creds --namespace ${env.NAMESPACE} --from-literal=etcdpasswd=$(echo -n "testdcedpsw" | base64)
+        - kubectl create secret generic pm-bro-test-sftp-users-secret --from-file=${env.USERS_YAML} --namespace ${env.NAMESPACE}
+        - python testframework/bootstrap.py --kubernetes-admin-conf="${env.KUBECONFIG}"
+                                              --kubernetes-namespace="${env.NAMESPACE}"
+                                              --chart-archive="/tmp/${helm-chart-name}-${var.version}".tgz
+                                              --helm-repo="${var.CHART_REPO}"
+                                              --test-helm-repo="${test-helm-chart-repo}"
+                                              --archive-files-to-copy=True
+                                              --copy-directories test/utils test/resources/schema test/resources/keys test/resources/config
+                                              --baseline_chart_version="${var.version}"
+                                              --baseline_deployment_type="deployment"
+                                              --baseline_chart_name="${helm-chart-name}"
+                                              --copy-all-pod-logs=True
+                                              --test-params unused1=1
+                                              --armuser="${env.CI_USER}"
+                                              --armpswd="${env.API_TOKEN}"
+                                              --fail-first=True
+                                              -s ${env.PYTHON_FILE}

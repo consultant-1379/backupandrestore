@@ -1,0 +1,9 @@
+# YANG Instance Data File 
+
+The Yang Instance Data File is generated following the instructions: 
+https://confluence.lmera.ericsson.se/pages/viewpage.action?spaceKey=ACD&title=ADP+Service+YANG+Library+Instance+Data+file
+
+It defines the Yang module versions required by the ericsson-brm model.
+
+These yang module versions must align with the module versions specified in the CMYP Baseline and the EOI Security Baseline.
+

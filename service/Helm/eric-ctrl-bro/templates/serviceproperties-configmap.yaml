@@ -1,0 +1,286 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-serviceproperties
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+data:
+  {{- $backupLocation := toString .Values.bro.backupLocation }}
+  application.properties: |-
+    server.ssl.certificate.hot-reload.enabled=true
+    spring.jackson.serialization.FAIL_ON_EMPTY_BEANS=false
+    #Time in seconds to wait for a data channel to be ready before sending a message
+    timeout.data.channel: {{ .Values.bro.grpc.restore.dataChannelTimeoutSecs }}
+    #Maximum Size, in KiB, of fragment chunk to send with each restore data message
+    restore.fragmentChunk.size: {{ .Values.bro.grpc.restore.fragmentChunkSize }}
+    #Notification configuration
+    bro.notification.topic: bro-notification
+    management.server.port = {{ include "eric-ctrl-bro.metrics.server.port" . }}
+    keyValueDatabaseRd.retry.maxAttempts: {{ include "eric-ctrl-bro.kvdbrd.retry.maxAttempts" . }}
+    keyValueDatabaseRd.retry.maxDelay: {{ include "eric-ctrl-bro.kvdbrd.retry.maxDelay" . }}
+    {{- $redisNotificationValueFormats := list "ASASTRING" "ASAJSONSTRING" }}
+    {{- if and (eq ((((.Values.global).keyValueDatabaseRD).newOperator).enabled  | default false) false) (has (.Values.keyValueDatabaseRd.notificationValueFormat | upper | trim) $redisNotificationValueFormats )}}
+    keyValueDatabaseRd.notificationValueFormat: {{ .Values.keyValueDatabaseRd.notificationValueFormat }}
+    {{ else if and (eq ((((.Values.global).keyValueDatabaseRD).newOperator).enabled  | default false) true) (has (.Values.keyValueDatabaseRD.notificationValueFormat | upper | trim) $redisNotificationValueFormats) }}
+    keyValueDatabaseRd.notificationValueFormat: {{ .Values.keyValueDatabaseRD.notificationValueFormat }}
+    {{- else }}
+    {{- fail (print "The value for keyValueDatabaseRD.notificationValueFormat is not allowed: "  .Values.keyValueDatabaseRd.notificationValueFormat) }}
+    {{- end }}
+    kafka.retry.maxAttempts: {{ ternary .Values.messageBusKF.retry.maxAttempts .Values.kafka.retry.maxAttempts .Values.messageBusKF.enabled }}
+    kafka.retry.maxDelay: {{ ternary .Values.messageBusKF.retry.maxDelay .Values.kafka.retry.maxDelay .Values.messageBusKF.enabled }}
+    spring.kafka.producer.key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    spring.kafka.producer.value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    spring.kafka.producer.delivery.timeout.ms: {{ ternary .Values.messageBusKF.producer.delivery.timeout.ms .Values.kafka.producer.delivery.timeout.ms .Values.messageBusKF.enabled }}
+    spring.kafka.properties.max.block.ms: 3000
+    kafka.enabled: {{ or .Values.kafka.enabled .Values.messageBusKF.enabled }}
+    kafka.partitions: {{ ternary .Values.messageBusKF.topicBroNotificationCustomObject.defaultTopicPartitions .Values.kafka.partitions .Values.messageBusKF.enabled }}
+    kafka.replicationFactor: {{ ternary .Values.messageBusKF.topicBroNotificationCustomObject.defaultTopicReplicas .Values.kafka.replicationFactor .Values.messageBusKF.enabled }}
+    kafka.hostname: {{ ternary .Values.messageBusKF.clusterName .Values.kafka.hostname .Values.messageBusKF.enabled }}
+    kafka.port: {{ ternary .Values.messageBusKF.port .Values.kafka.port .Values.messageBusKF.enabled }}
+    kafka.tlsPort: {{ ternary .Values.messageBusKF.tlsPort .Values.kafka.tlsPort .Values.messageBusKF.enabled }}
+    keyValueDatabaseRd.enabled: {{ include "eric-ctrl-bro.kvdbrd.enabled" . }}
+    keyValueDatabaseRd.hostname: {{ include "eric-ctrl-bro.kvdbrd.hostname" . }}
+    keyValueDatabaseRd.port: {{ include "eric-ctrl-bro.kvdbrd.port" . }}
+    keyValueDatabaseRd.tlsPort: {{ include "eric-ctrl-bro.kvdbrd.tlsPort" . }}
+    keyValueDatabaseRd.maxLen: {{ include "eric-ctrl-bro.kvdbrd.maxLen" . }}
+    #Configuration for accessing kubernetes for agent discovery
+    kubernetes.agent.scope.annotation: backupType
+    #Configuration for the metrics exposed by BRO
+    management.endpoints.web.exposure.include=metrics,prometheus,beans,mappings
+    management.endpoints.jmx.exposure.exclude: \*
+    management.metrics.tags.applicationName: bro
+    #CM Mediator configuration
+    cm.mediator.api.suffix: api/v1
+    cm.mediator.url = {{ .Values.bro.CMMediatorUrl }}
+    server.port = {{ .Values.bro.restPort }}
+    server.tls.port = {{ .Values.bro.restTlsPort }}
+    grpc.server.port = {{ include "eric-ctrl-bro.globalBroGrpcServicePort" . }}
+    logging.config = {{ .Values.bro.logging.logDirectory }}/{{ .Values.bro.logging.log4j2File }}
+    logging.level.org.apache.tomcat.util.net.NioEndpoint = warn
+    backup.location = {{ $backupLocation }}/backups
+    backup.managers.location = {{ $backupLocation }}/backupManagers
+    backup.dummy.location = {{ $backupLocation }}/reservedspace
+    backup.autoDeleteFailures = {{ .Values.bro.immediateFailedBackupDeletion | default "false" }}
+    kubernetes.namespace.environment.variable = {{ .Values.bro.namespaceEnvironmentVariable }}
+    flag.enable.notification = {{ .Values.bro.enableNotifications }}
+    flag.enable.agent.discovery = {{ .Values.bro.enableAgentDiscovery }}
+    flag.enable.enableLimitedParallelActions = {{ .Values.bro.enableLimitedParallelActions }}
+    kubernetes.agent.id.label = {{ include "eric-ctrl-bro.globalBrLabelKey" . }}
+    flag.enable.cm = {{ .Values.bro.enableConfigurationManagement }}
+    {{- if eq .Values.bro.enableConfigurationManagement true }}
+    kms.hostname = {{ .Values.kms.hostname | default "eric-sec-key-management" }}
+    kms.port = {{ .Values.kms.port | default 8200 }}
+    cm.key.role = {{.Values.kms.cm.key.role | default "eric-cm-key-role" }}
+    cm.key.name = {{ .Values.kms.cm.key.name | default "eric-cm-key-v1" }}
+    cmm.retry.maxAttempts= {{ .Values.cmm.retry.maxAttempts | default 10 }}
+    cmm.retry.maxDelay= {{ .Values.cmm.retry.maxDelay | default 3000 }}
+    {{- end }}
+    {{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") }}
+    jasypt.encryptor.password = planb
+    cm.mediator.url.tls = {{ .Values.bro.CMMediatorUrlTLS }}
+    #cmm notifications and cmyp client CA's, so our tomcat context can validate cmyp and cmm notification requests
+    {{- if .Values.bro.enableConfigurationManagement }}
+
+    {{ template "eric-ctrl-bro.cmyp.ca.mount.paths" . }}
+
+    security.cmm.notifications.keystore.path = /temp/ericsson/br/cmmNotificationEndpointKeystore.p12
+    security.cmm.notifications.keystore.password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    security.bro.cmm.notif.port = {{ .Values.bro.cmmNotifTlsPort }}
+    server.ssl.enabled = true
+    server.ssl.key-store-type=PKCS12
+    server.ssl.key-store = /temp/ericsson/br/cmmNotificationEndpointKeystore.p12
+    server.ssl.key-store-password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    server.ssl.key-alias = CM
+    server.ssl.enabled-protocols=TLSv1.2
+    {{- end }}
+
+    #SIPTLS root CA
+    security.siptls.root.ca.path = /run/secrets/cas/siptls/cacertbundle.pem
+
+    #Bro client CA file, used to sign and validate the client certs
+    #of any service for which BRO acts as a server (e.g. the REST endpoint)
+    security.bro.ca.path = /run/secrets/cas/broca/broCAcertbundle.pem
+
+    #Cert and key used whenever BRO acts as a server (E.G. REST, PM endpoints)
+    security.bro.server.key.path = /run/secrets/certs/server/srvprivkey.pem
+    security.bro.server.cert.path = /run/secrets/certs/server/srvcert.pem
+
+    #Keystore information for REST endpoint keystore
+    security.bro.keystore.password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    security.bro.keystore.path = /temp/ericsson/br/broRestEndpointKeystore.p12
+
+    #CMM rest endpoint keystore settings and client key/cert pair
+    {{- if .Values.bro.enableConfigurationManagement }}
+    security.cmm.keystore.password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    security.cmm.keystore.path = /temp/ericsson/br/cmmRestEndpointKeystore.p12
+    security.cmm.client.key.path = /run/secrets/certs/cmmserver/cmmclientprivkey.pem
+    security.cmm.client.cert.path = /run/secrets/certs/cmmserver/cmmclientcert.pem
+    {{- end }}
+
+    #OSMN endpoint keystore settings
+    {{- if .Values.osmn.enabled }}
+    security.osmn.keystore.password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    security.osmn.keystore.path = /temp/ericsson/br/OSMNKeystore.p12
+    #These two intentionally left blank as OSMN does not support mTLS at time of writing (07/09/21)
+    security.osmn.client.key.path =
+    security.osmn.client.cert.path =
+    {{- end }}
+
+    #PM server keystore information and CA used to sign client certs
+    security.pm.keystore.password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    security.pm.keystore.path = /temp/ericsson/br/pmEndpointKeystore.p12
+    {{- if eq .Values.metrics.enabled true }}
+    security.pm.client.ca.path = /run/secrets/cas/pm/client-cacertbundle.pem
+    management.server.ssl.trust-store = /temp/ericsson/br/pmEndpointKeystore.p12
+    management.server.ssl.trust-store-password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    management.server.ssl.trust-store-type = PKCS12
+    {{- end }}
+    management.server.ssl.enabled = true
+    management.server.ssl.key-store-type=PKCS12
+    management.server.ssl.key-store = /temp/ericsson/br/pmEndpointKeystore.p12
+    management.server.ssl.key-store-password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    management.server.ssl.key-alias = PM
+    management.server.ssl.enabled-protocols=TLSv1.2,+TLSv1.3
+    {{- if (eq (include "eric-ctrl-bro.pmServerSecurityType" .) "need") }}
+    management.server.ssl.client-auth = need
+    {{- else }}
+    management.server.ssl.client-auth = want
+    {{- end }}
+    {{- if .Values.bro.enableNotifications }}
+    {{- if or .Values.kafka.enabled .Values.messageBusKF.enabled}}
+    spring.kafka.ssl.key-store-location = file:/temp/ericsson/br/mbkfClientKeystore.p12
+    spring.kafka.ssl.key-store-password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    spring.kafka.ssl.key-store-type = PKCS12
+    spring.kafka.ssl.trust-store-location = file:/temp/ericsson/br/mbkfClientKeystore.p12
+    spring.kafka.ssl.trust-store-password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    spring.kafka.ssl.trust-store-type = PKCS12
+    spring.kafka.properties.ssl.endpoint.identification.algorithm= https
+    spring.kafka.properties.security.protocol = SSL
+    security.kafka.keystore.path = /temp/ericsson/br/mbkfClientKeystore.p12
+    security.kafka.keystore.password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    security.kafka.client.key.path = /run/secrets/certs/mbkfserver/mbkfclientprivkey.pem
+    security.kafka.client.cert.path = /run/secrets/certs/mbkfserver/mbkfclientcert.pem
+    {{- end }}
+    {{- if eq (include "eric-ctrl-bro.kvdbrd.enabled" .) "true" }}
+    security.redis.keystore.path = /temp/ericsson/br/kvdbRdClientKeystore.p12
+    security.redis.keystore.password = ENC(FhF5ZkCPtebn8syHVOGiy6J1q5Qzhgmu2PQjSA1qBQHucvLVtlCO9K1UNy/3Dovf)
+    security.redis.client.key.path = /run/secrets/certs/kvdbrdserver/kvdbrdclientprivkey.pem
+    security.redis.client.cert.path = /run/secrets/certs/kvdbrdserver/kvdbrdclientcert.pem
+    {{- end }}
+    {{- if and (not .Values.kafka.enabled) (not .Values.messageBusKF.enabled) (eq (include "eric-ctrl-bro.kvdbrd.enabled" .) "false") }}
+    {{- fail "Either kafka or redis must be enabled when notification enabled" }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+
+    sftp.retry.attempts = {{ .Values.sftp.retry.attempts }}
+    sftp.retry.delayMs = {{ .Values.sftp.retry.delayMs }}
+    sftp.inactivity.seconds = {{ include "eric-ctrl-bro.monitorTimeout" . }}
+    {{- $compressionLevels := list "BEST_SPEED" "BEST_COMPRESSION" "DEFAULT_COMPRESSION" "NO_COMPRESSION" }}
+    {{- if has (.Values.sftp.archive.compressionLevel | upper | trim) $compressionLevels }}
+    sftp.archive.compressionLevel = {{ .Values.sftp.archive.compressionLevel }}
+    {{- else }}
+    {{- fail (print "The value for sftp.archive.compressionLevel is not allowed: "  .Values.sftp.archive.compressionLevel) }}
+    {{- end }}
+    sftp.egress.dscp = {{ include "eric-ctrl-bro.getEgressbackupStorageSvrDscp" . }}
+
+    {{- $vBRMAutoGenTypes := list "ALL" "DEFAULT" "NONE" }}
+    {{- if has (.Values.bro.vBRMAutoCreate | upper | trim) $vBRMAutoGenTypes }}
+    vBRMAutoCreate = {{ .Values.bro.vBRMAutoCreate | upper | trim }}
+    {{- else }}
+    {{- fail (print "The value for bro.vBRMAutoCreate is not allowed: " .Values.bro.vBRMAutoCreate) }}
+    {{- end }}
+    flag.deleteVBRM = {{ .Values.bro.deleteVBRM}}
+
+    bro.service.name = {{ include "eric-ctrl-bro.name" . }}
+    bro.service.version = {{ include "eric-ctrl-bro.version" . }}
+    bro.product.name = {{ template "eric-ctrl-bro.productName" . }}
+    bro.product.number = {{ template "eric-ctrl-bro.productNumber" . }}
+    bro.product.revision = {{.Values.productInfo.rstate}}
+    kubernetes.app.product.info.configmap.name = {{tpl (.Values.bro.appProductInfoConfigMap | toString) .}}
+    kubernetes.app.product.check.configmap.name = {{ template "eric-ctrl-bro.name" . }}-product-check
+    spring.kafka.producer.bootstrap-servers = {{ include "eric-ctrl-bro.message-bus-kf-endpoint" . | replace "\"" ""}}
+    global.tls = {{ template "eric-ctrl-bro.globalSecurity" . }}
+
+    {{- $selectedMatchType := .Values.bro.selectedMatchType }}
+    {{- if $selectedMatchType }}
+    {{- $matchTypes := list "PRODUCT" "SEMVER" }}
+    {{- if has (.Values.bro.selectedMatchType | upper | trim) $matchTypes }}
+    bro.selectedMatchType = {{ .Values.bro.selectedMatchType | upper | trim }}
+    {{- else }}
+    {{- fail (print "The value for bro.selectedMatchType is not allowed: " .Values.bro.selectedMatchType) }}
+    {{- end }}
+    {{- else }}
+    bro.selectedMatchType = "PRODUCT"
+    {{- end }}
+
+    {{- $productMatchType := .Values.bro.productMatchType }}
+    {{- if $productMatchType }}
+    {{- $productMatchTypes := list "ANY" "EXACT_MATCH" "LIST" }}
+    {{- if has (.Values.bro.productMatchType | upper | trim) $productMatchTypes }}
+    bro.productMatchType = {{ .Values.bro.productMatchType | upper | trim }}
+    {{- else }}
+    {{- fail (print "The value for bro.productMatchType is not allowed: " .Values.bro.productMatchType) }}
+    {{- end }}
+    {{- else }}
+    bro.productMatchType = "ANY"
+    {{- end }}
+
+    {{- $semVerMatchType := .Values.bro.semVerMatchType }}
+    {{- if $semVerMatchType }}
+    {{- $semVerMatchTypes := list "ANY" "GREATER_THAN" }}
+    {{- if has (.Values.bro.semVerMatchType | upper | trim) $semVerMatchTypes }}
+    bro.semVerMatchType = {{ .Values.bro.semVerMatchType | upper | trim }}
+    {{- else }}
+    {{- fail (print "The value for bro.semVerMatchType is not allowed: " .Values.bro.semVerMatchType) }}
+    {{- end }}
+    {{- else }}
+    bro.semVerMatchType = "ANY"
+    {{- end }}
+
+    {{- $productLowestAllowedVersion := .Values.bro.productLowestAllowedVersion }}
+    {{- if $productLowestAllowedVersion }}
+    {{- if regexMatch "\\d+[.]\\d+[.]\\d+" (.Values.bro.productLowestAllowedVersion | trim) }}
+    bro.productLowestAllowedVersion = {{ .Values.bro.productLowestAllowedVersion | trim | regexFind "\\d+[.]\\d+[.]\\d+" }}
+    {{- else }}
+    {{- fail (print "The value for bro.productLowestAllowedVersion is not allowed: " .Values.bro.productLowestAllowedVersion) }}
+    {{- end }}
+    {{- else }}
+    bro.productLowestAllowedVersion = "0.0.0"
+    {{- end }}
+
+    flag.global.security = {{ template "eric-ctrl-bro.globalSecurity" . }}
+    grpc.verifyClientCertificateEnforced = {{ .Values.service.endpoints.broToAgent.tls.verifyClientCertificate }}
+    restActions.tlsRequired = {{ .Values.service.endpoints.restActions.tls.enforced }}
+    restActions.verifyClientCertificateEnforced = {{ .Values.service.endpoints.restActions.tls.verifyClientCertificate }}
+    rest.verifyCMMNotifyCertificateEnforced = {{ .Values.service.endpoints.cmmHttpNotif.tls.verifyClientCertificate }}
+    healthStatus.folder = /healthStatus
+    sftpTimeout = {{ template "eric-ctrl-bro.sftpTimeout" . }}
+    bro.pvc.size = {{ .Values.persistence.persistentVolumeClaim.size }}
+    {{ if eq .Values.osmn.enabled true -}}
+    osmn.enabled = {{ .Values.osmn.enabled }}
+    osmn.host = {{ .Values.osmn.host }}
+    osmn.port = {{ .Values.osmn.port }}
+    osmn.bucketName = {{ .Values.osmn.bucketName }}
+    osmn.region = {{ .Values.osmn.region }}
+    {{- with $.Values.osmn.retries }}
+    osmn.retries.operation = {{ .operation | default 10}}
+    osmn.retries.startup = {{ .startup | default 30}}
+    {{- end }}
+    {{- with $.Values.osmn.connection }}
+    osmn.connection.readTimeOut = {{ .readTimeOut | default 10000}}
+    osmn.connection.timeout = {{ .timeout | default 1000}}
+    {{- end }}
+    osmn.credentials.secretKeyName = ${OSMN_SECRET_KEY}
+    osmn.credentials.accessKeyName = ${OSMN_ACCESS_KEY}
+    osmn.credentials.path = /run/secrets/certs/objectstore/credentials
+    osmn.skipMD5CheckSum = {{ hasKey .Values.osmn "skipMD5CheckSum" | ternary .Values.osmn.skipMD5CheckSum true }}
+    {{- else }}
+    osmn.enabled = {{ .Values.osmn.enabled }}
+    {{- end }}
+    kvdbrd.acl.enabled = {{ include "eric-ctrl-bro.acl.enabled" . }}
+    {{- if and (eq .Values.bro.enableNotifications true) (eq (include "eric-ctrl-bro.kvdbrd.enabled" .) "true") (eq (include "eric-ctrl-bro.acl.enabled" .) "true") }}
+    kvdbrd.acl.username = ${KVDBRDUSER}
+    kvdbrd.acl.password = ${KVDBRDPASSWORD}
+    {{- end }}
+    spring.main.allow-circular-references = true

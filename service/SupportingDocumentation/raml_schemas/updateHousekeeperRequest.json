@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "UpdateHousekeeperRequest",
+  "title": "UpdateHousekeeperRequest",
+  "description": "Not Implemented",
+  "type": "object",
+  "properties": {
+    "auto-delete": {
+      "type": "String",
+      "description": "auto-delete not implemented for V1"
+    },
+    "max-stored-manual-backups": {
+      "type": "integer",
+      "description": "max-stored-manual-backups not implemented for V1"
+    }
+  }
+}

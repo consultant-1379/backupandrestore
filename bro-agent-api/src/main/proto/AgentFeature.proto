@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.metadata";
+
+/**
+    Defines all features an Agent can potentially use, indicates to the Backup and Restore Orchestrator
+    The feature set available in the particular agent.
+**/
+enum AgentFeature {
+    PLAINTEXT = 0;             // The agent is running in a non TLS mode
+    TLS = 1;                   // The agent is running in a TLS only mode
+    MTLS = 2;                  // The agent is running in an mTLS only mode
+    PREPARE_STAGE = 3;         // The agent supports running operations before a backup/restore
+    POST_STAGE = 4;            // The agent supports running operations after a backup/restore
+    MULTIPLE_BACKUP_TYPES = 5; // The agent supports taking multiple backup types
+    SELECTIVE_BACKUP = 6;      // The agent can be configured to include only parts of a Data Management service's data, for example an individual logical database or table.
+    CHECKPOINTS = 7;           // The agent supports checkpoints allowing for a restore/backup operation to be retried from a point in time within a stage
+    RESUME = 8;                // The agent can rejoin a running operation provided it successfully completed its last stage
+    CHECKSUM_NONE = 9;         // The agent will transfer data to the BRO over the data interface without calculating a checksum for the fragment (maximum throughput, lowest CPU)
+    CHECKSUM_MD5 = 10;         // The agent will transfer data to the BRO and calculate an MD5 checksum of the data (lowest throughput, highest cpu)
+    CHECKSUM_XXHASH_64 = 11;   // The agent will transfer data to the BRO and calculate an xxhash checksum of the data (high throughput, balanced cpu usage)
+}

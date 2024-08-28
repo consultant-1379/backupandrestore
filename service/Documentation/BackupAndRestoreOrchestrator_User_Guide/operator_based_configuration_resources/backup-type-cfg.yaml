@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: <As per DR/GL for the application>
+  labels:
+    ericsson.com/backup-types-config = <application-name>
+# include as needed
+#  annotations:
+data:
+  backup-types-cfg: |
+    schema:
+      openAPIV3Schema:
+        description: backupType config to describe the dataset groupings for backups
+        version: 1.0.0
+        backupTypes:
+          description: provides the list of backup types as defined by the application, the DEFAULT type will always be created regardless of one being defined here.
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                description: provides the name of a backup type that will be associated with data sets
+                type: string
+                dataSets:
+                  description: list of all backup/restore data set names that belong to the backup type
+                  type: array
+                  nullable: false
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        description: data set name that is to be included in the backup type.
+                        type: string

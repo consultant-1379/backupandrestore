@@ -1,0 +1,31 @@
+modelVersion: 2.0
+
+docker-images:
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+
+env:
+  - PWD
+  - KUBECONFIG
+  - NAMESPACE
+
+rules:
+  ns-recreation:
+    - task: recreate-namespaces
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.PWD}:${env.PWD}"
+      cmd:
+        - kubectl delete ns ${env.NAMESPACE} --ignore-not-found=true
+        - kubectl create ns ${env.NAMESPACE}
+        - kubectl delete clusterrolebinding --ignore-not-found=true testfw-clusterrolebind-${env.NAMESPACE}
+        - kubectl delete clusterrolebinding --ignore-not-found=true bro-intchart-monitoring-${env.NAMESPACE}
+        - kubectl delete clusterrole --ignore-not-found=true bro-intchart-monitoring-${env.NAMESPACE}
+        - sed 's:<namespace>:${env.NAMESPACE}:g' test/roles/testfw_systest_bind.yaml > testfw_systest_bind-${env.NAMESPACE}.yaml
+        - kubectl create -f testfw_systest_bind-${env.NAMESPACE}.yaml
+        - sed 's:<namespace>:${env.NAMESPACE}:g' test/roles/testfw_role_k8s.yaml > testfw_role_k8s-${env.NAMESPACE}.yaml
+        - kubectl -n ${env.NAMESPACE} create -f testfw_role_k8s-${env.NAMESPACE}.yaml
+        - sed 's:<namespace>:${env.NAMESPACE}:g' test/roles/testfw_bind_k8s.yaml > testfw_bind_k8s-${env.NAMESPACE}.yaml
+        - kubectl -n ${env.NAMESPACE} create -f testfw_bind_k8s-${env.NAMESPACE}.yaml

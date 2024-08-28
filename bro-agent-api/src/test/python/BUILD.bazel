@@ -1,0 +1,60 @@
+load(":pytest_runner.bzl", "pytest_runner")
+
+pytest_runner(
+    name = "TestBackupExecutionActions",
+    data = [
+        "//:TestFiles",
+    ],
+)
+
+pytest_runner(
+    name = "TestBackupService",
+    data = [
+        "//:TestFiles",
+    ],
+)
+
+pytest_runner(
+    name = "TestRestoreService",
+    data = [
+        "//:TestFiles",
+    ],
+)
+
+pytest_runner("TestAgent")
+
+pytest_runner("TestAgentFactory")
+
+pytest_runner("TestBackupFileMessageBuilder")
+
+pytest_runner("TestBackupFragmentInformation")
+
+pytest_runner("TestCancelActionState")
+
+pytest_runner("TestFinishedActionState")
+
+pytest_runner("TestCancelAction")
+
+pytest_runner("TestCustomMetadataFileMessageBuilder")
+
+pytest_runner("TestChecksumCalculator")
+
+pytest_runner("TestFragmentInformation")
+
+pytest_runner("TestFileChunkServiceUtil")
+
+pytest_runner("TestRegistrationInformation")
+
+pytest_runner("TestOrchestratorConnectionInformation")
+
+pytest_runner("TestOrchestratorGrpcChannel")
+
+pytest_runner("TestRestoreActions")
+
+pytest_runner("TestRestoreExecutionState")
+
+pytest_runner("TestRestorePostActionState")
+
+pytest_runner("TestRestorePreparationState")
+
+pytest_runner("TestWaitingForActionState")

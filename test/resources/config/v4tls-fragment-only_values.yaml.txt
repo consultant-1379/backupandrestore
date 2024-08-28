@@ -1,0 +1,30 @@
+brAgent:
+  commandArgs: "cp /servicedata/data.txt backupdata/v4tls-fragment-only_1_data.txt; rm -rf /servicedata; /usr/bin/java -Dlog4j.configurationFile=/var/log/ericsson/log4j2.xml -jar /testagent/brotestagent.jar /testagent/application.properties"
+  brLabelValue: "v4tls-fragment-only"
+  backupTypeList:
+    - "subscriber"
+  properties:
+    fileName: "application.properties"
+    applicationProperties:
+      #this value will be taken from the values global.adpBR.broServiceName
+      orchestrator.host: eric-ctrl-bro
+      #this value will be taken from the values global.adpBR.broGrpcServicePort
+      orchestrator.port: 3000
+      #this value will be taken from the values brAgent.brLabelValue
+      test.agent.id: ""
+      #this value will be taken from the first brAgent.backupTypeList.backupType
+      test.agent.scope: ""
+      test.agent.softwareVersion.description: agent v4tls-fragment-only
+      test.agent.softwareVersion.productionDate: 2019-08-08
+      test.agent.softwareVersion.productName: Tiger
+      test.agent.softwareVersion.productNumber: CXC 888 88/8
+      test.agent.softwareVersion.type: Legend
+      test.agent.softwareVersion.revision: R15
+      test.agent.fragment.backup.data.path: /backupdata/v4tls-fragment-only_1_data.txt
+      test.agent.fragment.custom.backup.data.path: ","
+      test.agent.download.location: /restoredata
+      # test.agent.agentBehavior is used for BRO Orchestrator test purposes ONLY. This must be left empty otherwise.
+      test.agent.agentBehavior:
+      siptls.ca.path: ""
+      siptls.ca.name: ""
+      flag.global.security: ""

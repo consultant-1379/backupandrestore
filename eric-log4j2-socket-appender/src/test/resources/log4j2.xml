@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="info" packages="com.ericsson.adp.mgmt.syslog.appender">
+    <Appenders>
+        <BufferedSocketAppender name="SimpleAppender" host="127.0.0.1" port="5014" maxSize="3" connectionTimeout="50" appendTimeout="100">
+            <RFC5424Layout appName="eric-ctrl-bro" newLine="true"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </BufferedSocketAppender>
+        <BufferedSocketAppender name="TLSAppender" host="127.0.0.1" port="5015" maxSize="3" connectionTimeout="50" appendTimeout="100" >
+<!--            <StreamSslConfiguration privatekey="src/test/resources/cmmclientprivkey.pem"
+                                    certificate="src/test/resources/cmmclientcert.pem"
+                                    ca="src/test/resources/ca.pem"
+                                    keystore="src/test/resources/test.p12"
+                                    caAlias="siptls"
+                                    certAlias="LT"/>-->
+            <!--RFC5424Layout Parameters for host, port-->
+            <RFC5424Layout appName="eric-ctrl-bro" newLine="true"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </BufferedSocketAppender>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{YYYY-MM-dd'T'HH:mm:ss.sssXXX} %p %c{1}: %m%n"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="SimpleAppender"/>
+        </Root>
+        <Logger name="com.ericsson.adp.mgmt.eric-log4j2-syslog-appender" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+    </Loggers>
+</Configuration>

@@ -1,0 +1,58 @@
+def bob = './bob/bob -r service/ruleset.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    environment {
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+    }
+    stages {
+        stage('Prepare bob') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Add repo bro-chart-repo') {
+            environment {
+                FUNCTIONAL = credentials('eadphub-psw')
+            }
+            steps {
+                sh "helm3 repo add bro-chart-repo https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-internal-helm --username ${env.FUNCTIONAL_USR} --password ${env.FUNCTIONAL_PSW}"
+                sh "helm3 repo update"
+            }
+        }
+        stage('Integration Test') {
+            environment {
+                NAMESPACE = "cicd-bro-nightly-nose"
+                LATEST_BRO_VERSION = "${sh(script:'echo `helm3 search repo bro-chart-repo --devel | awk \'{print $2}\' | tail -n 1` | xargs echo -n', returnStdout: true)}"
+                PYTHON_FILE = "nose_auto_nightly.py"
+            }
+            steps {
+                withCredentials([
+                    file(credentialsId: 'hall060', variable: 'KUBECONFIG'),
+                    file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                    file(credentialsId: 'hub-armdocker-config-json', variable: 'DOCKER_CONFIG')
+                ]) {
+                        sh "${bob} set-version"
+                        sh "${bob} setup-repo-paths:is-master"
+                        sh "${bob} setup-repo-paths:set-test-repo"
+                        sh "${bob} deploy-to-k8s"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'artifact.properties, output.html, pod_logs/*.*,', allowEmptyArchive: true
+        }
+    }
+}

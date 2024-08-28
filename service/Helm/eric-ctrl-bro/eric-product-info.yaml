@@ -1,0 +1,10 @@
+productName: "Backup and Restore Orchestrator"
+productNumber: "CXC 201 2182"
+images:
+  backupAndRestore:
+    productName: "Backup and Restore Orchestrator"
+    productNumber: "CXC 201 2181"
+    registry: armdocker.rnd.ericsson.se
+    repoPath: REPO_PATH
+    name: eric-ctrl-bro
+    tag: VERSION

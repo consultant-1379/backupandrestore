@@ -1,0 +1,37 @@
+{{- if .Values.global -}}
+{{- if and .Values.global.networkPolicy .Values.networkPolicy -}}
+{{- if and .Values.global.networkPolicy.enabled .Values.networkPolicy.enabled -}}
+{{- if and (.Values.bro.enableNotifications) (or .Values.kafka.enabled .Values.messageBusKF.enabled) -}}
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-mbkf-allow
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "eric-ctrl-bro.name" . }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ regexReplaceAll  "-client$" (include "eric-ctrl-bro.certificate-authorities.message-bus-kf" .) "" }}
+    ports:
+    {{ if eq (include "eric-ctrl-bro.kafkaOperatorEnabled" .) "true" -}}
+    - port: {{ .Values.messageBusKF.port }}
+      protocol: TCP
+    - port: {{ .Values.messageBusKF.tlsPort }}
+      protocol: TCP
+    {{- else -}}
+    - port: {{ .Values.kafka.port }}
+      protocol: TCP
+    - port: {{ .Values.kafka.tlsPort }}
+      protocol: TCP
+    {{- end -}}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,57 @@
+modelVersion: 2.0
+
+docker-images:
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+
+properties:
+- service-name: eric-ctrl-bro
+- k8-namespace: yang-model-pipeline
+
+env:
+  - PWD
+  - KUBECONFIG
+  - DOCKER_CONFIG
+  - API_TOKEN
+  - CI_USER
+  - USERS_YAML
+
+rules:
+
+  run-yang-model-tests:
+    - task: run-yang-model-tests
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+        - "--volume ${env.DOCKER_CONFIG}:${env.DOCKER_CONFIG}"
+      cmd:
+        - kubectl --namespace ${k8-namespace} delete secret --all
+        - kubectl --namespace ${k8-namespace} delete serviceaccount --all
+        - kubectl --namespace ${k8-namespace} delete pdb --all
+        - kubectl --namespace ${k8-namespace} delete services --all
+        - kubectl --namespace ${k8-namespace} delete statefulsets --all
+        - kubectl --namespace ${k8-namespace} delete deployments --all
+        - kubectl --namespace ${k8-namespace} delete jobs --all
+        - kubectl create secret generic pm-bro-test-sftp-users-secret --from-file=${env.USERS_YAML} --namespace ${k8-namespace}
+        - kubectl create secret generic armdocker --from-file=.dockerconfigjson=${env.DOCKER_CONFIG} --type=kubernetes.io/dockerconfigjson --namespace ${k8-namespace}
+        - kubectl create secret generic eric-sec-access-mgmt-creds -n ${k8-namespace} --from-literal=pguserid=pguserplanb --from-literal=pgpasswd=pgpwplanb --from-literal=kcadminid=adminplanb --from-literal=kcpasswd=kcpwb@Planb1
+        - kubectl create secret generic docdb-secret --from-literal=custom-user=tester --from-literal=custom-pwd=testpsw --from-literal=super-pwd=supertestpsw --from-literal=metrics-pwd=metricspsw --from-literal=replica-user=replicauser --from-literal=replica-pwd=replicapwd --namespace ${k8-namespace}
+        - kubectl create secret generic eric-data-distributed-coordinator-creds --namespace ${k8-namespace} --from-literal=etcdpasswd=$(echo -n "testdcedpsw" | base64)
+        - python testframework/bootstrap.py --kubernetes-admin-conf="${env.KUBECONFIG}"
+                                              --kubernetes-namespace="${k8-namespace}"
+                                              --chart-archive=""
+                                              --helm-repo="https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-broint-internal-helm-local"
+                                              --baseline_chart_version=""
+                                              --baseline_deployment_type="deployment"
+                                              --baseline_chart_name="${service-name}"
+                                              --test-params unused1=1
+                                              --armuser="${env.CI_USER}"
+                                              --armpswd="${env.API_TOKEN}"
+                                              --copy-all-pod-logs=True
+                                              --archive-files-to-copy=True
+                                              --copy-directories test/resources/schema test/resources/keys test/resources/config test/utils
+                                              --fail-first=True
+                                              -s yang_model_test.py

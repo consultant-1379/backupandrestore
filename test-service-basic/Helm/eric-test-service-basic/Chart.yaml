@@ -1,0 +1,4 @@
+apiVersion: v2
+name: eric-test-service-basic
+description: Basic Test Service to be used in BRO Service verification
+version: 3.0.12-1

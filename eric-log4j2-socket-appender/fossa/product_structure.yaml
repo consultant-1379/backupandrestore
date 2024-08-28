@@ -1,0 +1,32 @@
+modelVersion: "2.0"
+flavor: "Generic"
+service:
+  # name of the service:
+  name: "Log4j2 Socket Appender"
+  # Design Country (set on the source products)
+  design_countries:
+   - IE                 # Ireland
+  # Compilation Country (Set on the derivative products)
+  sw_compilation_country: SE
+  # Release responsible
+  release_responsible: BCSDRAFF
+  #  Design responsible
+  design_responsible: BCSDRAFF
+  # Bookmarks
+  bookmark: PRIM
+  src_products:
+    # Source Code Product
+    - label: Source
+      number: CAV 101 878
+  derivative_products:
+    - label: "JAR_2PP"
+      number: "CXA 301 004"
+      description: "Log4j2 Socket Appender"
+      uses_foss:
+        - dependencies_file: ./dependencies.yaml
+#  FOSS Usage YAML, optional only needed if you make changes to a 3PP
+#       - foss_usage: foss.usage.yaml
+      uses_encryption:
+        - import: ./encryptions.yaml
+      derivedFrom:
+        munin: CAV 101 878

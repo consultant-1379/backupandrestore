@@ -1,0 +1,622 @@
+module ericsson-brm-ext-static-data-dev {
+    yang-version 1.1;
+    namespace "urn:rdns:com:ericsson:oammodel:ericsson-brm-ext-static-data-dev";
+    prefix brmxesdde;
+
+    import ericsson-yang-extensions {
+        prefix yexte;
+    }
+    import ericsson-brm {
+        prefix brme;
+    }
+
+    organization
+    "Ericsson AB";
+    contact
+    "Ericsson first line support via email";
+    description
+    "The module deviates ericsson-brm.
+
+     Copyright Ericsson AB 2024. All rights reserved.";
+
+    revision 2024-01-23 {
+      description
+        "Add config true deviation to all children of
+         static-data deviated lists and containers, as
+         config true deviations are not inherited";
+      yexte:version 1;
+      yexte:release 1;
+      yexte:correction 0;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup-type" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup-domain" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:action-name"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:additional-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:progress-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:progress-percentage"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:result"  {
+      deviate replace {
+          config true;
+      }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:result-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:state"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:action-id"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:time-action-started"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:time-action-completed"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:progress-report"
+            + "/brme:time-of-last-status-update"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+
+
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup"
+            + "/brme:id"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup"
+            + "/brme:backup-name"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup"
+            + "/brme:creation-time"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup"
+            + "/brme:status"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup"
+            + "/brme:progress-report"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:action-name"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:additional-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:progress-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:progress-percentage"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:result"  {
+      deviate replace {
+          config true;
+      }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:result-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:state"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:action-id"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:time-action-started"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:time-action-completed"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:progress-report"
+            + "/brme:time-of-last-status-update"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup"
+            + "/brme:creation-type"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup"
+            + "/brme:sw-version"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:product-name"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:product-number"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:product-revision"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:semantic-version"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:commercial-version"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:production-date"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:description"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:sw-version"
+            + "/brme:type"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:action-name"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:additional-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:progress-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:progress-percentage"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:result"  {
+      deviate replace {
+          config true;
+      }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:result-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:state"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:action-id"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:time-action-started"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:time-action-completed"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:progress-report"
+            + "/brme:time-of-last-status-update"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:most-recently-created-auto-backup" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:next-scheduled-time" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:label-store" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:label-store"
+            + "/brme:last-restored-backup"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:label-store"
+            + "/brme:last-created-backup"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:label-store"
+            + "/brme:last-imported-backup"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:label-store"
+            + "/brme:last-exported-backup"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:label-store"
+            + "/brme:restore-escalation-list"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:backup-name" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:time-remaining" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:usage-state" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:action-name"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:additional-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:progress-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:progress-percentage"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:result"  {
+      deviate replace {
+          config true;
+      }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:result-info"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:state"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:action-id"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:time-action-started"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:time-action-completed"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:failsafe-backup/brme:progress-report"
+            + "/brme:time-of-last-status-update"  {
+        deviate replace {
+            config true;
+        }
+    }
+
+
+
+    deviation "/brme:brm/brme:rollback-at-restore/brme:time-remaining-before-rollback" {
+        deviate replace {
+            config true;
+        }
+        deviate add {
+            yexte:static-data true;
+        }
+    }
+}
+
+

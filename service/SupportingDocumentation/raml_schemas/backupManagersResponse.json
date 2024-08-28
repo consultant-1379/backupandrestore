@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "BackupManagersResponse",
+  "title": "BackupManagersResponse",
+  "description": "Gets all backupManagers",
+  "type": "object",
+  "properties": {
+    "backupManagers": {
+      "type": "array",
+      "description": "All backupManagers",
+      "items": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Identifier of the backup-manager"
+            },
+            "backupType": {
+              "type": "string",
+              "description": "Type of backup, for example System Data or User Data"
+            },
+            "backupDomain": {
+              "type": "string",
+              "description": "Backup domain, for example System"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "backupManagers"
+  ]
+}

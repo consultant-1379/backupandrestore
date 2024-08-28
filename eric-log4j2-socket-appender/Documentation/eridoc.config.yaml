@@ -1,0 +1,16 @@
+repository: eridoca
+# ADP Reference Microservice folder:
+folderId: 0b004cffc1b15332
+documents:
+  - title: "Log4j2 Socket Appender Installation Guide"
+    file: "./build/eric-log4j2-socket-appender/Documentation/Log4j_Socket_Appender_Installation_Guide/Log4j_Socket_Appender_Installation_Guide.sdif"
+    source_files:
+      - "./eric-log4j2-socket-appender/Documentation/Log4j_Socket_Appender_Installation_Guide/Log4j_Socket_Appender_Installation_Guide.txt"
+      - "./eric-log4j2-socket-appender/Documentation/Log4j_Socket_Appender_Installation_Guide/Appender.png"
+    decimal-class: "198 17"
+    class-prefix: "1"
+    individual-number: "CXA 301 004/1"
+    eri_document_type: "User Guide"
+    lang: "en"
+    format: "sdif"
+    eri_doc_responsible: "BDGS SA OSS"

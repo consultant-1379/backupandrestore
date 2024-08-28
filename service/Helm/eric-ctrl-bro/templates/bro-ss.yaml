@@ -1,0 +1,238 @@
+{{- $configMapName := include "eric-ctrl-bro.name" . -}}
+{{- $g := fromJson (include "eric-ctrl-bro.globalMap" .) -}}
+
+apiVersion: apps/v1
+{{- if .Values.osmn.enabled }}
+kind: Deployment
+{{- else }}
+kind: StatefulSet
+{{- end }}
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+     app.kubernetes.io/name: {{ template "eric-ctrl-bro.name" . }}
+     app.kubernetes.io/instance: {{.Release.Name | quote }}
+  {{- if not .Values.osmn.enabled }}
+  serviceName: {{ template "eric-ctrl-bro.name" . }}
+  {{- end }}
+  replicas: {{ .Values.bro.replicas }}
+  {{- if .Values.osmn.enabled }}
+  strategy:
+  {{- else }}
+  updateStrategy:
+  {{- end }}
+{{ toYaml .Values.updateStrategy | indent 4 }}
+  template:
+    metadata:
+      labels:
+        {{- $podTempLabels := dict -}}
+        {{- $_ := set $podTempLabels (printf "%s-access" .Values.pm.host) "true" -}}
+        {{- $_ := set $podTempLabels "sidecar.istio.io/inject" "false" -}}
+        {{- if .Values.bro.enableConfigurationManagement -}}
+          {{- $_ := set $podTempLabels (printf "%s-access" .Values.cmm.host) "true" -}}
+          {{- $_ := set $podTempLabels (printf "%s-access" .Values.cmyang.host) "true" -}}
+          {{- $_ := set $podTempLabels (printf "%s-access" .Values.kms.hostname) "true" -}}
+        {{- end -}}
+        {{- if .Values.osmn.enabled -}}
+          {{- $_ := set $podTempLabels (printf "%s-access" .Values.osmn.host) "true" -}}
+        {{- end }}
+        {{- if and (.Values.bro.enableNotifications) (or .Values.kafka.enabled .Values.messageBusKF.enabled) -}}
+            {{- $_ := set $podTempLabels (printf "%s-access" (include "eric-ctrl-bro.certificate-authorities.message-bus-kf" .)) "true" -}}
+        {{- end -}}
+        {{- if and .Values.bro.enableNotifications (eq (include "eric-ctrl-bro.kvdbrd.enabled" .) "true") -}}
+          {{- $_ := set $podTempLabels (printf "%s-access" (include "eric-ctrl-bro.kvdbrd.hostname" .)) "true" -}}
+        {{- end -}}
+        {{- $logstreaming := include "eric-ctrl-bro.logstreaming" . | fromYaml }}
+        {{/* direct or dual log streaming method enables tcp output */}}
+        {{- if or (eq "direct" (get $logstreaming "logOutput")) (eq "dual" (get $logstreaming "logOutput")) }}
+          {{- $_ := set $podTempLabels (printf "%s-access" .Values.logtransformer.host) "true" -}}
+        {{- end -}}
+        {{- $defaultLabels := fromYaml (include "eric-ctrl-bro.labels" .) -}}
+        {{- include "eric-ctrl-bro.mergeLabels" (dict "location" .Template.Name "sources" (list $podTempLabels $defaultLabels)) | trim | nindent 8 }}
+      annotations:
+        {{- $podTempAnn := dict -}}
+        {{- if ((.Values.bandwidth.backupAndRestore).maxEgressRate) -}}
+          {{- $_ := set $podTempAnn "kubernetes.io/egress-bandwidth" .Values.bandwidth.backupAndRestore.maxEgressRate -}}
+        {{- end -}}
+        {{- $_ := set $podTempAnn "checksum/config" (include (print $.Template.BasePath "/serviceproperties-configmap.yaml") . | sha256sum) -}}
+        {{- $_ := set $podTempAnn "checksum/log" (include (print $.Template.BasePath "/logging-configmap.yaml") . | sha256sum) -}}
+        {{- $_ := set $podTempAnn "checksum/check" (include (print $.Template.BasePath "/productcheck-configmap.yaml") . | sha256sum) -}}
+        {{- if .Values.metrics.enableNewScrapePattern -}}
+          {{- if .Values.metrics.enabled -}}
+            {{- $_ := set $podTempAnn "prometheus.io/scrape-role" "pod"  -}}
+          {{- else -}}
+            {{- $_ := set $podTempAnn "prometheus.io/scrape-role" "false"  -}}
+          {{- end -}}
+          {{- $_ := set $podTempAnn "prometheus.io/scrape-interval" "15s"  -}}
+        {{- else -}}
+          {{- $_ := set $podTempAnn "prometheus.io/scrape" (.Values.metrics.enabled | toString) -}}
+          {{- $_ := set $podTempAnn "prometheus.io/scheme" ( include "eric-ctrl-bro.metrics.server.scheme" . ) -}}
+        {{- end }}
+        {{- $_ := set $podTempAnn "prometheus.io/port" ( include "eric-ctrl-bro.metrics.server.port" . ) -}}
+        {{- $_ := set $podTempAnn "prometheus.io/path" "/actuator/prometheus" -}}
+        {{- $appArmorAnn := fromYaml (include "eric-ctrl-bro.appArmorAnnotation" .) -}}
+        {{- $defaultAnn := fromYaml (include "eric-ctrl-bro.annotations" .) -}}
+        {{- include "eric-ctrl-bro.mergeAnnotations" (dict "location" .Template.Name "sources" (list $podTempAnn $appArmorAnn $defaultAnn)) | trim | nindent 8 }}
+    spec:
+{{- include "eric-ctrl-bro.pullsecret" . }}
+      serviceAccountName: {{ template "eric-ctrl-bro.serviceAccountName" . }}
+  {{- if (not (empty (include "eric-ctrl-bro.priority" .))) }}
+      priorityClassName: {{ template "eric-ctrl-bro.priority" . }}
+  {{- end }}
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: {{.Values.terminationGracePeriodSeconds}}
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: {{ include "eric-ctrl-bro.fsGroup.coordinated" . }}
+        supplementalGroups: {{ include "eric-ctrl-bro.supplementalGroups" . }}
+      containers:
+      - name: {{ template "eric-ctrl-bro.name" . }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+{{- include "eric-ctrl-bro.secCompSecurityContext" . | indent 10 }}
+        image: {{template "eric-ctrl-bro.image.path" . }}
+        {{ include "eric-ctrl-bro.pullpolicy" . }}
+        envFrom:
+        - configMapRef:
+            name: {{ template "eric-ctrl-bro.name" . }}-startup
+        env:
+        - name: STORAGE_CONNECTIVITY
+          value: {{ .Values.persistence.persistentVolumeClaim.storageConnectivity | quote }}
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: CONTAINER_NAME
+          value: {{ template "eric-ctrl-bro.name" . }}
+        - name: TZ
+          value: {{ index $g "timezone" }}
+        - name: {{ .Values.bro.namespaceEnvironmentVariable }}
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: HTTP_PROBE_CMD_DIR
+          value: /bin
+        - name: HTTP_PROBE_SERVICE_NAME
+          value: {{ template "eric-ctrl-bro.name" . }}
+        - name: HTTP_PROBE_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: HTTP_PROBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: HTTP_PROBE_CONTAINER_NAME
+          value: {{ template "eric-ctrl-bro.name" . }}
+        - name: HTTP_PROBE_PORT
+          value: "9005"
+        - name: INITIAL_RAM_PERCENTAGE
+          value: {{ .Values.resources.backupAndRestore.jvm.initialMemoryAllocationPercentage | quote | replace "%" "" }}
+        - name: MIN_RAM_PERCENTAGE
+          value: {{ .Values.resources.backupAndRestore.jvm.smallMemoryAllocationMaxPercentage | quote | replace "%" "" }}
+        - name: MAX_RAM_PERCENTAGE
+          value: {{ .Values.resources.backupAndRestore.jvm.largeMemoryAllocationMaxPercentage | quote | replace "%" "" }}
+        {{- if and (eq .Values.bro.enableNotifications true) (eq (include "eric-ctrl-bro.kvdbrd.enabled" .) "true") (eq (include "eric-ctrl-bro.acl.enabled" .) "true") }}
+        - name: KVDBRDUSER
+          valueFrom:
+            secretKeyRef:
+              name: {{include "eric-ctrl-bro.kvdbrd.hostname" .}}-secret-{{include "eric-ctrl-bro.acl.username" .}}
+              key: username
+        - name: KVDBRDPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{include "eric-ctrl-bro.kvdbrd.hostname" .}}-secret-{{include "eric-ctrl-bro.acl.username" .}}
+              key: password
+        {{- end }}
+        {{- if .Values.osmn.enabled }}
+        - name: OSMN_SECRET_KEY
+          value: secretkey
+        - name: OSMN_ACCESS_KEY
+          value: accesskey
+        {{- end }}
+        ports:
+        - name: grpc
+          containerPort: {{template "eric-ctrl-bro.globalBroGrpcServicePort" .}}
+        - name: rest
+          containerPort: {{.Values.bro.restPort}}
+        {{- if and (eq .Values.metrics.enabled true) (ne (include "eric-ctrl-bro.metrics.server.port" . | quote) (.Values.bro.restPort | quote)) }}
+        - name: {{ template "eric-ctrl-bro.metrics.server.name" . }}
+          containerPort: {{ template "eric-ctrl-bro.metrics.server.port" . }}
+        {{- end }}
+          {{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") }}
+        - name: resttls
+          containerPort: {{.Values.bro.restTlsPort}}
+          {{- if eq .Values.bro.enableConfigurationManagement true }}
+        - name: cmm-tls
+          containerPort: {{.Values.bro.cmmNotifTlsPort}}
+          {{- end }}
+          {{- end }}
+        resources:
+{{ include "eric-ctrl-bro.resources" . | nindent 10 }}
+        startupProbe:
+          {{ include "eric-ctrl-bro.startupProbe" . -}}
+          {{ include "eric-ctrl-bro.startupProbeConfig" . | indent 10 }}
+        livenessProbe:
+          {{ include "eric-ctrl-bro.livenessProbe" . -}}
+          {{ include "eric-ctrl-bro.livenessProbeConfig" . | indent 10}}
+        readinessProbe:
+          {{ include "eric-ctrl-bro.readinessProbe" . -}}
+          {{ include "eric-ctrl-bro.readinessProbeConfig" . | indent 10}}
+        volumeMounts:
+{{ include "eric-ctrl-bro.volumeMounts" . | indent 8 }}
+        {{- if eq .Values.osmn.enabled false }}
+        - name: {{ template "eric-ctrl-bro.persistence.persistentVolumeClaim.name" . }}
+          mountPath: {{ .Values.bro.backupLocation | quote }}
+        {{- end }}
+      {{- if or (include "eric-ctrl-bro.tolerations" . | fromYamlArray) (.Values.osmn.enabled) }}
+      {{ $tolerations := include "eric-ctrl-bro.tolerations" . }}
+      {{- if $tolerations -}}
+      tolerations:
+{{ $tolerations | trim | indent 6 -}}
+      {{- end }}
+      {{- end }}
+      volumes:
+{{ include "eric-ctrl-bro.volumes" . | indent 6 }}
+      {{- if include "eric-ctrl-bro.nodeSelector" . -}}
+      nodeSelector: {{- include "eric-ctrl-bro.nodeSelector" . | trim | nindent 8 }}
+      {{- end -}}
+  {{- if not .Values.osmn.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      {{- $vctName := include "eric-ctrl-bro.persistence.persistentVolumeClaim.name" . -}}
+      {{- $name := include "eric-ctrl-bro.name" . }}
+      {{- $copiedVCTLabels := include "eric-ctrl-bro.copyVCTLabels" (dict "vctName" $vctName "release" .Release "name" $name) }}
+      {{- $copiedVCTAnn := include "eric-ctrl-bro.copyVCTAnnotations" (dict "vctName" $vctName "release" .Release "name" $name) }}
+      {{- if $copiedVCTLabels }}
+      labels:
+        {{- $copiedVCTLabels | nindent 8 }}
+      {{- end }}
+      {{- if $copiedVCTAnn }}
+      annotations:
+        {{- $copiedVCTAnn | nindent 8 }}
+      {{- end }}
+      name: {{ template "eric-ctrl-bro.persistence.persistentVolumeClaim.name" . }}
+    spec:
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: {{ .Values.persistence.persistentVolumeClaim.size | quote }}
+      {{- if and (ne .Values.persistence.persistentVolumeClaim.storageClassName "default") (.Values.persistence.persistentVolumeClaim.storageClassName) }}
+      storageClassName: {{ .Values.persistence.persistentVolumeClaim.storageClassName | quote }}
+      {{- end }}
+  {{- end }}

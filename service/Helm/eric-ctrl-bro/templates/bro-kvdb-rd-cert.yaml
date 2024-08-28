@@ -1,0 +1,28 @@
+{{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") -}}
+{{- if .Values.bro.enableNotifications -}}
+{{- if  eq (include "eric-ctrl-bro.kvdbrd.enabled" .) "true" -}}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-kvdb-rd-client-certificate
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+spec:
+  kubernetes:
+    generatedSecretName: {{ template "eric-ctrl-bro.name" . }}-kvdb-rd-client-secret
+    certificateName: kvdbrdclientcert.pem
+    privateKeyName: kvdbrdclientprivkey.pem
+    privateKeyFormat: pkcs8
+  certificate:
+    subject:
+      cn: {{ template "eric-ctrl-bro.name" . }}-kvdb-rd-client
+    extendedKeyUsage:
+      tlsClientAuth: true
+      tlsServerAuth: false
+    issuer:
+      reference: {{ include "eric-ctrl-bro.kvdbrd.ca" . }}
+    subjectAlternativeName:
+      populateKubernetesDns: false
+{{- end -}}
+{{- end -}}
+{{- end -}}

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "eric-test-service-basic.name" . }}
+  annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4}}
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.testServiceBasic.port }}
+    name: basic-service
+  selector:
+    app.kubernetes.io/name: {{ template "eric-test-service-basic.name" . }}
+    app.kubernetes.io/instance: {{.Release.Name | quote }}

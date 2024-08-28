@@ -1,0 +1,75 @@
+= Log4j2 Socket Appender Installation Guide
+:author: Wilmir Nicanor
+:doc-name: Log4j2 Socket Appender Installation Guide
+:doc-no: 1/19817-CXA 301 004/1
+:revnumber: PA1
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Stephen Tobin S
+:approved-by-department: BDGS SA OSS
+
+== Introduction
+This guide provides a reference for the installation of the appender into an application.
+
+== Log4j2 Socket Appender
+The log4j2 socket appender is intended to allow a Java based application to natively connect to a TCP streaming log interface and buffer events in the event of a failure. The appender provides the following functionality:
+
+* Configurable in-memory log event buffering in case of stream endpoint downtime
+* Automatic SSL context handling, including refresh in the event of SSL context material re-issue.
+
+image::Appender.png[Appender, title="Installing an Appender"]
+
+The log4j2 socket appender releases can be found https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/repositories/aia-releases/com/ericsson/adp/mgmt/eric-log4j2-socket-appender-cxa301004/[here] and its GIT REPO https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore[here].
+
+The log4j2 socket appender is a 2PP SW library and can be reflected in the users SVL, EVMS, etc. in this way.
+
+The ADP governance on the use of 2PP SW Libraries can be viewed https://eteamspace.internal.ericsson.com/pages/viewpage.action?pageId=1161855883[here].
+
+* EVMS Product name: Log4j2 Socket Appender
+* License Agreement File: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-cpi-input-released-generic-local/cxa301004/
+
+== Installation
+
+1. Add the appender as a maven dependency in the pom.xml file.
+
+    <dependency>
+      <groupId>com.ericsson.adp.mgmt</groupId>
+      <artifactId>eric-log4j2-socket-appender-cxa301004</artifactId>
+      <version>${eric.log4j2.socket.appender.version}</version>
+    </dependency>
+
+2. Configure the appender in the log4j2.xml if running locally.
+
+    <Appenders>
+      <BufferedSocketAppender name="BufferedSocketAppender" host="<host address of the log server>"
+            port="<port of the log server>"
+            maxSize="<maximum buffer size>"
+            connectionTimeout="<connection timeout in milliseconds>"
+            appendTimeout="<append timeout in milliseconds>"
+            readTimeout="<read timeout in milliseconds>">
+          <StreamSslConfiguration privatekey="/run/sec/certs/logtransformer/ltclientkey.pem"
+                      certificate="/run/sec/certs/logtransformer/ltclientcert.pem"
+                      ca="/run/sec/cas/siptls/cacertbundle.pem"
+                      keystore="/temp/lt.12"
+                      caAlias="siptls"
+                      certAlias="LT"/>
+           <!--RFC5424Layout Parameters for host, port-->
+           <RFC5424Layout appName="eric-ctrl-bro" newLine="true"/>
+           <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+      </BufferedSocketAppender>
+    </Appenders>
+
+* <BufferedSocketAppender> is the tag for the  appender with the name, host, port, maxSize, connectionTimeout, appendTimeout, and readTimeout parameters.
+* <StreamSslConfiguration> is an optional tag for a  StreamSSLConfiguration plugin, this is only needed if running with siptls enabled. If TLS is disabled, remove this tag.
+* <Layout> is a standard log4j feature used by the appender to transform log events into a specific format. Currently configured to the RFC5424Layout, see https://logging.apache.org/log4j/2.x/manual/layouts.html[here] for more info.
+* <Filter> is a standard log4j feature used to evaluate if and how log events should be published. Currently set as a RegexFilter, see https://logging.apache.org/log4j/2.x/manual/filters.html[here] for more info.
+
+3. Configure the loggers in the log4j2.xml to include the  appender.
+
+    <Loggers>
+          <Logger name="com.ericsson.adp.mgmt.backupandrestore" level="info" . }}">
+          </Logger>
+          <Root level="info">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="BufferedSocketAppender"/>
+          </Root>
+    </Loggers>

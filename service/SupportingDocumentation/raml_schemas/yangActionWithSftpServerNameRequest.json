@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "context": {
+      "type": "string",
+      "description": "Where the action was called"
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "ericsson-brm:sftp-server-name": {
+          "type": "string",
+          "description": "Name of the defined SFTP Server to which the backup is to be exported from/imported to."
+        }
+      }
+    }
+  },
+  "required": [
+    "context",
+    "input"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "SchedulerResponse",
+  "title": "SchedulerResponse",
+  "description": "Scheduler information of a backupManager",
+  "type": "object",
+  "properties": {
+    "adminState" : {
+      "type" : "string",
+      "description": "The admin state of the scheduler, LOCKED or UNLOCKED"
+    },
+    "scheduledBackupName": {
+      "type": "string",
+      "description": "The configurable portion of the scheduled backup name. The scheduled backups are named <scheduled-backup-name>-<creation date and time>"
+    },
+    "mostRecentlyCreatedAutoBackup": {
+      "type": "string",
+      "description": "The name of the scheduled backup created most recently by the backup scheduler"
+    },
+    "nextScheduledTime": {
+      "type": "string",
+      "description": "The date and time when the next scheduled event is triggered."
+    },
+    "autoExport" : {
+      "type" : "string",
+      "description": "State of automatic export utility of scheduler, ENABLED or DISABLED"
+    },
+    "autoExportPassword" : {
+      "type" : "string",
+      "description": "Password used to authenticate BRO when accessing autoExportUri to perform an automatic export. Always blank or hidden, blank indicating not configured"
+    },
+    "autoExportUri" : {
+      "type" : "string",
+      "description": "The URI accessed by BRO to perform an automatic export, or None if not configured"
+    }
+  }
+}

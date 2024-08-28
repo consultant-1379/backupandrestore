@@ -1,0 +1,48 @@
+modelVersion: "2.0"
+flavor: "Generic"
+service:
+  # name of the service:
+  name: "Backup and Restore Orchestrator Agent API"
+  # Design Country (set on the source products)
+  design_countries:
+   - IE                 # Ireland
+  # Compilation Country (Set on the derivative products)
+  sw_compilation_country: SE
+  # Release responsible
+  release_responsible: BCSDRAFF
+  #  Design responsible
+  design_responsible: BCSDRAFF
+  # Bookmarks
+  bookmark: PRIM
+  # The documents is optional if all eridoc document revisions are set
+  documents:
+    import: "../Documentation/documents.yaml"
+  #top_product:  ----------------------------------------------- flavor = Generic removes the need to have a top product lets us release the agent api separately.
+  #  alias: ["BRO Agent API"]
+  #  number: APR 201 40
+    # Description
+  #  description: "The BRO Agent API wraps the interactions with BRO to aid in agent development."
+    # Includes
+  #  includes:
+    # Software Vendor List excel ------------------------------- Remove?
+    #  - eridoc: 1/240 50-APR 201 40
+    #    step_strategy: highest revision letter
+  src_products:
+    # Source Code Product
+    - label: Source
+      number: CAV 101 840
+  derivative_products:
+    - label: "JAR_2PP"
+      number: "CXA 301 09"
+      description: "BRO Agent API - LIBRARY"
+      includes:
+        - eridoc: 1/1597-CXA 301 09/5
+          revision: G
+      uses_foss:
+        - dependencies_file: ./dependencies.yaml
+#  FOSS Usage YAML, optional only needed if you make changes to a 3PP
+#       - foss_usage: foss.usage.yaml
+      uses_encryption:
+        - import: ./encryptions.yaml
+      derivedFrom:
+        munin: CAV 101 840

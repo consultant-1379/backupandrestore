@@ -1,0 +1,15 @@
+{
+    "group": [
+        "system-admin"
+    ],
+    "name": "ericsson-brm-1-system-admin",
+    "rule": [
+        {
+            "module-name": "ericsson-brm",
+            "action": "permit",
+            "name": "ericsson-brm-system-admin-rule",
+            "tailf-acm:context": "*",
+            "access-operations": "*"
+        }
+    ]
+}

@@ -1,0 +1,35 @@
+{
+    "metadata" : {
+      "serviceHelmChartName" : "<serviceName>",
+      "usedSchemaVersion" : "1.1.0",
+      "fileVersion" : "<version>",
+      "dateEdited" : "<date>"
+    },
+    "interfaceImpls": [
+        {
+            "id": "IMPL.ADP.BRO.IF.BR.AGENT",
+            "pod":"<podName>",
+            "container": "<containerName>",
+            "uses": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.BRO.CTRL.GRPC.V3",
+                        "specVer": "3.0.0"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.DATA.GRPC.V3",
+                        "specVer": "3.0.0"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.CTRL.GRPC.V4",
+                        "specVer": "4.0.0"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.DATA.GRPC.V4",
+                        "specVer": "4.0.0"
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -1,0 +1,29 @@
+modelVersion: 2.0
+uses_encryption:
+  # GRPC Java
+  - product_number: CTX1020513
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "TLS (with GRPC) for BRO to BR Agent communication "
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Data confidentiality, OAM only'
+        # Encryption Protocols
+        protocols:
+          - protocol: TLS 1.3
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+          - protocol: TLS 1.2
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: ECDSA
+          - name: AES
+            key_length: 256
+          - name: SHA
+            key_length: 384
+          - name: PBE
+            key_length: 64

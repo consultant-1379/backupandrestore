@@ -1,0 +1,141 @@
+# Default values for test-service-basic
+
+updateStrategy:
+  type: RollingUpdate
+
+imagePullPolicy: IfNotPresent
+
+global:
+  registry:
+    # Docker repository url
+    url: armdocker.rnd.ericsson.se
+    # pullSecret:
+  adpBR:
+    broServiceName: eric-ctrl-bro
+    broGrpcServicePort: 3000
+    brLabelKey: adpbrlabelkey
+
+images:
+  testservicebasic:
+    name: bro-test-service-basic
+    tag: VERSION
+  testagent:
+    name: bro-test-agent-basic
+    tag: VERSION
+
+imageCredentials:
+  registry:
+    # Docker repository url
+    url: # overrides global registry url
+    # pullSecret:
+  # Docker repository path
+  repoPath: REPO_PATH
+  brSubPath: bro/bro-test-service-basic
+
+env:
+  timezone: UTC
+
+testServiceBasic:
+  replicas: 2
+  port: 2898
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "250Mi"
+    limits:
+      cpu: "100m"
+      memory: "250Mi"
+
+  readinessProbeInitialDelaySeconds: 15
+  readinessProbeTimeoutSeconds: 5
+  livenessProbeInitialDelaySeconds: 15
+  livenessProbeTimeoutSeconds: 5
+
+  persistantVolumeClaim:
+    storage: "100Mi"
+    storageClassName: "default"
+    accessModes: "ReadWriteOnce"
+
+brAgent:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
+  readinessProbeInitialDelaySeconds: 15
+  readinessProbeTimeoutSeconds: 5
+  livenessProbeInitialDelaySeconds: 60
+  livenessProbeTimeoutSeconds: 30
+  agentRunner: "java"
+  commandArgs: "cp /servicedata/data.txt backupdata/data.txt; cp /servicedata/CustomMetadata.txt backupdata/CustomMetadata.txt; rm -rf /servicedata; /usr/bin/java -Dlog4j.configurationFile=/var/log/ericsson/log4j2.xml -Dlog4j.defaultInitOverride=false -jar /testagent/brotestagent.jar /testagent/application.properties /testagent/backuptype.properties"
+
+  brLabelValue: "TestAgent"
+
+  backupTypeList:
+    - "configuration-data"
+
+  # The backupDataModelConfig name is replaced if the agent name is overrided
+  # When more than one value is listed in backupTypeList parameter it is then REQUIRED to also define the backupDataModelConfig parameter.
+  # see delta_values.yaml.txt for example
+  backupDataModelConfig:
+
+  properties:
+    fileName: "application.properties"
+    applicationProperties:
+      #this value will be taken from the values global.adpBR.broServiceName
+      orchestrator.host: eric-ctrl-bro
+      #this value will be taken from the values global.adpBR.broGrpcServicePort
+      orchestrator.port: 3000
+      #this value will be taken from the values brAgent.brLabelValue
+      test.agent.id: ""
+      #this value will be taken from the values brAgent.backupTypeList
+      test.agent.scope: ""
+      test.agent.backendType: BRO
+      test.agent.agentFeatures: PLAINTEXT, TLS, MTLS, PREPARE_STAGE, POST_STAGE, MULTIPLE_BACKUP_TYPES, SELECTIVE_BACKUP
+      test.agent.softwareVersion.description: Description
+      test.agent.softwareVersion.productionDate: 2019-09-13
+      test.agent.softwareVersion.productName: Name
+      test.agent.softwareVersion.productNumber: Number
+      test.agent.softwareVersion.type: Type
+      test.agent.softwareVersion.revision: Revision
+      test.agent.softwareVersion.commercialVersion: 5.0.0
+      test.agent.softwareVersion.semanticVersion: 5.0.0
+      test.agent.fragment.backup.data.path: /backupdata/data.txt
+      test.agent.fragment.custom.backup.data.path: /backupdata/CustomMetadata.txt
+      test.agent.download.location: /restoredata
+      # test.agent.agentBehavior is used for BRO Orchestrator test purposes ONLY. This must be left empty otherwise.
+      test.agent.agentBehavior:
+
+  logging:
+    #Backup and restore test agent logging configuration
+    #Logging level for Backup and Restore Test Agent
+    level: info
+    #Logging level for Backup and Restore third-party components
+    rootLevel: info
+    #Logging level for internal Log4j2 log messages
+    log4j2Level: info
+    #log4j2 properties file name
+    log4j2File: "log4j2.xml"
+    # Location to store the log4j properties file
+    logDirectory: "/var/log/ericsson"
+
+  grpc:
+    # The gRPC configurations should only be changed if you know what you are doing.
+    # Please refer to BRO Agent Implementation Guide to understand the motivations and impacts before changing them.
+    backup:
+      # Time, in seconds, to wait for the data channel to be ready before aborting the backup
+      dataChannelTimeoutSecs: 30
+      # Maximum Size, in KiB, of fragment chunk to send with each backup data message
+      fragmentChunkSize: 512
+
+service:
+  endpoints:
+    client:
+      ttl: 604800
+
+labels: {}

@@ -1,0 +1,218 @@
+modelVersion: 2.0
+
+import:
+  common: common-properties.yaml
+  hooklauncher-image: ../smart-helm-hooks/delivery/include/hooklauncher/image.yaml
+  hooklauncher-chart-fragments: ../smart-helm-hooks/delivery/include/hooklauncher/chart-fragments.yaml
+
+docker-images:
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+
+properties:
+  - helm-chart-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-drop
+  - helm-chart-repo-gs-all: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/
+  - doc-arm-dev-path: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-docs-dev-generic-local
+  - service-name: eric-ctrl-bro
+  - image-registry: armdocker.rnd.ericsson.se
+  - k8-namespace: cicd-bro
+
+  - commit-hash: ${var.commithash}
+  - date: ${var.IMAGE_CREATED}
+  - image-name: ${service-name}-hooklauncher
+  - image-repo-path: ${var.IMAGE_REPOPATH_INTERNAL}
+  - image-tag: ${var.version}
+  - image-version: ${var.version}
+  - product-revision: ${var.rstate}
+  - src-repo-path: ${env.PWD}/smart-helm-hooks/src
+
+env:
+  - PWD
+  - RELEASE (default=true)
+  - CI_USER
+  - API_TOKEN
+  - GERRIT_CHANGE_ID
+  - BRANCH
+  - MARKETPLACE_TOKEN
+
+var:
+  - version
+  - rstate
+  - commithash
+  - release-name
+  - IMAGE_CREATED
+  - IMAGE_REPOPATH_INTERNAL
+  - CHART_REPO_SUFFIX
+
+rules:
+  init:
+    - task: version
+      docker-image: adp-release-auto
+      cmd: version-handler generate --is-release ${env.RELEASE} --output version --git-repo-path .
+    - task: rstate
+      docker-image: adp-release-auto
+      cmd: get_rstate.py ${var.version} > .bob/var.rstate
+    - task: timestamp
+      cmd: date -u +'%Y-%m-%dT%H:%M:%SZ'  > .bob/var.IMAGE_CREATED
+
+  setup-repo-paths:
+    - task: is-master
+      cmd:
+        - echo 'proj-adp-eric-ctrl-bro-drop' > .bob/var.IMAGE_REPOPATH_INTERNAL
+        - echo "-helm-local" > .bob/var.CHART_REPO_SUFFIX
+    - task: is-dev
+      cmd:
+        - echo 'proj-adp-eric-ctrl-bro-drop-dev/${env.BRANCH}' > .bob/var.IMAGE_REPOPATH_INTERNAL
+        - echo '-dev-helm-local/${env.BRANCH}' > .bob/var.CHART_REPO_SUFFIX
+        - echo ${var.version}-${env.BRANCH} > .bob/var.version
+    - task: release-name
+      cmd: echo "${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${service-name}" > .bob/var.release-name
+
+  image:
+    # Get MicroCBO image to ensure microCBO base image is present on docker host
+    # This enables `buildah` inside the build container to run w/o --authfile
+    - task: pull-microcbo-image
+      cmd: docker pull ${common.microcbo-image}:${common.cbo-version}
+
+    - task: commit
+      cmd: git rev-parse --short HEAD > .bob/var.commithash
+
+    #This will build and push the image to the given registry/repo
+    - rule: hooklauncher-image.hooklauncher
+      properties:
+        - common-base-os-image-name: sles
+        - common-base-os-image-repo: armdocker.rnd.ericsson.se/proj-ldc/common_base_os_release
+        - common-base-os-version: ${common.cbo-version}
+        - commit-hash: ${commit-hash}
+        - date: ${date}
+        - image-name: ${image-name}
+        - image-registry: ${image-registry}
+        - image-repo-path: ${image-repo-path}
+        - image-tag: ${image-tag}
+        - image-version: ${image-version}
+        - product-number: CXU 101 1837
+        - variant: microcbo
+        - product-revision: ${product-revision}
+        - src-repo-path: ${src-repo-path}
+
+    - task: set-permission
+      cmd: chmod 755 ./service/Docker/build.sh
+
+    - task: build-bro-image
+      cmd: docker run --rm --privileged --workdir ${env.PWD}
+            --volume ${env.PWD}:${env.PWD}
+            --volume $HOME/.docker/armdocker-config.json:/armdocker-config.json
+            --volume /var/run/docker.sock:/var/run/docker.sock
+            --env CBO_REPO=${common.cbo-sles-repo}
+            --env CBO_VERSION=${common.cbo-version}
+            --env CBO_DEVENV_REPO=${common.cbo-devenv-repo}
+            --env BRO_REGISTRY=${var.release-name}
+            --env BRO_VERSION=${var.version}
+            --env PROD_NUM="CXC2012181"
+            --env COMMIT=${var.commithash}
+            --env BUILD_TIME=${var.IMAGE_CREATED}
+            --env MICROCBO_IMAGE=${common.microcbo-image}:${common.cbo-version}
+            ${common.cbo-image}:${common.cbo-version}
+            ./service/Docker/build.sh
+
+    - task: reset-permission
+      cmd: chmod 644 ./service/Docker/build.sh
+
+    - task: create-temp-dir
+      # We copy the chart to a temporary directory to be able to add the
+      # hooklauncher templates. This task is not necessary if the chart is already
+      # copied to .bob before packaging.
+      cmd:
+        - mkdir -p ${chart-tmp-dir} &&
+          cp -r service/Helm/${service-name} ${chart-tmp-dir}
+
+      # It is possible to choose the location where the hooklauncher templates
+      # are copied to. Depending on where the submodule is added, the
+      # copy-templates-from properties need to be set.
+    - rule: hooklauncher-chart-fragments.hooklauncher
+      properties:
+        - copy-templates-from: ${env.PWD}/smart-helm-hooks/delivery/hooklauncher
+        - copy-templates-to: ${chart-tmp-dir}/${service-name}/templates/common
+        - image-name: ${service-name}-hooklauncher
+        - image-registry: armdocker.rnd.ericsson.se
+        - image-repo-path: ${var.IMAGE_REPOPATH_INTERNAL}
+        - image-tag: "${var.version}"
+        - parent-helm-chart-name: ${service-name}
+        - parent-helm-chart-product-info-path: ${chart-tmp-dir}/${service-name}/eric-product-info.yaml
+        - product-name: ${service-name} hooklauncher
+        - product-number: CXU 101 1837
+
+      # The hooklauncher rules need to be run before the package task or rule.
+      # The --folder needs to point to where the modified chart is.
+      # In this case, it is ./bob/helm
+
+    - task: helm-package
+      docker-image: adp-release-auto
+      cmd: helm-package
+           --folder ${chart-tmp-dir}/${service-name}
+           --workdir .bob --output .bob/${service-name}-internal
+           --version ${var.version}
+           --replace RSTATE=${var.rstate}
+           --replace VERSION=${var.version}
+           --replace REPO_PATH=${var.IMAGE_REPOPATH_INTERNAL}
+           --replace eric-product-info.yaml:VERSION=${var.version}
+           --replace eric-product-info.yaml:REPO_PATH=${var.IMAGE_REPOPATH_INTERNAL}
+           --helm-user ${env.CI_USER}
+           --arm-api-token ${env.API_TOKEN}
+
+  generate-adp-artifacts:
+    - task: generate-adp-artifacts
+      docker-image: adp-release-auto
+      cmd: generate-adp-artifacts
+           --chart-name ${service-name}
+           --chart-version ${var.version}
+           --chart-repo ${helm-chart-repo-gs-all}
+           --image-name ${service-name}
+           --image-version ${var.version}
+           --image-repo ${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}
+
+  push:
+    - task: image-push-release
+      cmd: docker push ${var.release-name}:${var.version}
+    - task: helm-upload-release
+      docker-image: adp-release-auto
+      cmd:
+        - upload_file.sh --filename=.bob/${service-name}-internal/${service-name}-${var.version}.tgz --repository=${helm-chart-repo}${var.CHART_REPO_SUFFIX}/${service-name} --api-token=${env.API_TOKEN}
+
+  characteristics:
+    # report is generated in the performance nightly job so need to get the latest report
+    - task: pull
+      docker-image: adp-release-auto
+      cmd: curl
+           -vvv
+           -H "X-JFrog-Art-Api:${env.API_TOKEN}"
+           "${doc-arm-dev-path}/documents/characteristics-report.json"
+           -o characteristics-report.json
+    # publish the other formats into the released repo and have a local copy
+    - task: generate-other-formats
+      docker-image: adp-release-auto
+      cmd: characteristics-report generate
+           -f characteristics-report.json
+           -url ${doc-arm-dev-path}/documents
+           --arm-api-token "${env.API_TOKEN}"
+
+  marketplace-upload:
+    - task: generate-doc-zip
+      docker-image: adp-release-auto
+      cmd: 'doc-handler generate --config ci_config/marketplace/marketplace_package_config.yaml
+                                 --output ./build/doc-marketplace
+                                 --format html
+                                 --zip'
+    - task: upload-doc-to-arm
+      docker-image: adp-release-auto
+      cmd: marketplace upload --arm-api-token ${env.API_TOKEN}
+           --arm-url ${doc-arm-dev-path}
+           --config ci_config/marketplace/marketplace_dev_upload_config.yaml
+           --dev
+           --refresh
+           --portal-token ${env.MARKETPLACE_TOKEN}
+
+  git-tag:
+    - task: git-tag
+      cmd:
+        - git tag -a "eric-ctrl-bro-${var.version}" -m "Release ${var.version}" HEAD
+        - git push origin "eric-ctrl-bro-${var.version}"

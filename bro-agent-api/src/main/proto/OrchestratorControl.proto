@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+import "Action.proto";
+import "Fragment.proto";
+import "SoftwareVersionInfo.proto";
+import "CancelBackupRestore.proto";
+import "CheckpointInformation.proto";
+import "AgentFeature.proto";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.control";
+
+package com.ericsson.adp.mgmt.control;
+
+/**
+    Provides a wrapper for all message types that can be sent by the orchestrator on the control channel.
+    The message type can be checked by inspecting the orchestratorMessageType.
+**/
+message OrchestratorControl {
+    Action action = 1;
+    OrchestratorMessageType orchestratorMessageType = 2;
+
+    RequestDependencies requestDependencies = 3;
+    Preparation preparation = 4;
+    PrepareDependencyComplete prepareDependencyComplete= 5;
+    Execution execution = 6;
+    ExecutionDependencyComplete executionDependencyComplete= 7;
+    PostActions postActions = 8;
+    CancelBackupRestore cancel = 9;
+    CheckpointListEntry  checkpointListEntry = 10;
+    BackupInformation backupInformation = 11;
+    MetricsRequest metricsRequest = 12;
+    FragmentListEntry fragmentListEntry = 13;
+    RegisterAcknowledge registerAcknowledge = 14;
+}
+
+/**
+    Defines all available message types that can be sent by the Backup and Restore Orchestrator.
+**/
+enum OrchestratorMessageType {
+    REQUEST_DEPENDENCIES = 0;
+    PREPARATION = 1;
+    EXECUTION = 2;
+    POST_ACTIONS = 3;
+    PREPARE_DEPENDENCY_COMPLETE = 4;
+    EXECUTION_DEPENDENCY_COMPLETE = 5;
+    CANCEL_BACKUP_RESTORE = 6;
+    CHECKPOINT_LIST_ENTRY = 7;
+    BACKUP_INFORMATION = 8;
+    METRICS_REQUEST = 9;
+    FRAGMENT_LIST_ENTRY = 10;
+    REGISTER_ACKNOWLEDGE = 11;
+}
+
+/**
+    Allows the Backup and Restore Orchestrator (BRO) to acknowledge the agents registration and provide feedback.
+    Provides the supported features in the BRO version responding to the registration.
+    The intent is to allow an agent to adjust its feature set in the event an older BRO than expected is present.
+**/
+message RegisterAcknowledge {
+    string acknowledgeMessage = 1;
+    repeated AgentFeature broSupportedAgentFeature = 2;
+}
+
+/**
+    In order to allow the Backup and Restore Orchestrator to report metrics in the case where it is not
+    providing the backend for the storage of backups it is necessary for the BRO to be able to ask an agent
+    for specific metrics so that they can be reported.
+**/
+message MetricsRequest {
+    string metricId = 1;
+}
+
+/**
+    Will be sent to the agent until all fragments have been sent.
+**/
+message FragmentListEntry{
+    Fragment fragment = 1;
+    bool last = 2;
+}
+
+/**
+    In the event the agent reconnects during an operation this will be sent
+    to the agent until all entries have been sent.
+**/
+message CheckpointListEntry{
+    CheckpointInformation checkpointInformation = 1;
+    bool last = 2;
+}
+
+/**
+    Information about the backup that can be sent in the event the agent reconnects during an operation.
+**/
+message BackupInformation {
+    string backupName = 1;
+    SoftwareVersionInfo softwareVersionInfo = 2;
+    string backupType = 3;
+}
+
+/* dependency tree discovery messages */
+message RequestDependencies {}
+
+/* Preparation stage messages */
+message Preparation {
+    string backupName = 1;
+    SoftwareVersionInfo softwareVersionInfo = 2;
+    repeated Fragment fragment = 3;
+    string backupType = 4;
+}
+message PrepareDependencyComplete {
+    repeated string agentId = 1;
+}
+
+/* Execution stage messages */
+message Execution {}
+message ExecutionDependencyComplete {
+    repeated string agentId = 1;
+}
+
+/* Tidy up after ongoing action messages*/
+message PostActions {}

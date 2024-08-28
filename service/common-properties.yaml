@@ -1,0 +1,35 @@
+modelVersion: 2.0
+
+properties:
+  - service-name: 'eric-ctrl-bro'
+    # Microservice helm chart name
+  - helm-chart-name: ${service-name}
+    # The name of a docker image to pull and store in ARM in tar.gz format
+  - docker-image-name: ${service-name}
+    # Path to YAML file containing all needed information about product structure to release in PRIM
+  - dpraf-config-file: 'ci_config/dpraf_config.yaml'
+    # Local folder where the dpraf output is generated based on dpraf-config-file during execution of adp-prim-release rule
+  - dpraf-output-dir: 'build/dpraf-output'
+    # Configuration file for eridoc documents
+  - eridoc-config: "documentation/eridoc_config.yaml"
+    # Static information for PRI
+  - pri-manual-input: "ci_config/pri_manual_input.json"
+    # Product extended name in JIRA
+  - jira-component-name: "Backup and Restore Orchestrator"
+    # GERRIT repository URL
+  - gerrit-url: "https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore"
+    #location inside the cpi license file repo
+  - security-attributes-dir: "build/security-attributes"
+    # Unapproved Security Attributes exemptions JSON source file name
+  - security-attributes-src-file-name: security_attributes_exemptions.json
+    # Unapproved Security Attributes exemptions JSON source file path
+  - security-attributes-src-file-path: ci_config/${security-attributes-src-file-name}
+    # Security Attributes JSON destination file name
+  - security-attributes-dest-file-name: eric-ctrl-bro_security_attributes.json
+    # Common Base OS (CBO) related properties
+  - cbo-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-ldc-repo-rpm-local/common_base_os
+  - cbo-sles-repo: ${cbo-repo}/sles
+  - cbo-devenv-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-ldc-repo-rpm-local/adp-dev/adp-build-env/
+  - cbo-version: 6.17.0-11
+  - cbo-image: armdocker.rnd.ericsson.se/proj-ldc/common_base_os_release/sles
+  - microcbo-image: armdocker.rnd.ericsson.se/proj-ldc/common_base_os_micro/sles

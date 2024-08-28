@@ -1,0 +1,681 @@
+#!/usr/bin/env bash
+
+#set -x
+export FOSSA_URL="https://scasfossa.internal.ericsson.com/"
+
+print_usage() {
+
+  echo "----------------------------------------"
+  echo "lazy_fossa <option> <config_file>"
+  echo ""
+  echo "-a     run all the main steps foss scan, bazaar scan, license file generation, parent selection and munin search"
+  echo "-m     run search of 3PPs in munin only"
+  echo "-f     run a fossa scan"
+  echo "-b     run the bazaar scan to get the CAX/CTX numbers"
+  echo "-l     run the license file generation, 3PP maked with SKIP_LICENCE_GENERATION will need to be manually added to the file"
+  echo "-p     run parent selection for the dependencies.yaml file"
+  echo "-s     run an anchore scan of an image defined in the env parameter IMAGE_TO_SCAN"
+  echo "-c     create a verison in munin for the product, should not really be run manually but is good to have the option"
+  echo "-d     Document scan, collect the document versions from eridoc"
+  echo "-h     print usage"
+  echo ""
+  echo "see lazy_fossa.md for more details"
+  echo "-----------------------------------------"
+}
+
+run_munin_search=false
+run_fossa=false
+run_bazaar_scan=false
+run_license_file_generation=false
+run_parent_selection=false
+run_anchore_scan=false
+run_munin_create_version=false
+run_document_scan=false
+run_gen_foss_usage=false
+
+while getopts "camfblpsdhg*" opt; do
+  case $opt in
+    m)
+      run_munin_search=true
+    ;;
+    b)
+      run_bazaar_scan=true
+    ;;
+    f)
+      run_fossa=true
+    ;;
+    a)
+      run_fossa=true
+      run_license_file_generation=true
+      run_bazaar_scan=true
+      run_parent_selection=true
+      run_munin_search=true
+    ;;
+    l)
+      run_license_file_generation=true
+    ;;
+    p)
+      run_parent_selection=true
+    ;;
+    s)
+      run_anchore_scan=true
+    ;;
+    c)
+      run_munin_create_version=true
+    ;;
+    d)
+      run_document_scan=true
+    ;;
+    g)
+      run_gen_foss_usage=true
+    ;;
+    h)
+      print_usage
+      exit
+    ;;
+    \?)
+      print_usage
+      exit
+    ;;
+  esac
+done
+
+shift $((OPTIND - 1))
+
+check_command() {
+  if ! command -v $1 &>/dev/null; then
+    error_quit "Program $1 not found in PATH."
+  fi
+}
+println() {
+  echo -e "$1\e[0m"
+}
+
+error_quit() {
+  println "\e[38;5;196m$1"
+  exit
+}
+
+print_stage() {
+  println "\e[38;5;40m$1"
+}
+
+select_license_menu() {
+  arrsize=$1
+  println "${@:2}"
+  select option in "${@:2}"; do
+    if [ "$REPLY" -eq "$arrsize" ]; then
+      println "License selected"
+      break
+    elif [ 1 -le "$REPLY" ] && [ "$REPLY" -le $((arrsize - 1)) ]; then
+      break
+    else
+      println "Please select a valid license!"
+      println "Select a number between 1 and $arrsize."
+    fi
+  done
+}
+
+println "\e[48;5;27m-=[Lazy Fossa Script v0.2]=-"
+
+print_stage "Checking for a configuration file."
+config_file=${1}
+if [[ -z ${config_file} ]]; then
+  error_quit "Configuration file not provided."
+fi
+
+println "Configuration file $config_file found."
+
+yq_read_config="yq r ${config_file}"
+
+print_stage "Checking parameters in $config_file"
+project_directory="$($yq_read_config lazy-fossa.directory)"
+project_team=$($yq_read_config lazy-fossa.team)
+project_name=$($yq_read_config lazy-fossa.project)
+primary_list=$($yq_read_config lazy-fossa.primary-list)
+version=$($yq_read_config lazy-fossa.version)
+product_structure=$($yq_read_config lazy-fossa.product-structure)
+
+# Sanity Check
+if [[ -z ${project_directory} ]]; then
+  error_quit "No project directory in $config_file."
+fi
+
+if [[ -z ${project_team} ]]; then
+  error_quit "No project team in $config_file."
+fi
+
+if [[ -z ${project_name} ]]; then
+  error_quit "No project name in $config_file."
+fi
+
+if [[ ! -d ${project_directory} ]]; then
+  error_quit "Project directory ${project_directory} does not exist."
+fi
+
+if [[ ! -f ${project_directory}/${primary_list} ]]; then
+  error_quit "Primary list file ${project_directory}/${primary_list} does not exist."
+fi
+
+if [[ -z ${version} ]]; then
+  error_quit "No version defined in $config_file."
+fi
+
+if [[ ! -f ${project_directory}/${product_structure} ]]; then
+  error_quit "Primary list file ${project_directory}/${product_structure} does not exist."
+fi
+
+println "Configuration:"
+println "Project: $project_name."
+println "Team: $project_team."
+println "Directory: $project_directory."
+
+# Variables
+fossa_directory="fossa"
+report_file="$fossa_directory/fossa.report.json"
+deps_file="$fossa_directory/dependencies.yaml"
+license_file="Documentation/license.agreement.json"
+parent_file=${project_directory}/${primary_list}
+product_structure_file=${product_structure}
+branch=$(git rev-parse --abbrev-ref HEAD)
+revision=$(git rev-parse HEAD)
+docker_image_rauto="armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest"
+docker_image_anchore_scan="armdocker.rnd.ericsson.se/proj-adp-cicd-drop/anchore-inline-scan:latest"
+
+print_stage "Checking prerequisites..."
+check_command "yq"     # Is yq installed?
+check_command "jq"     # Is jq installed?
+check_command "fossa"  # Is FOSSA installed?
+check_command "docker" # Is Docker installed
+check_command "mvn"    # Is Maven installed.
+
+println "All prerequisites detected."
+
+# WSL detect - WSL uses Docker Desktop. This can cause issues with the volume mount as WSL expects
+# references to Windows paths to start with /mnt whereas Docker Desktop doesn't.
+print_stage "Checking for WSL."
+[[ $(grep Microsoft /proc/version) ]]
+WSL=$?
+if ((WSL == 0)); then
+  DOCKER_MOUNT=/$(pwd -P | cut -d'/' -f3-)/${project_directory}
+  println "WSL detected using ${DOCKER_MOUNT} instead of $(pwd -P)/${project_directory} as Docker mount path."
+else
+  println "WSL not detected using $(pwd -P) as Docker mount path."
+  DOCKER_MOUNT=${PWD}/${project_directory}
+fi
+
+print_stage "Grabbing latest release automation image..."
+docker pull $docker_image_rauto
+
+docker_cmd="docker run -it --init --user $(id -u):$(id -g) --rm -e ERIDOC_USERNAME=${ERIDOC_USERNAME} -e ERIDOC_PASSWORD=${ERIDOC_PASSWORD}  -e MUNIN_TOKEN -v ${DOCKER_MOUNT}:${DOCKER_MOUNT} --workdir ${DOCKER_MOUNT} $docker_image_rauto"
+docker_cmd_anchore="docker run --network=host --user $(id -u):$(id -g) $(for x in $(id -G); do printf " --group-add %s" "$x"; done) -it --user $(id -u):$(id -g) --rm --volume /var/run/docker.sock:/var/run/docker.sock -v ${DOCKER_MOUNT}:${DOCKER_MOUNT} --workdir ${DOCKER_MOUNT} $docker_image_anchore_scan"
+
+yq_read_deps="yq r ${project_directory}/${deps_file}"
+yq_write_deps="yq w -i ${project_directory}/${deps_file}"
+
+license_selection() {
+    print_stage "Starting license selection..."
+    num_deps=$($yq_read_deps --length --collect 'dependencies.*')
+    licenses_selected=0
+    licenses_to_select=$($yq_read_deps 'dependencies.*.mimer.selected_licenses' | grep -c SELECT_FROM_LICENSES)
+    for ((i = 0; i < num_deps; i++)); do
+        lookup="dependencies[$i]"
+        dep_name="$($yq_read_deps "$lookup.name")"
+        license_name="$($yq_read_deps "$lookup.mimer.selected_licenses[0]")"
+        if [[ "$license_name" == "SELECT_FROM_LICENSES" ]]; then
+            println 'Checking if a license needs to be selected'
+            number_of_license=`$yq_read_deps "$lookup.licenses.*" | wc -l`
+            if [[  $number_of_license -lt 2 ]]
+            then
+                println 'Only a single license avaiable no need to select a license, skipping'
+            else
+                ((++licenses_selected))
+                mapfile -t lst_licenses < <($yq_read_deps "$lookup.licenses.*")
+                println "\e[1m*** Selecting license for $dep_name. ($licenses_selected of $licenses_to_select) (dependency $i of $num_deps) ***"
+                select_license_menu "${#lst_licenses[@]}" "${lst_licenses[@]}"
+                $yq_write_deps "$lookup.mimer.selected_licenses[0]" "$option"
+            fi
+        fi
+    done
+}
+
+update_versions_with_git_tags() {
+    print_stage "updaing the versions field with the git tag where possiable..."
+    num_deps=$($yq_read_deps --length --collect 'dependencies.*')
+    for ((i = 0; i < num_deps; i++)); do
+        lookup="dependencies[$i]"
+        println "---------------------------------------------------------"
+        #If a github link is found strip it down to just the tag and set it as the first entry in the versions field
+        #versions are registered in munin/mimer using this tag.
+        src_url="$($yq_read_deps "$lookup.bazaar.src_download_link")"
+        println "$src_url"
+        if [[ "$src_url" == *"github"* ]]; then
+            github_tag=`echo "$src_url" | sed 's/.*archive\///' | sed 's/.*tags\///' | sed 's/.tar.gz//' | sed 's/.zip//'`
+            println "$github_tag"
+            version_semver="$($yq_read_deps "$lookup.additional_info.fossa-attribution.Version")"
+            println "$version_semver"
+            $yq_write_deps "$lookup.versions[0]" "$github_tag"
+            $yq_write_deps "$lookup.versions[1]" "$version_semver"
+        fi
+    done
+}
+
+# Activate as needed in pairs with the bro_cleanup_operations_munin
+# The areas that need attention will be called out in the license geneartion step
+# If the lecense generation is having a problem tell the system to skip that license a skipped licese needs to be added
+# to the license file manually.
+# The selected licese that has been skipped needs to be present in the deps file for mimer.
+# update the deps file to the correct value after the license file is created by setting the corresponiding line in bro_cleanup_operations_munin 
+bro_cleanup_operations_license_gen() {
+    # BRO Specific - Might need a skip list to generalize this script.
+    print_stage "Fixing up Android problem..."
+    #$yq_write_deps 'dependencies.(selected_license==Android-Sdk).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Google Android Library Annotations).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Checker Qual).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==FindBugs-jsr305).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+
+    #print_stage "Fixing up GRPC problem..."
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-api).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-context).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-core).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-netty-shaded).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf-lite).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-stub).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    print_stage "FOSSA FAILED TO FIND LICENSE..."
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for AWS KMS).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for Amazon S3).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==AWS SDK for Java - Core).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==JMES Path Query library).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot Starter).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jackson datatype: jdk8).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jackson-module-parameter-names).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jackson dataformat: CBOR).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==ESAPI).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Gson on Fire!).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==JavaBeans Activation Framework API jar).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==zstd-jni).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Common).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Httpserver).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - Common).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry Agent).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Bouncy Castle ASN.1 Extension and Utility APIs).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    print_stage "Fixing up license gen vs munin/mimer registered license issues"
+    #Need to used BSD-2-clause, but the license gen does not like that ...
+    #$yq_write_deps 'dependencies.(name==LatencyUtils).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    #public-domain is the valid license but we need to change it to FAL 115 9993 (ericcson number for public domain) as it is registered against this license in munin/mimer
+    #$yq_write_deps 'dependencies.(name==reactive-streams).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    print_stage "Fixing up API problem..."
+    #$yq_write_deps 'dependencies.(name==Backup And Restore Agent API).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    #-----------------------IMPORTANT------------------------------------------------------------------------------------------#
+    #Currentl the license gen seems to be working off the old level for skipping
+    # These entries have been added to cover the case where the license geneartion scripts are updated to use the new location.
+    #--------------------------------------------------------------------------------------------------------------------------#
+    # BRO Specific - Might need a skip list to generalize this script.
+    #print_stage "Fixing up Android problem..."
+    #$yq_write_deps 'dependencies.(selected_license==Android-Sdk).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Google Android Library Annotations).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Checker Qual).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==FindBugs-jsr305).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+
+    #print_stage "Fixing up GRPC problem..."
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-api).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-context).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-core).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-netty-shaded).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf-lite).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-stub).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    #print_stage "FOSSA FAILED TO FIND LICENSE..."
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for AWS KMS).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for Amazon S3).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==AWS SDK for Java - Core).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==JMES Path Query library).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot Starter).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jackson datatype: jdk8).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jackson-module-parameter-names).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Jackson dataformat: CBOR).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==ESAPI).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Gson on Fire!).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==JavaBeans Activation Framework API jar).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==zstd-jni).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Common).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Httpserver).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - Common).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry Agent).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Bouncy Castle ASN.1 Extension and Utility APIs).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    #print_stage "Fixing up license gen vs munin/mimer registered license issues"
+    #Need to used BSD-2-clause, but the license gen does not like that ...
+    #$yq_write_deps 'dependencies.(name==LatencyUtils).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    #public-domain is the valid license but we need to change it to FAL 115 9993 (ericcson number for public domain) as it is registered against this license in munin/mimer
+    #$yq_write_deps 'dependencies.(name==reactive-streams).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    #print_stage "Fixing up API problem..."
+    #$yq_write_deps 'dependencies.(name==Backup And Restore Agent API).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+}
+
+# Activate as needed in pairs with the bro_cleanup_operations_license_gen
+# The areas that need attention will be called out in the license geneartion step
+bro_cleanup_operations_munin() {
+    # BRO Specific - Might need a skip list to generalize this script.
+    # The license needs to match this one, if a license is not found but is just a fossa issue skip it and add back
+    # the selected license here
+
+    print_stage "Fixing up Android problem..."
+    #$yq_write_deps 'dependencies.(selected_license==Android-Sdk).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Google Android Library Annotations).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Checker Qual).selected_licenses[0]' 'GPL-2.0-with-classpath-exception'
+    #$yq_write_deps 'dependencies.(name==FindBugs-jsr305).selected_licenses[0]' 'BSD-2-Clause'
+
+    #print_stage "Fixing up GRPC problem..."
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-api).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-context).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-core).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-netty-shaded).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf-lite).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-stub).selected_licenses[0]' 'Apache-2.0'
+
+    print_stage "FOSSA FAILED TO FIND LICENSE..."
+    #$yq_write_deps 'dependencies.(name==ESAPI).selected_licenses[0]' 'BSD-3-Clause'
+    #$yq_write_deps 'dependencies.(name==Gson on Fire!).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==JavaBeans Activation Framework API jar).selected_licenses[0]' 'CDDL-1.1'
+    #$yq_write_deps 'dependencies.(name==zstd-jni).selected_licenses[0]' 'BSD-2-Clause'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Common).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Httpserver).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - Common).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry Agent).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for AWS KMS).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for Amazon S3).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==AWS SDK for Java - Core).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==JMES Path Query library).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot).selected_licenses[0]' 'MIT'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot Starter).selected_licenses[0]' 'MIT'
+    #$yq_write_deps 'dependencies.(name==Jackson datatype: jdk8).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Jackson-module-parameter-names).selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Jackson dataformat: CBOR).selected_licenses[0]' 'Apache-2.0'
+
+    print_stage "Fixing up license gen vs munin/mimer issues"
+    #$yq_write_deps 'dependencies.(name==LatencyUtils).selected_licenses[0]' 'BSD-2-Clause'
+    #$yq_write_deps 'dependencies.(name==reactive-streams).selected_licenses[0]' 'CC0-1.0'
+
+    # This one is always a skip :)
+    print_stage "Fixing up API problem..."
+    #$yq_write_deps 'dependencies.(name==Backup And Restore Agent API).selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    print_stage "Fixing up Bouncy Castle Licence problem..."
+    #$yq_write_deps 'dependencies.(name==Bouncy Castle ASN.1 Extension and Utility APIs).selected_licenses[0]' 'MIT'
+
+    #-----------------------IMPORTANT------------------------------------------------------------------------------------------#
+    #Currentl the license gen seems to be working off the old level for skipping
+    # These entries have been added to cover the case where the license geneartion scripts are updated to use the new location.
+    #--------------------------------------------------------------------------------------------------------------------------#
+    #print_stage "Fixing up Android problem..."
+    #$yq_write_deps 'dependencies.(selected_license==Android-Sdk).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+    #$yq_write_deps 'dependencies.(name==Google Android Library Annotations).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Checker Qual).mimer.selected_licenses[0]' 'GPL-2.0-with-classpath-exception'
+    #$yq_write_deps 'dependencies.(name==FindBugs-jsr305).mimer.selected_licenses[0]' 'BSD-2-Clause'
+
+    #print_stage "Fixing up GRPC problem..."
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-api).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-context).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-core).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-netty-shaded).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-protobuf-lite).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==io.grpc:grpc-stub).mimer.selected_licenses[0]' 'Apache-2.0'
+
+    #print_stage "FOSSA FAILED TO FIND LICENSE..."
+    #$yq_write_deps 'dependencies.(name==ESAPI).mimer.selected_licenses[0]' 'BSD-3-Clause'
+    #$yq_write_deps 'dependencies.(name==Gson on Fire!).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==JavaBeans Activation Framework API jar).mimer.selected_licenses[0]' 'CDDL-1.1'
+    #$yq_write_deps 'dependencies.(name==zstd-jni).mimer.selected_licenses[0]' 'BSD-2-Clause'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Common).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Simpleclient Httpserver).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - Common).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Prometheus Java Span Context Supplier - OpenTelemetry Agent).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for AWS KMS).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==AWS Java SDK for Amazon S3).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==AWS SDK for Java - Core).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==JMES Path Query library).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot).mimer.selected_licenses[0]' 'MIT'
+    #$yq_write_deps 'dependencies.(name==Jasypt Spring Boot Starter).mimer.selected_licenses[0]' 'MIT'
+    #$yq_write_deps 'dependencies.(name==Jackson datatype: jdk8).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Jackson-module-parameter-names).mimer.selected_licenses[0]' 'Apache-2.0'
+    #$yq_write_deps 'dependencies.(name==Jackson dataformat: CBOR).mimer.selected_licenses[0]' 'Apache-2.0'
+
+    #print_stage "Fixing up license gen vs munin/mimer issues"
+    #$yq_write_deps 'dependencies.(name==LatencyUtils).mimer.selected_licenses[0]' 'BSD-2-Clause'
+    #$yq_write_deps 'dependencies.(name==reactive-streams).mimer.selected_licenses[0]' 'CC0-1.0'
+
+    # This one is always a skip :)
+    #print_stage "Fixing up API problem..."
+    #$yq_write_deps 'dependencies.(name==Backup And Restore Agent API).mimer.selected_licenses[0]' 'SKIP_LICENCE_GENERATION'
+
+    #print_stage "Fixing up Bouncy Castle Licence problem..."
+    #$yq_write_deps 'dependencies.(name==Bouncy Castle ASN.1 Extension and Utility APIs).mimer.selected_licenses[0]' 'MIT'
+}
+
+fossa_scan() {
+
+    print_stage "Checking environment variables needed to run fossa..."
+    if [[ -z ${FOSSA_API_KEY} ]]; then
+      error_quit "FOSSA_API_KEY not defined."
+    fi
+
+    if [[ -z ${FOSSA_URL} ]]; then
+      error_quit "FOSSA_URL not defined."
+    fi
+
+    print_stage "Building dependency tree with Maven..."
+    cd "${project_directory}" || exit
+
+    print_stage "Fixing up currentdeptree.txt for PCR..."
+    mvn dependency:tree -DoutputFile=currentdeptree.txt
+    sed -i 1d currentdeptree.txt
+    tail -n +2 currentdeptree.txt > temp.txt && mv temp.txt currentdeptree.txt
+
+    #print_stage "Generating .fossa.yaml for $project_name..."
+    #fossa init -e "$FOSSA_URL" -p "$project_name"
+
+    print_stage "Running FOSSA scan for $project_name..."
+    echo "fossa analyze -b \"$branch\" -p \"$project_name\" --team \"$project_team\" --endpoint \"$FOSSA_URL\""
+    fossa analyze -b "$branch" -p "$project_name" --team "$project_team" --endpoint "$FOSSA_URL"
+
+    print_stage "Generating $report_file..."
+    fossa report attribution --endpoint "$FOSSA_URL" --project "$project_name" --revision "$revision" --json > "$report_file"
+
+    print_stage "Generating $deps_file..."
+    $docker_cmd dependencies update --fossa-report "$report_file" --dependencies "$deps_file" --sort
+
+    print_stage "Fossa all done!"
+}
+
+bazaar_scan() {
+
+    print_stage "Checking environment variables needed to run bazaar scan..."
+    if [[ -z ${BAZAAR_USER} ]]; then
+        error_quit "BAZAAR_USER not defined."
+    fi
+    if [[ -z ${BAZAAR_TOKEN} ]]; then
+        error_quit "BAZAAR_TOKEN not defined."
+    fi
+
+    print_stage "running the bazaar scan and updaing the deps file with the collected info where possible"
+    $docker_cmd dependencies update --fossa-report "$report_file" --dependencies "$deps_file" --scan-scas --scas-refresh-token "$BAZAAR_TOKEN" --sort
+
+    #Bazaar scan will have pulled in all the src URLs so where we have a git one we can pull the git tag from it.
+    #Versions are registered in munin using this tag
+    update_versions_with_git_tags
+}
+
+license_file_generation(){
+
+    license_selection
+
+    print_stage "Skipping licenses that will cause license gen to fail"
+    bro_cleanup_operations_license_gen
+
+    print_stage "Generating $license_file..."
+    $docker_cmd license-agreement generate --fossa-report $report_file --dependencies $deps_file --output $license_file
+
+    print_stage "Fixing licenses to what munin needs, update the license gen manually for these"
+    bro_cleanup_operations_munin
+
+    print_stage "Prettifying ${report_file}..."
+    mv ${project_directory}/${report_file} ${project_directory}/${report_file}.tmp
+    jq . ${project_directory}/${report_file}.tmp > ${project_directory}/${report_file}
+    rm ${project_directory}/${report_file}.tmp
+
+    print_stage "License agreement file all done! It may be required to manually edit or append $license_file still."
+    print_stage "Review all skipped liceses they will need to be added to the license file manually"
+
+}
+
+munin_search() {
+
+    bro_cleanup_operations_munin
+
+    print_stage "Checking environment variables needed to run munin..."
+    if [[ -z ${MUNIN_TOKEN} ]]; then
+        error_quit "MUNIN_TOKEN not defined."
+    fi
+
+    print_stage "verifying the 3PPs are registered in munin, MUNIN_TOKEN must be set"
+    $docker_cmd munin search-foss -t $MUNIN_TOKEN -d $deps_file -o output
+
+    print_stage "Munin All done! For 3PPs that are not registered check the version field and manully update the deps file if it is there with the munin value. Otherwise check the output file and request they are added to munin"
+}
+
+munin_create() {
+
+    bro_cleanup_operations_munin
+
+    print_stage "Checking environment variables needed to run munin..."
+    if [[ -z ${MUNIN_TOKEN} ]]; then
+        error_quit "MUNIN_TOKEN not defined."
+    fi
+
+    print_stage "Creating product version in munin"
+    echo "$docker_cmd munin create-versions -t ${MUNIN_TOKEN} -c $product_structure_file -v $version --debug false"
+    $docker_cmd munin create-versions -t ${MUNIN_TOKEN} -c $product_structure_file -v $version --debug false
+}
+
+document_scan() {
+
+    print_stage "Checking environment variables needed to run munin..."
+    if [[ -z ${ERIDOC_USERNAME} ]]; then
+        error_quit "ERIDOC_USERNAME not defined."
+    fi
+    if [[ -z ${ERIDOC_PASSWORD} ]]; then
+        error_quit "ERIDOC_PASSWORD not defined."
+    fi
+
+    print_stage "Scanning document versions"
+    $docker_cmd munin-doc search -c $product_structure_file -docs Documentation/documents.yaml
+}
+
+gen_foss_usage() {
+    print_stage "gen foss usage"
+    $docker_cmd doc-handler generate-svl-replacement --product-number "APR20140" --product-version 4.7.0 --output build/doc-marketplace/bro-svl --format html --zip
+}
+
+anchore_scan() {
+    print_stage "Checking environment variables needed to run anchore scan..."
+    if [[ -z ${IMAGE_TO_SCAN} ]]; then
+        error_quit "IMAGE_TO_SCAN not defined."
+    fi
+
+    print_stage "Grabbing latest anchore scan image..."
+    docker pull $docker_image_anchore_scan
+
+    print_stage "Running Anchore scan..."
+    $docker_cmd_anchore scan $IMAGE_TO_SCAN
+
+}
+
+select_primary_menu() {
+  arrsize=$1
+  println "${@:2}"
+  select option in "${@:2}"; do
+    if [ "$REPLY" -eq "$arrsize" ]; then
+      println "primary selected"
+      break
+    elif [ 1 -le "$REPLY" ] && [ "$REPLY" -le $((arrsize - 1)) ]; then
+      break
+    else
+      println "Please select a valid primary!"
+      println "Select a number between 1 and $arrsize."
+    fi
+  done
+}
+
+parent_selection() {
+    # will discuss the change in the design call
+    print_stage "primary slection..."
+
+    num_deps=$($yq_read_deps --length --collect 'dependencies.*')
+    dep_parent_selected=0
+    deps_without_parent=$($yq_read_deps 'dependencies.*.primary' | grep -c this)
+    for ((i = 0; i < num_deps; i++)); do
+        lookup="dependencies[$i]"
+        dep_name="$($yq_read_deps "$lookup.name")"
+        current_primary="$($yq_read_deps "$lookup.primary")"
+        if [[ "$current_primary" == "- this" ]]; then
+            ((++dep_parent_selected))
+            mapfile -t lst_licenses < $parent_file
+            println "\e[1m*** Selecting parent for $dep_name. ($dep_parent_selected of $deps_without_parent) (dependency $i of $num_deps) ***"
+
+            $yq_write_deps "$lookup.primary[0]" 'false'
+        fi
+    done
+}
+
+# Note that the order here is important fossa -> bazaar -> munin
+if [[ $run_fossa == "true" ]]; then
+    fossa_scan
+fi
+if [[ $run_bazaar_scan == "true" ]]; then
+    bazaar_scan
+fi
+if [[ $run_license_file_generation == "true" ]]; then
+    license_file_generation
+fi
+if [[ $run_parent_selection == "true" ]]; then
+    parent_selection
+fi
+if [[ $run_munin_search == "true" ]]; then
+    munin_search
+fi
+#Optional commands that can be run.
+if [[ $run_anchore_scan == "true" ]]; then
+    anchore_scan
+fi
+if [[ $run_document_scan == "true" ]]; then
+    document_scan
+fi
+#should only be run if absolutely required
+if [[ $run_munin_create_version == "true" ]]; then
+    munin_create
+fi
+if [[ $run_gen_foss_usage == "true" ]]; then
+    gen_foss_usage
+fi
+# update the linking field of dependencies.yaml
+sed -i 's/linking: MANDATORY_FOR_MIMER/linking: Classpath/g' $project_directory/$deps_file

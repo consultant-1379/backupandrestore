@@ -1,0 +1,9 @@
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: kube-system
+  name: testfw-bro
+rules:
+- apiGroups: ["", "extensions", "apps"]
+  resources: ["deployments", "statefulsets", "pods", "pods/portforward", "persistentvolumeclaims", "secrets", "services", "serviceaccounts", "configmaps", "roles", "rolebindings", "redisclusters", "kvdbrdclusters"]
+  verbs: ["get", "list", "create", "update", "delete", "deletecollection"]

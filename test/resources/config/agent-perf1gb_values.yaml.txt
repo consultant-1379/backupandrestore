@@ -1,0 +1,25 @@
+brAgent:
+  commandArgs: "cp /servicedata/data.txt backupdata/agent-perf1gb_1_data.txt; cp /servicedata/CustomMetadata.txt backupdata/agent-perf1gb_1_CustomMetadata.txt; cp /servicedata/data.txt backupdata/agent-perf1gb_2_data.txt; cp /servicedata/CustomMetadata.txt backupdata/agent-perf1gb_2_CustomMetadata.txt; rm -rf /servicedata; /usr/bin/java -Dlog4j.configurationFile=/var/log/ericsson/log4j2.xml -jar /testagent/brotestagent.jar /testagent/application.properties"
+  brLabelValue: "agent-perf1gb"
+  properties:
+    fileName: "application.properties"
+    applicationProperties:
+      #this value will be taken from the values global.adpBR.broServiceName
+      orchestrator.host: eric-ctrl-bro
+      #this value will be taken from the values global.adpBR.broGrpcServicePort
+      orchestrator.port: 3000
+      #this value will be taken from the values brAgent.brLabelValue
+      test.agent.id: ""
+      #this value will be taken from the first brAgent.backupTypeList.backupType
+      test.agent.scope: ""
+      test.agent.softwareVersion.description: test agent agent-perf1gb
+      test.agent.softwareVersion.productionDate: 2019-02-02
+      test.agent.softwareVersion.productName: agent-perf1gb
+      test.agent.softwareVersion.productNumber: CXC 222 22/2
+      test.agent.softwareVersion.type: data
+      test.agent.softwareVersion.revision: R2
+      test.agent.fragment.backup.data.path: /backupdata/agent-perf1gb_1_data.txt,/backupdata/agent-perf1gb_2_data.txt
+      test.agent.fragment.custom.backup.data.path: /backupdata/agent-perf1gb_1_CustomMetadata.txt,/backupdata/agent-perf1gb_2_CustomMetadata.txt
+      test.agent.download.location: /restoredata
+      test.agent.agentBehavior: com.ericsson.adp.mgmt.brotestagent.agent.behavior.LargeBackupFileAgentBehavior
+      large.backup.file.agent.backup.size: 1024

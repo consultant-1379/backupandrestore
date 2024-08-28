@@ -1,0 +1,355 @@
+= Backup and Restore Orchestrator Troubleshooting Guide
+:author: Raymond Self
+:doc-name: Troubleshooting Guide
+:doc-no: 1/15451-APR 201 40/4
+:revnumber: A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Introduction
+
+This guide is designed to help engineers troubleshoot the Backup and Restore Orchestrator service and write Trouble Reports (TRs).
+The guide provides the following information:
+
+* Simple verification and possible recovery.
+* The required information when writing a TR or a support case, including all files and system logs that are needed.
+* How to retrieve the above information from the system.
+
+== Prerequisites
+
+* `kubectl` CLI tool properly configured
+* `helm` CLI tool properly configured
+
+[[Troubleshooting]]
+== Troubleshooting
+
+This section describes the troubleshooting functions and procedures for the Backup and Restore Orchestrator.
+
+In the examples below <bro address> is the Backup and Restore Orchestrator REST API service address and port.
+
+When using a shell inside a running Backup and Restore container via the `kubectl exec` command, localhost:<port> can be substituted instead of <bro address>.
+
+=== Verify the Backup and Restore Orchestrator REST API
+
+Check if the BRO service is ready with:
+
+----
+    curl -i http://<bro address>/v1/health
+    e.g. curl -i http://eric-ctrl-bro:7001/v1/health
+----
+
+A response similar to the example below should be returned if the orchestrator is not currently executing an action:
+
+----
+    { "status": "Healthy","availability":"Available","ongoingAction":{},"registeredAgents": [<ids of registered Agents>] }
+----
+
+A response similar to the example below should be returned if the orchestrator is currently executing an action:
+
+----
+    {
+      "availability": "Busy",
+      "ongoingAction": {
+        "backupManagerId": "DEFAULT",
+        "actionId": "7239"
+      },
+      "registeredAgents": [
+        "busyTestAgent"
+      ],
+      "status": "Healthy"
+    }
+----
+
+Refer to the <<OperationsGuide, Operations Guide>> for more information.
+If these steps do not work correctly, collect logs, as described in xref:DataCollection[Data Collection], followed by restarting the pod, see xref:RestartOrchestrator[RestartOrchestrator].
+
+=== Enable debug logging
+
+Debug logging can be enabled for the container. To do this, set the bro.logging.level property to 'debug' either in values.yaml or using --set on the command line. This will display debug logs for the Backup and Restore Orchestrator. To display debug logs for the Backup and Restore Orchestrator's third-party components, set the bro.logging.rootLevel property to 'debug' either in values.yaml or using --set on the command line.
+
+=== Configuration Management Schema Upload
+
+If the Configuration Management feature is enabled the Orchestrator will attempt to upload a CM schema on startup. If this fails the Orchestrator will exit approximately 10 seconds after startup. The most likely cause of this is that the Orchestrator can't communicate with a CM Mediator instance.
+
+To solve this problem either disable CM Management or investigate why the Orchestrator can't communicate with an instance of CM Mediator, the first step of which should be to check that the `cm.mediator.url` parameter is correct in the Orchestrator configuration.
+
+=== CM Yang Provider Model Configuration
+If the Backup and Restore Orchestrator commands executed in CM Yang Provider does not return any results, check the logs of yang and schema related containers of CM Yang Provider. If you see the below lines in the logs the BRM model did not load successfully.
+
+----
+{"err":"mkdir /tmp/yangArchive410227382: file exists","file":"/tmp/yangArchive410227382/ericsson-brm.tar.gz","message":"Unable to extract yang archive","name":"ericsson-brm","service_id":"eric-cm-yang-provider","severity":"error","timestamp":"2019-10-08T18:47:11.03Z","version":"0.2.0"}
+{"err":"mkdir /tmp/yangArchive410227382: file exists","message":"Skipping! Unable to compile yang archive","model":"ericsson-brm","service_id":"eric-cm-yang-provider","severity":"error","timestamp":"2019-10-08T18:47:11.03Z","version":"0.2.0"}
+----
+
+[[RestartOrchestrator]]
+=== Restart the Backup and Restore Orchestrator Kubernetes pod
+
+Restart the Orchestrator to clear the hanging action.
+
+----
+    If the orchestrator is in TERMINATING state:
+    kubectl get pod <pod name> --namespace=<pod's namespace> -o yaml | kubectl replace -f -
+
+    If the orchestrator is in RUNNING state:
+    kubectl delete pods <pod name>
+----
+
+[[DataCollection]]
+== Data Collection
+
+* The logs are collected from the pod using the following command:
+
+    kubectl --namespace=<pod's namespace> logs <pod name> <container name> > <log file name>
++
+**Note:** The above command outputs the log to a file.
+
+* The detailed information about the pod can be collected using the following commands:
+
+    kubectl --namespace=<pod's namespace> describe pod <pod name>
+    kubectl exec <pod-name> --namespace=<pod's namespace> env
+
+* Json files, containing backup details, can be collected using the following command:
+
+    kubectl cp <namespace>/<pod name>:<backup.managers.location>/<backupManagerId>/backups/<backupName>.json <target directory>
+
+* Json files, containing action details, can be collected using the following command:
+
+    kubectl cp <namespace>/<pod name>:<backup.managers.location>/<backupManagerId>/actions/<actionId>.json <target directory>
+
+== Trouble Reports and Additional Support
+
+Issues can be handled in different ways, as listed below:
+
+* For questions and support issues, see section xref:AdditionalSupport[Additional Support].
+
+* For reporting of faults, see section xref:TroubleReports[Trouble Reports].
+
+[[AdditionalSupport]]
+=== Additional Support
+
+If there are Backup and Restore Orchestrator Service support issues, raise a https://cc-jira.rnd.ki.sw.ericsson.se/secure/CreateIssue.jspa?pid=16604&issuetype=5[support request].
+
+[[TroubleReports]]
+=== Trouble Reports
+
+If there is a suspected fault, raise a trouble report (TR).
+
+The TR must contain specific Backup and Restore Orchestrator information and all applicable troubleshooting information highlighted in the sections xref:Troubleshooting[Troubleshooting], and xref:DataCollection[Data Collection].
+
+Additional information should be provided, to speed up the process, including the filesystem layout and a copy of the backup manager JSON files, retrieved via the command in the <<DataCollection, Data Collection>> section.
+
+Also, indicate if the suspected fault can be cleared by restarting the pod.
+
+When issuing a TR for the Backup and Restore Orchestrator, you should use "Backup and Restore Orchestrator" as component, and choose "bug" as the issue type.
+
+== Recovery Procedure
+
+To recover from PVC storage full, follow the steps outlined in the xref:PVCCapacityReached[PVC Capacity Reached] section.
+
+== Common Issues
+
+=== Registration:
+
+If the Agent fails to register, check the Orchestrator and Agent logs. Possible reasons for failure are:
+
+* Agent Id is not unique
+* Agent Id is missing
+* Software Version Info is missing
+* One or more fields in Software Version Info is missing
+* API version is missing
+* If there is a TLS mismatch between Orchestrator and Agent. Check the BRO log for a status in a line which says 'GRPC server has TLS' and check if the same status is set for the agent.
+
+==== TLS mismatch between Orchestrator and Agent
+In the case when BRO is deployed with TLS disabled and agent with TLS enabled, the following errors are displayed in the BRO log at an attempted agent registration.
+
+----
+2020-08-05T13:46:13.013Z INFO connections: Transport failed
+io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2Exception: HTTP/2 client preface string missing or corrupt. Hex dump for received bytes: 16030100820100007e03032cd420e9cc6eca52962f19834d
+        at io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2Exception.connectionError(Http2Exception.java:103) ~[grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2ConnectionHandler$PrefaceDecoder.readClientPrefaceString(Http2ConnectionHandler.java:306) ~[grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2ConnectionHandler$PrefaceDecoder.decode(Http2ConnectionHandler.java:239) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2ConnectionHandler.decode(Http2ConnectionHandler.java:438) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.handler.codec.ByteToMessageDecoder.decodeRemovalReentryProtection(ByteToMessageDecoder.java:505) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.handler.codec.ByteToMessageDecoder.callDecode(ByteToMessageDecoder.java:444) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:283) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:374) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:360) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:352) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1421) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:374) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:360) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:930) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollStreamChannel$EpollStreamUnsafe.epollInReady(AbstractEpollStreamChannel.java:794) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.epoll.EpollEventLoop.processReady(EpollEventLoop.java:424) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.channel.epoll.EpollEventLoop.run(EpollEventLoop.java:326) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:918) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at io.grpc.netty.shaded.io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [grpc-netty-shaded-1.24.0.jar!/:1.24.0]
+        at java.lang.Thread.run(Thread.java:834) [?:?]
+----
+
+=== CREATE_BACKUP:
+AdditionalInfo field in the action response provides the cause of failure of an action. In case of failure the following response is obtained:
+
+----
+    {"name": <Action>,"result":"FAILURE","payload":{"backupName": <BackupName>},"additionalInfo":<CauseOfFailure>,"state":"FINISHED","progressPercentage":0.0,"startTime":<Timestamp>,"completionTime":<Timestamp>,"lastUpdateTime":<Timestamp>,"id":<ActionId>}
+----
+
+Also check Orchestrator logs for further detail.
+
+Possible reasons for the failure of CREATE_BACKUP action are:
+
+* If no Agents are registered with Orchestrator. Retry after Agents are registered with Orchestrator.
+* The registered agents do not match the expected agents. Check for any agent pods that are not in state Running. Ensure all agents have correctly set the agent discovery parameters *brLabelKey* and *brLabelValue*.
+* An action is already running. Wait until the action completes and retry.
+* No backup name is provided.
+* Backup name already exists. Retry with a unique name.
+* Agent sends invalid message (e.g. sends a METADATA message when a BACKUP_FILE message was expected).
+* Checksum mismatch (checksum sent does not match with calculated checksum).
+* Agent reports that the backup has failed. Check Agent logs for cause of failure.
+* If the connection between the Orchestrator and one or more of the Agents participating in the backup is lost, which results in those Agents becoming unregistered from the Orchestrator.
+* The Orchestrator PVC has reached xref:PVCCapacityReached[full capacity].
+* If the backup takes longer than anticipated, check the Orchestrator and the Agent logs. This might be due to an unresponsive Agent which has caused the backup action to hang. In this case, fix the agent, xref:RestartOrchestrator[restart the Orchestrator] to clear the hanging action and submit the action again.
+* The Orchestrator has reached housekeeping limit and auto-delete is disabled. Configure housekeeping to enable auto-delete.
+
+To avoid storage from being held by corrupted backup, a failed backup should be deleted using DELETE_BACKUP action.
+
+=== RESTORE:
+Possible reasons for the failure of RESTORE action are:
+
+* If no Agents are registered with Orchestrator. Retry after Agents are registered with Orchestrator.
+* An action is already running. Wait until the action completes and retry.
+* No backup name is provided.
+* Backup specified does not exist.
+* Backup is Incomplete or Corrupted.
+* Checksum mismatch (checksum sent does not match with calculated checksum).
+* Agent reports that restore has failed. Check Agent logs for cause of failure.
+* If the connection between the Orchestrator and one or more of the Agents participating in the restore is lost, which results in those Agents becoming unregistered from the Orchestrator.
+* One or more of the Agents which participated in the backup are not registered in the Orchestrator.
+* If the restore takes longer than anticipated check Orchestrator and Agent logs. This might be due to an unresponsive Agent which causes the restore action to hang.
+* Product number mismatch. Refer <<DeploymentGuide>> for more info.
+In this case, fix the agent, restart the Orchestrator xref:RestartOrchestrator[restart the Orchestrator] to clear the hanging action and submit the action again.
+
+=== DELETE_BACKUP:
+Possible reasons for the failure of DELETE_BACKUP action are:
+
+* An action is already running. Wait until the action completes and retry.
+* No backup name is provided.
+* Backup specified does not exist.
+
+=== IMPORT:
+
+Possible reasons for the failure of IMPORT action are:
+
+* Unable to connect with sftp server due to invalid sftp server credentials. Ensure the payload has a valid sftp URI and password.
+* Unable to connect with http server due to invalid http server URI. Ensure the payload has a valid http URI.
+* Backup does not exist in sftp server due to invalid sftp backup path.
+* Backup does not exist in http server due to invalid http backup path.
+* Backup name already exists.
+* The Orchestrator has reached housekeeping limit and auto-delete is disabled. Configure housekeeping to enable auto-delete.
+
+=== EXPORT:
+
+Possible reasons for the failure of EXPORT action are:
+
+* Unable to connect with sftp server due to invalid sftp server credentials. Ensure the payload has a valid sftp URI and password.
+* Unable to connect with http server due to invalid http server URI. Ensure the payload has a valid http URI.
+* Backup directory already exists in remote sftp server. Ensure the payload has a valid backup path in the sftp URI.
+* Backup does not exist.
+
+[[PVCCapacityReached]]
+==== PVC Capacity Reached:
+
+If the PVC storage becomes full then the actions start to fail.
+This will be evident by the REST response from the ACTION endpoint, returning the following error:
+
+----
+    statusCode":500,"message":"Error handling persisted file"
+----
+
+To restore action execution functionality it is necessary to free space on the PVC.
+
+Execute the action DELETE to remove at least one backup, if possible targeting those with a CORRUPTED status.
+Please note any deletion is permanent unless the deleted backup has previously been exported.
+
+Action creation and execution functionality is now reestablished.
+
+The alternative is to perform a re-deploy, which re-creates the PVC, and import the previously exported backups.
+
+=== INSTALLATION AND UPGRADE:
+When the BRO Service is installed or upgraded, and both global and service-level parameters are set for nodeSelector, the two values will be merged.
+
+If there is an overlap (same key with different values), helm chart installation of the service will fail.
+
+An error similar to the following to occur:
+----
+Error: render error in "eric-ctrl-bro/templates/bro-ss.yaml": template: eric-ctrl-bro/templates/bro-ss.yaml:120:3: executing "eric-ctrl-bro/templates/bro-ss.yaml" at <include "eric-c
+trl-bro.nodeSelector" .>: error calling include: template: eric-ctrl-bro/templates/_helpers.tpl:317:195: executing "eric-ctrl-bro.nodeSelector" at <fail>: error calling fail: nodeSel
+ector "key" is specified in both global (key: value1) and service level (key: value2) with differing values which is not allowed.
+----
+
+If this occurs on install, the BRO pod will not deploy. Update chart to use non-overlapping values and redeploy.
+
+If this occurs on upgrade, the upgrade will not be executed. Update chart to use non-overlapping values and perform upgrade again.
+
+
+=== ROLLBACK:
+
+==== Service Account Not Found
+When a rollback is performed from a BRO version of 2.3.0-14 or greater to an earlier BRO version, the rollback can fail because the pod is trying to find the service account which has been deleted during the rollback.
+
+The BRO statefulset will show the error:
+
+----
+create Pod eric-ctrl-bro-0 in StatefulSet eric-ctrl-bro failed error: pods "eric-ctrl-bro-0" is forbidden: error looking up service account <namespace>/eric-ctrl-bro: serviceaccount "eric-ctrl-bro" not found
+----
+
+This is a known helm issue. More information is available at "https://github.com/helm/helm/issues/7159".  This issue is fixed in helm 3.1.
+
+If this occurs, the BRO deployment must be deleted and reinstalled with the required BRO version. The backups will remain on the orchestrator PVC and so no backups will be lost.
+
+==== DateTimeParse Exception
+When a rollback is performed from BRO version 4.0.0 or above, where actions have been executed, to a version below 4.0.0, the rollback can fail with a DateTime parse error similar to the following:
+
+----
+java.time.format.DateTimeParseException: Text '2021-02-25T12:30:45.123456Z' could not be parsed, unparsed text found at index 26
+----
+
+This can be resolved by deleting the pod and immediately issuing a helm upgrade to a BRO version greater than 4.0.0
+After the upgrade is complete you should delete the action files, as shown in the example below.
+Afterwards perform the helm rollback again.
+
+Example:
+kubectl -n <namespace> exec -ti eric-ctrl-bro-0 rm /bro/backupManagers/DEFAULT/actions/1234.json
+
+This DateTimeParse exception can be mitigated by deleting the action files within the bro pod, prior to issuing helm rollback.
+
+=== Log Streaming
+
+When BRO is deployed with log streaming enabled, BRO will attempt to connect to Log Transformer on startup, and every two minutes after. If BRO fails to connect, e.g. due to Log Transformer not being in a ready state at the time of attempted connection, log events occuring during the logging outage will not be sent to Log Transformer. BRO will not store log events for later transmission for performance reasons, as it cannot know how long Log Transformer will be unavailable.
+
+If BRO is deployed with console logging enabled, log events occuring during a Log Transformer outage will be logged to STDOUT, and may be collected through Kubernetes methods for collecting console logs.
+
+
+=== Notification Subscriptions
+
+When BRO is deployed with CMM, the below error can be seen in the BRO logs after a restore operation:
+
+----
+ERROR CMService: Request failed with response {"message": "Cannot find subscription 'ericsson-brm'"}
+----
+
+This error can be safely ignored. CMM removes all subscriptions at restore. BRO recreates the subscription a few lines later in the log:
+
+----
+INFO BRMConfigurationService: Subscription subscriptions/ericsson-brm created
+----
+
+
+[bibliography]
+References
+----------
+[bibliography]
+* [[OperationsGuide]] Backup and Restore Operations Guide, 2/19817-APR 201 40/4
+* [[DeploymentGuide]] Backup and Restore Orchestrator Deployment Guide, 1/1531-APR 201 40/4

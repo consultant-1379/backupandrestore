@@ -1,0 +1,79 @@
+def bob = './bob/bob -r service/ruleset.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    environment {
+        GERRIT = credentials('eadphub-psw')
+        CBOS_VERSION_WITHOUT_BN=params.CBOS_VERSION.substring(0, CBOS_VERSION.lastIndexOf("-"))
+    }
+    stages{
+        stage("Init") {
+            when { expression { (!params.MANUAL) } }
+            steps {
+                buildName "#" + currentBuild.number + " | New Version: " + params.CBOS_VERSION
+            }
+        }
+        stage('Prep bob') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Build httpprobe') {
+            steps {
+                script {
+                    sh "${bob} build-httpprobe"
+                }
+            }
+        }
+        stage('Update CBOS version') {
+            steps{
+                    sh """find . -name "Dockerfile" | xargs sed -i 's/\\(sles[:/]\\).*/\\1${params.CBOS_VERSION}/g'"""
+                    sh """find . -name "Dockerfile" | xargs sed -i 's/\\(adp-build-env[:/]\\).*/\\1${params.CBOS_VERSION}/g'"""
+
+                    sh """sed -i 's/\\(sles\\/\\)[^?]*\\(\\?ssl\\)/\\1${params.CBOS_VERSION}\\2/g' ${WORKSPACE}/ci_config/cis_cat/docker/ciscat-scanner-target.dockerfile"""
+                    sh """sed -i '/CXC 201 2031/{ n; s/version:.*/version: ${env.CBOS_VERSION_WITHOUT_BN}/g }' ./service/fossa/product_structure.yaml"""
+                    sh """sed -i '/CXU 101 1463/{ n; s/version:.*/version: ${env.CBOS_VERSION_WITHOUT_BN}/g }' ./service/fossa/product_structure.yaml"""
+                    sh """sed -i '/CXA 302 30/{ n; s/version:.*/version: ${env.CBOS_VERSION_WITHOUT_BN}/g }' ./service/fossa/product_structure.yaml"""
+                    sh """sed -i -e '/Common Base OS Micro Image/!b' -e ':a' -e 's/version:.*/version: ${env.CBOS_VERSION_WITHOUT_BN}/;t trail' -e 'n;ba' -e ':trail' -e 'n;btrail' ./service/fossa/dependencies.yaml"""
+                    sh """sed -i -e '/Common Base OS Repository/!b' -e ':a' -e 's/version:.*/version: ${env.CBOS_VERSION_WITHOUT_BN}/;t trail' -e 'n;ba' -e ':trail' -e 'n;btrail' ./service/fossa/dependencies.yaml"""
+                    sh """sed -i -e '/Common Base OS GO SDK/!b' -e ':a' -e 's/version:.*/version: ${env.CBOS_VERSION_WITHOUT_BN}/;t trail' -e 'n;ba' -e ':trail' -e 'n;btrail' ./service/fossa/dependencies.yaml"""
+                    sh """sed -i 's/cbo-version.*/cbo-version: ${params.CBOS_VERSION}/g' service/common-properties.yaml"""
+
+                    sh 'rm -rf .bob'
+                    sh 'mkdir service/Docker/target .bob'
+                    sh 'touch ./service/Docker/target/backupandrestore-dummy.jar'
+                    sh 'touch .bob/var.IMAGE_REPOPATH_INTERNAL'
+
+
+                    sh "echo 'proj-adp-eric-ctrl-bro-internal/cbos-bro-build/license-gen' > .bob/var.IMAGE_REPOPATH_INTERNAL"
+                    sh "echo ${env.CBOS_VERSION_WITHOUT_BN} > .bob/var.version"
+
+                    sh "${bob} image:pull-microcbo-image"
+                    sh "${bob} image:commit"
+                    sh "${bob} image:set-permission"
+                    sh "${bob} image:build-bro-image"
+                    sh "${bob} image:reset-permission"
+
+                    sh 'docker run --rm armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest cat /usr/local/bin/rpm-la.sh > rpm-la.sh && chmod 755 rpm-la.sh'
+                    sh """docker run --init --rm --env DOCKER_USERNAME=${env.GERRIT_USR} --env DOCKER_PASSWORD=${env.GERRIT_PSW} --volume ${WORKSPACE}:${WORKSPACE} --group-add 995 --volume /var/run/docker.sock:/var/run/docker.sock --workdir ${WORKSPACE} --user 1001:1001 armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest rpm-license-generator -ll -i armdocker.rnd.ericsson.se/proj-adp-eric-ctrl-bro-internal/cbos-bro-build/license-gen/eric-ctrl-bro:${env.CBOS_VERSION_WITHOUT_BN}-SNAPSHOT -o rpm-la.json"""
+                    sh """docker run --rm -v ${WORKSPACE}:${WORKSPACE}:rw -w ${WORKSPACE} armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest license-agreement validate -l rpm-la.json"""
+                    sh """docker rmi armdocker.rnd.ericsson.se/proj-adp-eric-ctrl-bro-internal/cbos-bro-build/license-gen/eric-ctrl-bro:${env.CBOS_VERSION_WITHOUT_BN}-SNAPSHOT"""
+
+                    sh 'mv rpm-la.json service/Documentation/cbos_license.agreement.json'
+                    sh 'rm -rf service/Docker/target* .bob'
+                    sh 'rm rpm-la.sh'
+
+                    sh 'git status'
+                    sh 'git stage -A'
+                    sh """git commit -m '${params.JIRA} - [UPLIFT] to Common Base OS to ${params.CBOS_VERSION}'"""
+                    sh 'git push origin HEAD:refs/for/master'
+            }
+        }
+    }
+}

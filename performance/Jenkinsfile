@@ -1,0 +1,37 @@
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    stages {
+        stage('Preparation') {
+            parallel {
+                stage('Prepare git submodules') {
+                    steps {
+                        sh 'git submodule sync'
+                        sh 'git submodule update --init --recursive'
+                    }
+                }
+            }
+        }
+        stage('Pep8/Pylint Checks') {
+            parallel {
+                stage('Pep8 - Int Test Code') {
+                    steps {
+                        sh "pep8 ./performance/"
+                    }
+                }
+                stage('Pylint - Int Test Code') {
+                    steps {
+                        sh "python3 -m pylint --reports=n --rcfile=./testframework/.pylintrc ./performance/*.py"
+                    }
+                }
+            }
+        }
+    }
+}

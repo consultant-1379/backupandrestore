@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.action";
+
+message CancelBackupRestore {
+    /* provide a reason for cancelation for logging */
+    string message = 1;
+}

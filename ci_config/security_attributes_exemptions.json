@@ -1,0 +1,20 @@
+{
+  "metadata": {
+      "serviceHelmChartName": "eric-ctrl-bro",
+      "validFromServiceVersion": "9.1.0",
+      "usedSchemaVersion": "1.0.0",
+      "fileVersion": "1.0.0",
+      "dateEdited": "2023-10-31",
+      "usedConstraintsVersion": "1.0.0"
+  },
+  "images": [
+      {
+          "name": "*/eric-ctrl-bro:*",
+          "description": "This image is always included."
+      },
+      {
+          "name": "*/eric-ctrl-bro-hooklauncher:*",
+          "description": "This image is only used when the service chart is installed, upgraded or rolled back."
+      }
+  ]
+}

@@ -1,0 +1,272 @@
+modelVersion: 2.0
+uses_encryption:
+  # java-11-openjdk from 2PP ADP Micro Common Base OS
+  - product_number: CXC2012031
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "Java install from SLES. TLS (with HTTPS) for BRO to Control Interface (namely ADP CMYP) communication"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Data confidentiality, OAM only'
+        # Encryption Protocols
+        protocols:
+          - protocol: TLS 1.3
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+          - protocol: TLS 1.2
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: ECDHE
+          - name: SHA
+            key_length: 384
+          - name: AES
+            key_length: 256
+            mode: GCM
+          - name: Chacha20-Poly1305
+          - name: AES
+            key_length: 128
+            mode: GCM
+          - name: SHA
+            key_length: 256
+  # Fork of JSch
+  - product_number: CTX1033027
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "SFTP (SSH2) client for transfer of backups to/from the Orchestrator to/from a Remote SFTP Server. Exact algorithms used will depend on negotiation with SFTP server"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Data confidentiality, OAM only'
+        # Encryption Protocols
+        protocols:
+          - protocol: SSH
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          # ecdh-sha2-nistp256, ecdh-sha2-nistp384, ecdh-sha2-nistp521, curve25519-sha256, curve25519-sha256@libssh.org
+          - name: ECDH
+          # aes128-ctr
+          - name: AES
+            key_length: 128
+            encryption_mode: CTR
+          # aes192-ctr
+          - name: AES
+            key_length: 192
+            encryption_mode: CTR
+          # aes256-ctr
+          - name: AES
+            key_length: 256
+            encryption_mode: CTR
+          # aes128-cbc
+          - name: AES
+            key_length: 128
+            encryption_mode: CBC
+          # aes192-cbc
+          - name: AES
+            key_length: 192
+            encryption_mode: CBC
+          # aes256-cbc
+          - name: AES
+            key_length: 256
+            encryption_mode: CBC
+          # blowfish-cbc
+          - name: Blowfish
+            encryption_mode: CBC
+          # hmac-sha1, hmac-sha1-etm@openssh.com
+          - name: HMAC-SHA1
+          # hmac-sha1-96
+          - name: HMAC-SHA1
+            key_length: 96
+          # hmac-sha2-256, hmac-sha2-256-etm@openssh.com
+          - name: HMAC-SHA2-256
+          # hmac-md5
+          - name: HMAC-MD5
+          # hmac-md5-96
+          - name: HMAC-MD5
+            key_length: 96
+          - name: SHA1
+          - name: SHA
+            key_length: 256
+          - name: SHA
+            key_length: 384
+          - name: SHA
+            key_length: 512
+          - name: MD5
+          # diffie-hellman-group-exchange-sha256, diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha1,
+          # diffie-hellman-group1-sha1, diffie-hellman-group16-sha512, diffie-hellman-group18-sha512, diffie-hellman-group14-sha256
+          - name: DH
+          # ssh-rsa, rsa-sha2-512, rsa-sha2-256
+          - name: RSA
+            key_length: 1024
+          - name: RSA
+            key_length: 2048
+          - name: RSA
+            key_length: 3072
+          - name: RSA
+            key_length: 4096
+          - name: RSA
+            key_length: 7680
+          - name: RSA
+            key_length: 15360
+          # ecdsa-sha2-nistp256
+          - name: ECDSA
+            key_length: 256
+          # ecdsa-sha2-nistp384
+          - name: ECDSA
+            key_length: 384
+          # ecdsa-sha2-nistp521
+          - name: ECDSA
+            key_length: 521
+          # ssh-dss
+          - name: DSS
+          # ssh-ed25519
+          - name: Ed25519
+            key_length: 256
+          # aes128-gcm@openssh.com
+          - name: AES
+            key_length: 128
+            encryption_mode: GCM
+          # aes256-gcm@openssh.com
+          - name: AES
+            key_length: 256
+            encryption_mode: GCM
+          # hmac-sha2-512, hmac-sha2-512-etm@openssh.com
+          - name: HMAC-SHA2-512
+
+
+  # Kubernetes Java Client
+  - product_number: CTX1024003
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "SSL for communication with the Kubernetes API for agent discovery"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Data confidentiality, OAM only'
+        # Encryption Protocols
+        protocols:
+          - protocol: SSL
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: RSA
+            key_length: 2048
+          - name: ECDSA
+  # GRPC Java
+  - product_number: CTX1020513
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "TLSv1.2 (with GRPC) for BRO to BR Agent communication "
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Data confidentiality, OAM only'
+        # Encryption Protocols
+        protocols:
+          - protocol: TLS 1.3
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+          - protocol: TLS 1.2
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: ECDSA
+          - name: AES
+            key_length: 256
+          - name: SHA
+            key_length: 384
+          - name: PBE
+            key_length: 64
+  # Bouncy Castle (org.bouncycastle:bcpkix-jdk15on)
+  # Bouncy Castle (org.bouncycastle:bcprov-jdk15on)
+  - product_number: CTX1032600
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "Generate PKCS8 key store to enable HTTPS"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Other than data confidentiality'
+        # Encryption Protocols
+        #protocols:
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: 3DES
+            key_length: 168
+          - name: ECDSA
+          - name: RC2
+  # Jasypt
+  - product_number: CAX1054568
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "Spring boot properties decryption"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Other than data confidentiality'
+        # Encryption Protocols
+        #protocols:
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: HMAC-SHA
+            key_length: 512
+          - name: AES
+            key_length: 256
+          - name: PBE
+            key_length: 64
+  # Apache Kafka
+  - product_number: CAX1058403
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "TLS for BRO to Kafka message bus communication"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Other than data confidentiality'
+        # Encryption Protocols
+        protocols:
+          - protocol: TLS 1.3
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+          - protocol: TLS 1.2
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: ECDSA
+          - name: AES
+            key_length: 256
+          - name: SHA
+            key_length: 256
+  # Redisson
+  - product_number: CAX1058587
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "TLS for BRO to Redis message bus communication"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Other than data confidentiality'
+        # Encryption Protocols
+        protocols:
+          - protocol: TLS 1.3
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+          - protocol: TLS 1.2
+            # Provide a description of how the protocol is used
+            usage: ""
+            standard: "IETF"
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: ECDSA
+          - name: AES
+            key_length: 256
+          - name: SHA
+            key_length: 256

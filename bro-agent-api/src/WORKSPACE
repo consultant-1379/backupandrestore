@@ -1,0 +1,47 @@
+workspace(name = "agent")
+
+load(
+    "//bazel:external_includes.bzl",
+    "bro_include_boost",
+    "bro_include_bro_proto",
+    "bro_include_googletest",
+    "bro_include_grpc",
+    "bro_include_rules_proto",
+    "bro_include_rules_python",
+)
+
+bro_include_boost()
+
+bro_include_bro_proto()
+
+bro_include_rules_proto()
+
+bro_include_rules_python()
+
+bro_include_googletest()
+
+bro_include_grpc()
+
+load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
+
+grpc_deps()
+
+# Terrible dumpster fire here. I really have no idea why these are required,
+# but for now it works. Has some nasty overhead on fresh builds though.
+load("@upb//bazel:workspace_deps.bzl", "upb_deps")
+
+upb_deps()
+
+load("@build_bazel_rules_apple//apple:repositories.bzl", "apple_rules_dependencies")
+
+apple_rules_dependencies()
+
+load("@build_bazel_apple_support//lib:repositories.bzl", "apple_support_dependencies")
+
+apple_support_dependencies()
+
+load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
+
+rules_proto_dependencies()
+
+rules_proto_toolchains()

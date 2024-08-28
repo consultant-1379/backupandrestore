@@ -1,0 +1,132 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+cc_test(
+    name = "AgentFactory-test",
+    srcs = [
+        "agent/TestAgentFactory.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+    ],
+)
+
+cc_test(
+    name = "OrchestratorControlMessageHandler-test",
+    srcs = [
+        "agent/TestOrchestratorControlMessageHandler.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+    ],
+)
+
+cc_test(
+    name = "OrchestratorGrpcChannel-test",
+    srcs = [
+        "agent/TestOrchestratorGrpcChannel.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+        "@com_github_grpc_grpc//:grpc++_test",
+    ],
+)
+
+cc_test(
+    name = "FileChunkServiceUtil-test",
+    srcs = [
+        "util/TestFileChunkServiceUtil.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+    ],
+)
+
+cc_test(
+    name = "FragmentInformation-test",
+    srcs = [
+        "fragment/TestFragmentInformation.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+    ],
+)
+
+cc_test(
+    name = "BackupFragmentInformation-test",
+    srcs = [
+        "fragment/TestBackupFragmentInformation.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+    ],
+)
+
+cc_test(
+    name = "BackupService-test",
+    srcs = [
+        "service/TestBackupService.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+        "@com_github_grpc_grpc//:grpc++_test",
+    ],
+)
+
+cc_test(
+    name = "RestoreService-test",
+    srcs = [
+        "service/TestRestoreService.cc",
+    ],
+    copts = [
+        "-Iexternal/gtest/include",
+        "-Iexternal/agent/main/cpp",
+        "-D_TURN_OFF_PLATFORM_STRING",
+    ],
+    deps = [
+        "@3pp-bro-googletest//:gtest_main",
+        "@agent//main/cpp:bro-agent-api",
+        "@com_github_grpc_grpc//:grpc++_test",
+    ],
+)

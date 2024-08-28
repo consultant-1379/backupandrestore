@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "housekeepingResponse",
+  "title": "housekeepingResponse",
+  "description": "Housekeeping information",
+  "type": "object",
+  "properties": {
+    "auto-delete": {
+      "type": "String",
+      "description": "Determines whether automated housekeeping of manual backups is enabled. If enabled and the number of backups already stored on the Orchestrator is equal to the value of max-stored-manual-backups, backups will be removed before creating or importing another backup. The backups will be eliminated in the following order: first those incomplete or corrupted , then oldest backup. If automated housekeeping is set to disabled, no backup is removed, instead, when action create-backup() is invoked it is rejected with a failure parameter."
+    },
+    "max-stored-manual-backups": {
+      "type": "integer",
+      "description": "Maximum number of manual backups to store in the orchestrator, per backup type. When this limit is reached, if auto-delete is enabled backups will be removed before creating or importing another backup, if auto-delete is disabled it is rejected with a failure parameter."
+    }
+  }
+}

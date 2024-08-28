@@ -1,0 +1,15 @@
+= Backup and Restore Orchestrator Service - Additional Documents in the ADP Marketplace
+:author: Niamh Shiel
+:doc-name: Backup and Restore Orchestrator Service - Additional Documents in the ADP Marketplace
+:doc-no: -
+:revnumber: PA1
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name:
+:approved-by-department: BDGS SA OSS
+
+
+== Overview
+
+- Full definition of the REST API:
++
+https://gerrit-gamma.gic.ericsson.se/gitweb?p=AIA/microservices/backupandrestore.git;a=blob;f=service/SupportingDocumentation/rest_specification.raml;h=8a3d16f323f5263edd8335acde9cbe1d502015f8;hb=8ac9d50f9ee3857d7e5e88b00c8085ca2706b1a5[REST API Specification]

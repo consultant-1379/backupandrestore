@@ -1,0 +1,206 @@
+#%RAML 1.0
+title: Backup and Restore Orchestrator V2 Rest Specification
+baseUri: http://eric-ctrl-bro:7001
+version: v1
+
+documentation:
+  - title:  ""
+    content: |
+      ```
+        Ericsson   |   Internal Document   |   Rev A   |   Interface Description
+      ```
+
+  - title: Overview
+    content: |
+      The purpose of this document is to be an interface specification with all details of the Backup and Restore Orchestrator v2 REST API.
+
+      V2 fulfills the action implementer contract for CMYP and is intended to be used by CMYP only.
+
+      The major concepts are BackupManagers, Backups and Actions, which are all URI resources.
+
+      A backupManager defines what will be backed up when a backup occurs. It holds records of all backups and actions performed on those backups.
+      There is a default backupManager, that backs up all agents.
+
+      A backup is composed of exported data of a set of services. It represents the state those services had at the time it was created, and can be used to re-create that state.
+
+      An action is a task that can be executed on a backupManager and has measurable progress. Actions are: CREATE_BACKUP, DELETE_BACKUP, IMPORT, EXPORT, RESTORE.
+
+  - title: Supported Use Cases
+    content: |
+      The following use cases are fully supported:
+
+      - Create Backup
+      - Delete Backup
+      - Restore
+      - Import
+      - Export
+
+
+types:
+  yangActionRequest:                               !include raml_schemas/yangActionRequest.json
+  yangActionWithNameRequest:                       !include raml_schemas/yangActionWithNameRequest.json
+  yangActionWithUriRequest:                        !include raml_schemas/yangActionWithUriRequest.json
+  yangActionWithSftpServerNameRequest:             !include raml_schemas/yangActionWithSftpServerNameRequest.json
+  yangActionResponse:                              !include raml_schemas/yangActionResponse.json
+
+/v2:
+  /ericsson-brm:brm::backup-manager::create-backup:
+    put:
+      description: Creates a backup
+      is: [badRequest, unprocessableEntity, internalServerError]
+      body:
+        application/json:
+          type: yangActionWithNameRequest
+          example: |
+            {
+              "context": "/ericsson-brm:brm/backup-manager/1",
+              "input": {
+                "ericsson-brm:name": "myBackup"
+              }
+            }
+      responses:
+        200:
+          body:
+            application/json:
+              type: yangActionResponse
+              example: |
+                {
+                  "ericsson-brm:return-value": 2
+                }
+  /ericsson-brm:brm::backup-manager::delete-backup:
+    put:
+      description: Deletes a backup
+      is: [badRequest, unprocessableEntity, internalServerError]
+      body:
+        application/json:
+          type: yangActionWithNameRequest
+          example: |
+            {
+              "context": "/ericsson-brm:brm/backup-manager/3",
+              "input": {
+                "ericsson-brm:name": "myBackup"
+              }
+            }
+      responses:
+        200:
+          body:
+            application/json:
+              type: yangActionResponse
+              example: |
+                {
+                  "ericsson-brm:return-value": 5
+                }
+  /ericsson-brm:brm::backup-manager::import-backup (sftp-server password authentication):
+    put:
+      description: Imports a backup
+      is: [badRequest, unprocessableEntity, internalServerError]
+      body:
+        application/json:
+          type: yangActionWithUriRequest
+          example: |
+            {
+              "context": "/ericsson-brm:brm/backup-manager/3",
+              "input": {
+                "ericsson-brm:uri": "sftp://...",
+                "ericsson-brm:password": "123456"
+              }
+            }
+      responses:
+        200:
+          body:
+            application/json:
+              type: yangActionResponse
+              example: |
+                {
+                  "ericsson-brm:return-value": 5
+                }
+  /ericsson-brm:brm::backup-manager::import-backup (sftp-server key authentication):
+    put:
+      description: Imports a backup
+      is: [badRequest, unprocessableEntity, internalServerError]
+      body:
+        application/json:
+          type: yangActionWithSftpServerNameRequest
+          example: |
+            {
+              "context": "/ericsson-brm:brm/backup-manager/3",
+              "input": {
+                "ericsson-brm:sftp-server-name": "sftpServerOne",
+              }
+            }
+      responses:
+        200:
+          body:
+            application/json:
+              type: yangActionResponse
+              example: |
+                {
+                  "ericsson-brm:return-value": 5
+                }
+  /ericsson-brm:brm::backup-manager::backup::restore:
+    put:
+      description: Restores a backup
+      is: [badRequest, unprocessableEntity, internalServerError]
+      body:
+        application/json:
+          type: yangActionRequest
+          example: |
+            {
+              "context": "/ericsson-brm:brm/backup-manager/1/backup/5"
+            }
+      responses:
+        200:
+          body:
+            application/json:
+              type: yangActionResponse
+              example: |
+                {
+                  "ericsson-brm:return-value": 3
+                }
+  /ericsson-brm:brm::backup-manager::backup::export (sftp-server password authentication):
+    put:
+      description: Exports a backup
+      is: [badRequest, unprocessableEntity, internalServerError]
+      body:
+        application/json:
+          type: yangActionWithUriRequest
+          example: |
+            {
+              "context": "/ericsson-brm:brm/backup-manager/1/backup/4",
+              "input": {
+                "ericsson-brm:uri": "sftp://...",
+                "ericsson-brm:password": "123456"
+              }
+            }
+      responses:
+        200:
+          body:
+            application/json:
+              type: yangActionResponse
+              example: |
+                {
+                  "ericsson-brm:return-value": 3
+                }
+  /ericsson-brm:brm::backup-manager::backup::export (sftp-server key authentication):
+    put:
+      description: Exports a backup
+      is: [badRequest, unprocessableEntity, internalServerError]
+      body:
+        application/json:
+          type: yangActionWithSftpServerNameRequest
+          example: |
+            {
+              "context": "/ericsson-brm:brm/backup-manager/1/backup/4",
+              "input": {
+                "ericsson-brm:sftp-server-name": "sftpServerOne",
+              }
+            }
+      responses:
+        200:
+          body:
+            application/json:
+              type: yangActionResponse
+              example: |
+                {
+                  "ericsson-brm:return-value": 3
+                }

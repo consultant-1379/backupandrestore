@@ -1,0 +1,85 @@
+= Backup and Restore Orchestrator - Agent Feature Support
+:author: Michael Lawless
+:doc-name: Agent Feature Support
+:doc-no: 2/1551-APR 201 40/3
+:revnumber: PA1
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Introduction
+
+This document is intended to show the backup and restore features that each Data Management (DM) Services Backup and Restore Orchestrator Agent supports.
+
+== Agent Feature Support
+
+[cols="1,1,1,1,1,1,1,1,1,1", options="header"]
+|===
+| Feature                                          | KVDB  | DDPG  | DCZK  | SE    | WCDB  | DCED  | HR    | CR    | LDAP
+
+| DM Service Version                               | 0.0.0 | 0.0.0 | 0.0.0 | 0.0.0 | 0.0.0 | 0.0.0 | 0.0.0 | 0.0.0 | 0.0.0
+
+| `Register`                                       | `yes` | `yes` | `yes` | `yes` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD`
+
+| `Full Backup`                                    | `yes` | `yes` | `yes` | `yes` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD`
+
+| `Full Restore`                                   | `yes` | `yes` | `yes` | `yes` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD`
+
+| `Single backup type support`                     | `yes` | `yes` | `yes` | `yes` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD`
+
+| `Agent Discovery`                                | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD`
+
+| `Pre Restore Operation (optional)`               | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`
+
+| `Post Restore Operation (optional)`              | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`
+
+| `Multiple backup type support`                   | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`
+
+| `Selective backup (optional)`                    | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`
+
+| `TLS`                                            | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`  | `no`
+
+| `mTLS`                                           | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` | `TBD`
+
+|===
+
+note: in the above table `TBD` indicates "To Be Done". In the event a feature is not required by an agent NA (Not Applicable) should be entered in the table.
+
+=== Features
+
+==== Full Backup
+Basic backup that captures all data in the data management service
+
+==== Full Restore
+Basic restore that replaces all data in a backup in the data management service
+
+==== Single backup type
+All agents belong to a backup manager, currently this is a one to one map with backup type. By supporting a single backup type a DM can be identified for a
+backup or restore operation independently or in groups of services that are a subset of all active agents.
+Note: All agents are registered to the DEFAULT backup manager to ensure it is always possible to perform backup and restore actions.
+
+==== Agent Discovery
+To complement agents registering with the orchestrator, agents have labels and annotations in the charts to indicate they are to be considered in a backup. This is to allow
+for a way to check that all agents are connected and active before taking action.
+NOTE: This is only needed for backup, for restore a list of agents is read from the backup and all must be present.
+
+==== Pre Restore
+An agent can provide a set of instructions which will be executed before the restore action. All agents will be asked to perform this operation,
+by default the agent will automatically respond to this operation with a success message. The next operation will not proceed until all agents have responded.
+
+==== Post Restore
+An agent can provide a set of instructions which will be executed after the restore action. All agents will be asked to perform this operation,
+by default the agent will automatically respond to this operation with a success message. The next operation will not proceed until all agents have responded.
+
+==== Multiple backup type
+An agent can register with multiple backup types. Only a single type will be triggered at a time. This allows for multiple types of backups/restores to be taken and will
+be used in combination with selective backup.
+
+==== Selective backup
+An agent can be configured to include only parts of a Data Management services' data, for example an individual logical database or table.
+
+[bibliography]
+References
+----------
+[bibliography]
+* [[ServiceUserGuide]] Backup and Restore Service User Guide, 1/1553-APR 201 40/5

@@ -1,0 +1,31 @@
+{{- if .Values.global -}}
+{{- if and .Values.global.networkPolicy .Values.networkPolicy -}}
+{{- if and .Values.global.networkPolicy.enabled .Values.networkPolicy.enabled -}}
+{{- if .Values.bro.enableConfigurationManagement -}}
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-cmyp-allow
+  labels:
+    app.kubernetes.io/name: {{ template "eric-ctrl-bro.name" . }}
+    app: {{ template "eric-ctrl-bro.name" . }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "eric-ctrl-bro.name" . }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ .Values.cmyang.host }}
+    ports:
+    - port: {{ .Values.bro.restPort }}
+      protocol: TCP
+    - port: {{ .Values.bro.restTlsPort }}
+      protocol: TCP
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

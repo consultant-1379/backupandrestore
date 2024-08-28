@@ -1,0 +1,184 @@
+modelVersion: 2.0
+
+docker-images:
+  # in ADP GS environment use the 'latest' tag, as testing may contain potentially
+  # unstable/not tested content
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+
+properties:
+    # ARM generic repository where released docker images are stored in tar.gz format
+  - released-artifacts-repo: https://armdocker.rnd.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-artifacts-generic-local
+
+  - nexus-agent-url: https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/groups/aia-repositories/com/ericsson/adp/mgmt/eric-log4j2-socket-appender-cxa301004
+  - eric-log4j2-socket-appender-dir: eric-log4j2-socket-appender-cxa301004-${env.RELEASE_VERSION_2PP}
+
+    # ARM generic repository where the released ADP CPI Input documents are stored
+  - cpi-input-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-cpi-input-released-generic-local
+
+  - gitca-repo-name: "adp-backup-and-restore-orchestrator"
+
+  - license-agreement-file: 'license.agreement.json'
+  - agent-license-agreement-file-path: 'eric-log4j2-socket-appender/Documentation/${license-agreement-file}'
+
+  - cpi-folder-name-appender: cxa301004
+  - appender-cxa-number: CXA301004
+  - source-product-number: CAV101878
+
+  - aca-group-id: 1e88cb67-1442-47cf-a49b-68ca2019af47
+
+env:
+  - ENABLE_HELM_V3 (default=true)
+    # the microservice release candidate version (e.g. 1.0.0-3)
+  - RELEASE_CANDIDATE
+    # the release version of the socket appender used in the release
+  - RELEASE_VERSION_2PP
+    # the git commit to do the release of (generate PRI until this commit and tag it)
+  - GIT_COMMIT_TAG (default=HEAD)
+    # the ARM functional user name for Helm repository
+  - HELM_USR
+    # the ARM functional user token for Helm repository
+  - API_TOKEN
+    # the ARM functional user password for artifact repository
+  - RELEASED_ARTIFACTS_REPO_API_TOKEN
+    # the EVMS username
+  - EVMS_USR
+    # the EVMS password
+  - EVMS_PSW
+    # the GERRIT username
+  - GERRIT_USR
+    # the GERRIT password
+  - GERRIT_PSW
+    # the JIRA username
+  - JIRA_USR
+    # the JIRA password
+  - JIRA_PSW
+    # the EriDoc username
+  - ERIDOC_USR
+    # the EriDoc username
+  - ERIDOC_PSW
+    # ACA username
+  - ACA_USR
+    # ACA password
+  - ACA_PSW
+  - DRY_RUN (default=false)
+  - MUNIN_USERNAME
+  - MUNIN_TOKEN
+  - RELEASE_VERSION_2PP
+  - SEMANTIC_VERSION
+
+var:
+  - released-version
+  - released-version-without-build-number
+  - helmchart-file-name
+  - relauto-image-id
+  - docker-version
+  - appender-jar-sha256
+  - commithash
+  - artifact-id
+
+rules:
+
+  store-release-artifacts:
+    - task: pull-agent-jar
+      cmd:
+        - mkdir ${eric-log4j2-socket-appender-dir}
+        - curl ${nexus-agent-url}/${env.RELEASE_VERSION_2PP}/${eric-log4j2-socket-appender-dir}.jar -o ./${eric-log4j2-socket-appender-dir}/${eric-log4j2-socket-appender-dir}.jar
+        - curl ${nexus-agent-url}/${env.RELEASE_VERSION_2PP}/${eric-log4j2-socket-appender-dir}-javadoc.jar -o ./${eric-log4j2-socket-appender-dir}/${eric-log4j2-socket-appender-dir}-javadoc.jar
+        - curl ${nexus-agent-url}/${env.RELEASE_VERSION_2PP}/${eric-log4j2-socket-appender-dir}-sources.jar -o ./${eric-log4j2-socket-appender-dir}/${eric-log4j2-socket-appender-dir}-sources.jar
+        - curl ${nexus-agent-url}/${env.RELEASE_VERSION_2PP}/${eric-log4j2-socket-appender-dir}-uber.jar -o ./${eric-log4j2-socket-appender-dir}/${eric-log4j2-socket-appender-dir}-uber.jar
+        - zip -r -j ${eric-log4j2-socket-appender-dir}.zip ${eric-log4j2-socket-appender-dir}/*
+    - task: upload-agent-artifact
+      cmd:
+        - curl -u ${env.HELM_USR}:${env.RELEASED_ARTIFACTS_REPO_API_TOKEN} -T ./${eric-log4j2-socket-appender-dir}.zip ${released-artifacts-repo}/eric-log4j2-socket-appender/${env.RELEASE_VERSION_2PP}/${eric-log4j2-socket-appender-dir}.zip
+
+  upload-cpi-fragment:
+    - task: upload-license-agreement-json-socket-appender
+      docker-image: adp-release-auto
+      cmd: bash -c 'shopt -s nocasematch;
+           [[ ("${env.DRY_RUN}" =~ ^y(es)?$) || ("${env.DRY_RUN}" =~ ^t(rue)?$) || ("${env.DRY_RUN}" == 1) ]] ||
+           curl
+           -vvv
+           -H "X-JFrog-Art-Api:${env.API_TOKEN}"
+           -T "${agent-license-agreement-file-path}"
+           "${cpi-input-repo}/${cpi-folder-name-appender}/${env.RELEASE_VERSION_2PP}/${license-agreement-file}"
+           '
+
+  evms-registration-socket-appender:
+    - task: evms-registration
+      docker-image: adp-release-auto
+      cmd: dependencies register --evms
+                                 --evms-user ${env.EVMS_USR}
+                                 --evms-password ${env.EVMS_PSW}
+                                 --evms-product-name 'Log4j2 Socket Appender'
+                                 --evms-product-version ${env.RELEASE_VERSION_2PP}
+                                 --evms-server https://evms.internal.ericsson.com/
+                                 --dependencies ./eric-log4j2-socket-appender/fossa/dependencies.yaml
+                                 --dry-run ${env.DRY_RUN}
+                                 --debug
+
+  # Create product versions from product structure and FOSS dependencies
+  munin-update-version:
+    - task: create-products
+      docker-image: adp-release-auto
+      cmd: munin create-versions -t ${env.MUNIN_TOKEN} -c eric-log4j2-socket-appender/fossa/product_structure.yaml -v ${env.RELEASE_VERSION_2PP}
+
+  # Fetch checksums of images and helm charts
+  fetch-artifact-checksums:
+    # Get artifact hashs
+    - task: init
+      docker-image: adp-release-auto
+      docker-flags:
+        - "--env RELEASED_ARTIFACTS_REPO_API_TOKEN=${env.RELEASED_ARTIFACTS_REPO_API_TOKEN}"
+      cmd:
+        - arm get-checksum --url ${released-artifacts-repo}/eric-log4j2-socket-appender/${env.RELEASE_VERSION_2PP}/${eric-log4j2-socket-appender-dir}.zip --sha256 --apikey ${env.RELEASED_ARTIFACTS_REPO_API_TOKEN} --output .bob/var.appender-jar-sha256
+        - cat .bob/var.appender-jar-sha256
+    - task: get-commit-hash
+      docker-image: adp-release-auto
+      cmd:
+        - git rev-list -n 1 `git show-ref --hash ${eric-log4j2-socket-appender-dir}` > .bob/var.commithash
+        - cat .bob/var.commithash
+
+  # Set artifact URLs in PLMS via GitCA
+  munin-connect-ca-artifact:
+    - task: archive-commit
+      docker-image: adp-release-auto
+      cmd: gitca register-plm
+           --commithash ${var.commithash}
+           --product-number ${source-product-number}
+           --version ${env.RELEASE_VERSION_2PP}
+           --dry-run ${env.DRY_RUN}
+           --name ${gitca-repo-name}
+           --username ${env.GERRIT_USR}
+           --password ${env.GERRIT_PSW}
+
+  # Set artifact URLs in PLMS
+  upload-and-register-artifacts-in-aca:
+    - task: upload
+      docker-image: adp-release-auto
+      cmd: aca upload-file --policy OSSENM
+           --file ${eric-log4j2-socket-appender-dir}/${eric-log4j2-socket-appender-dir}.jar
+           --group-id ${aca-group-id}
+           --export-artifact-id .bob/var.artifact-id
+           --username ${env.ACA_USR}
+           --password '${env.ACA_PSW}'
+  # This step will instruct ACA to set product metadata in both ACA and Mimer
+    - task: register-plm
+      docker-image: adp-release-auto
+     # Register in Mimer (ACA will set the artifact attributes in the Mimer product version)
+      cmd: aca register-plm
+           --metadata productNumber=${appender-cxa-number} productVersion=${env.RELEASE_VERSION_2PP}
+           --artifact-id ${var.artifact-id}
+           --username ${env.ACA_USR}
+           --password '${env.ACA_PSW}'
+
+  # Release products in PLMS
+  munin-release-version:
+    - task: release-versions
+      docker-image: adp-release-auto
+      cmd:
+        - munin release-versions
+          -t ${env.MUNIN_TOKEN}
+          -c eric-log4j2-socket-appender/fossa/product_structure.yaml
+          -v ${env.RELEASE_VERSION_2PP}
+          --wait-prim-target 60
+

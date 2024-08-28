@@ -1,0 +1,9 @@
+traffic:
+  tps: "0"
+  Request-avg-size: 0kb
+  total-requests: "0"
+  total-errors: "0"
+  latency: 0ms
+  service-down: "0"
+  traffic-loss: "0%"
+  traffic-latency: "0%"

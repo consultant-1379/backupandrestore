@@ -1,0 +1,139 @@
+{{- if .Values.brAgent.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "eric-test-service-basic.agentname" . }}
+  annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4}}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "eric-test-service-basic.agentname" . }}
+      app.kubernetes.io/instance: {{.Release.Name | quote }}
+  serviceName: {{ template "eric-test-service-basic.agentname" . }}
+  replicas: {{ .Values.brAgent.replicas }}
+  updateStrategy:
+    type: {{ .Values.updateStrategy.type | quote }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ template "eric-test-service-basic.agentname" . }}
+        app.kubernetes.io/version: {{ template "eric-test-service-basic.version" . }}
+        app.kubernetes.io/instance: {{.Release.Name | quote }}
+        {{- if and .Values.brAgent (eq .Values.brAgent.enabled true) }}
+        {{- if .Values.global.adpBR.brLabelKey }}
+        {{ .Values.global.adpBR.brLabelKey }}: {{ .Values.brAgent.brLabelValue | default .Chart.Name | quote }}
+        {{- end }}
+        {{- end }}
+      annotations:
+        checksum/log: {{ include (print $.Template.BasePath "/logging-configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/agentproperties-configmap.yaml") . | sha256sum }}
+        {{- if and .Values.brAgent.enabled .Values.brAgent.backupTypeList}}
+        {{- if gt (len .Values.brAgent.backupTypeList) 1 }}
+        checksum/backuptype: {{ include (print $.Template.BasePath "/agentbackuptype-configmap.yaml") . | sha256sum }}
+        {{- end }}
+        {{- end -}}
+        {{- if .Values.brAgent.backupTypeList }}
+        {{- if (index .Values.brAgent.backupTypeList 0) }}
+        backupType: {{- template "eric-test-service-basic.backupTypes" . }}
+        {{- end }}
+        {{- end -}}
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 8 }}
+    spec:
+{{- include "eric-test-service-basic.pullsecret" . }}
+      serviceAccountName: {{ template "eric-test-service-basic.serviceAccountName" . }}-agent
+      securityContext:
+        fsGroup: 287330
+      containers:
+      - name:  {{ .Chart.Name }}-agent
+        securityContext:
+          allowPrivilegeEscalation: false
+          privileged: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        imagePullPolicy: {{ .Values.imagePullPolicy | quote }}
+        {{- if .Values.imageCredentials.registry.url }}
+        image: "{{ .Values.imageCredentials.registry.url }}/{{ .Values.imageCredentials.repoPath }}/{{ .Values.imageCredentials.brSubPath }}/{{ .Values.images.testagent.name }}:{{ .Values.images.testagent.tag }}"
+        {{- else }}
+        image: "{{ .Values.global.registry.url }}/{{ .Values.imageCredentials.repoPath }}/{{ .Values.imageCredentials.brSubPath }}/{{ .Values.images.testagent.name }}:{{ .Values.images.testagent.tag }}"
+        {{- end }}
+        command: ["/bin/sh","-c"]
+        args: [ {{ .Values.brAgent.commandArgs }}]
+        resources:
+          requests:
+            memory: {{ .Values.brAgent.resources.requests.memory | quote }}
+            cpu: {{ .Values.brAgent.resources.requests.cpu | quote }}
+          limits:
+            memory: {{ .Values.brAgent.resources.limits.memory | quote }}
+            cpu: {{ .Values.brAgent.resources.limits.cpu | quote }}
+        ports:
+        - containerPort: {{ .Values.global.adpBR.broGrpcServicePort }}
+          name: agentbasic
+        env:
+          - name: TZ
+            value: {{ .Values.env.timezone | quote }}
+          - name: BACKUP_LOCATION
+          - name: AGENT_DATA_CHANNEL_TIMEOUT_SECS
+            value: {{ .Values.brAgent.grpc.backup.dataChannelTimeoutSecs | quote }}
+          - name: AGENT_FRAGMENT_CHUNK_SIZE
+            value: {{ .Values.brAgent.grpc.backup.fragmentChunkSize | quote }}
+        readinessProbe:
+          exec:
+            command:
+            - "pgrep"
+            - "-fl"
+            - {{ .Values.brAgent.agentRunner }}
+          initialDelaySeconds: {{ .Values.brAgent.readinessProbeInitialDelaySeconds }}
+          timeoutSeconds: {{ .Values.brAgent.readinessProbeTimeoutSeconds }}
+        livenessProbe:
+          exec:
+            command:
+            - "pgrep"
+            - "-fl"
+            - {{ .Values.brAgent.agentRunner }}
+          initialDelaySeconds: {{ .Values.brAgent.livenessProbeInitialDelaySeconds }}
+          timeoutSeconds: {{ .Values.brAgent.livenessProbeTimeoutSeconds }}
+        volumeMounts:
+{{ include "eric-test-service-basic.volumeMounts" . | indent 8 }}
+        - name: {{ template "eric-test-service-basic.agentname" . }}-properties
+          mountPath: /testagent/application.properties
+          subPath: application.properties
+{{- if and .Values.brAgent.enabled .Values.brAgent.backupTypeList}}
+{{- if gt (len .Values.brAgent.backupTypeList) 1 }}
+        - name: {{ template "eric-test-service-basic.agentname" . }}-backuptype
+          mountPath: /testagent/backuptype.properties
+          subPath: backuptype.properties
+{{- end }}
+{{- end }}
+        - name: backupdir
+          mountPath: /backupdata
+      volumes:
+{{ include "eric-test-service-basic.volumes" . | indent 6 }}
+      - name: {{ template "eric-test-service-basic.agentname" . }}-properties
+        configMap:
+          defaultMode: 0444
+          name: {{ template "eric-test-service-basic.agentname" . }}-properties
+{{- if and .Values.brAgent.enabled .Values.brAgent.backupTypeList}}
+{{- if gt (len .Values.brAgent.backupTypeList) 1 }}
+      - name: {{ template "eric-test-service-basic.agentname" . }}-backuptype
+        configMap:
+          defaultMode: 0444
+          name: {{ template "eric-test-service-basic.backuptype.name" . }}
+{{- end }}
+{{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: backupdir
+    spec:
+      accessModes: [ {{ .Values.testServiceBasic.persistantVolumeClaim.accessModes | quote }} ]
+      resources:
+        requests:
+          storage: {{ .Values.testServiceBasic.persistantVolumeClaim.storage | quote }}
+      {{- if and (ne .Values.testServiceBasic.persistantVolumeClaim.storageClassName "default") (.Values.testServiceBasic.persistantVolumeClaim.storageClassName) }}
+      storageClassName: {{ .Values.testServiceBasic.persistantVolumeClaim.storageClassName | quote }}
+      {{- end }}
+{{- end }}

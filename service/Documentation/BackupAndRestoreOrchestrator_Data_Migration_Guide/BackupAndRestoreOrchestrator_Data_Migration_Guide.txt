@@ -1,0 +1,123 @@
+= Backup and Restore Orchestrator - Data Migration Guide
+:author: Luis Islas
+:doc-name: Data Migration Guide
+:doc-no: 6/19817-APR 201 40/3
+:revnumber: PA1
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Introduction
+
+The purpose of this guide is to show how to import backups from a R1 BRO
+into a R2 BRO, with examples.
+
+The guide does not cover in detail the complete BRO deployment. For more
+details, refer to the Backup and Restore Orchestrator Deployment Guide
+(see <<Deployment,Backup and Restore Orchestrator Deployment Guide>>).
+
+== Prerequisites
+
+* A running R1 BRO with a backup to be exported.
+* A running SFTP server, to hold the exported backup.
+
+== Export required Backups
+
+A R1 BRO comes with a SFTP server that holds all backup data and details.
+In order to export a backup, it is necessary to access that SFTP server and get those files.
+
+The following files must be exported:
+
+* The JSON file containing backup details.
+* The entire folder where the backup data resides.
+
+=== Exporting Backup JSON file
+
+The JSON file is named `<backupName>.json` and it's located at `<backup.managers.location>/<backupManagerId>/backups`.
+
+`backup.managers.location` is a BRO property that indicates where to store its own metadata.
+
+If that property were set to `/bro` and the backup to be exported was called `myBackup`,
+belonging to the `configuration` backupManager, it would be necessary to get the file
+`/bro/configuration/backups/myBackup.json`.
+
+=== Exporting Backup Data
+
+The folder containing all of the backup's data is located at `<backup.location>/<backupManagerId>/<backupName>`
+
+`backup.location` is a BRO property that indicates where to store backup data.
+
+If that property were set to `/backup-data` and the backup to be exported was called `myBackup`,
+belonging to the `configuration` backupManager, it would be necessary to get the folder
+`/backup-data/configuration/myBackup/`.
+
+== Tear Down R1 BRO
+
+Uninstall the R1 BRO, which will also remove the SFTP server that was used to export the backup.
+
+== Install R2 BRO
+
+Follow the Deployment Guide to install the latest version of BRO.
+See <<Deployment,Backup and Restore Orchestrator Deployment Guide>>.
+
+== Install Agents
+
+Install all agents involved in the exported backup(s).
+They are needed to create all the necessary Backup Managers and
+to perform restores.
+
+== Prepare Backup to be imported
+
+In order to import a backup into a R2 BRO, it is necessary to place the exported
+files in a remote SFTP server, following a different folder structure.
+
+* Create the folders to hold all backup files. The root folder will be referred to as `rootSftpFolder`.
+* Place the JSON file at `<rootSftpFolder>/<backupManagerId>/<backupName>/backupfile/`.
+* Place the backup data folder at `<rootSftpFolder>/<backupManagerId>/<backupName>/backupdata/`.
+
+To import the `myBackup` backup, belonging to `configuration` backupManager,
+using `/bro/export/` as `rootSftpFolder`, it would be necessary to:
+
+* Create the folder `/bro/export/configuration/myBackup/backupfile/`
+* Place `myBackup.json` at `/bro/export/configuration/myBackup/backupfile/myBackup.json`.
+* Create the folder `/bro/export/configuration/myBackup/backupdata/`
+* Place `myBackup` folder at `/bro/export/configuration/myBackup/backupdata/myBackup`.
+
+To further clarify, the folder structure in the SFTP server would be:
+
+....
+/bro
++-- export
+    +-- configuration
+        +-- myBackup
+            |-- backupdata
+            |   +-- myBackup
+            |       +-- ...
+            +-- backupfile
+                +-- myBackup.json
+....
+
+== Importing a Backup
+
+Verify if the Backup Manager that owns the Backup exists in the R2 BRO.
+
+Execute an import pointing to the backup folder in the SFTP server.
+
+Using the backup from the previous section as example, the folder would be
+`/bro/export/configuration/myBackup`.
+
+For specific details on how to verify if the Backup Manager exists and
+how to import a backup to a R2 BRO, refer to:
+
+* Backup and Restore Orchestrator Operations Guide, to interact with the BRO using Rest.
+  See <<Operations,Backup and Restore Orchestrator Operations Guide>>.
+* Backup and Restore Orchestrator Operations Guide CMYP, to interact with the BRO through CMYP.
+  See <<OperationsCMYP,Backup and Restore Orchestrator Operations Guide CMYP>>.
+
+[bibliography]
+References
+----------
+[bibliography]
+- [[Deployment]] Backup and Restore Service User Guide, 1/1553-APR 201 40/5
+- [[Operations]] Backup and Restore Orchestrator Operations Guide, 2/19817-APR 201 40/5
+- [[OperationsCMYP]] Backup and Restore Orchestrator Operations Guide CMYP, 5/19817-APR 201 40/5

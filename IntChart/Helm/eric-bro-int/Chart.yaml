@@ -1,0 +1,104 @@
+apiVersion: v2
+appVersion: "1.1"
+description: Integrated components for backup and restore Helm chart
+name: eric-bro-int
+version: 10.3.0
+dependencies:
+- name: eric-ctrl-bro
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-internal-helm"
+- name: eric-data-message-bus-kf
+  version: ">0.0.0-0"
+  tags:
+    - data
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+- name: eric-data-key-value-database-rd
+  version: "6.4.0-10"
+  tags:
+    - data
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+- name: eric-data-key-value-database-rd-operand
+  version: ">0.0.0-0"
+  tags:
+    - data
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+- name: eric-data-coordinator-zk
+  version: ">0.0.0+0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  tags:
+    - data
+- name: eric-pm-server
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  version: ">0.0.0-0"
+  tags:
+    - pm
+- name: eric-data-document-database-pg
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  tags:
+    - cmyp
+- name: eric-cm-mediator
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  version: ">0.0.0-0"
+  tags:
+    - cmyp
+- name: eric-cm-yang-provider
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  version: ">0.0.0-0"
+  tags:
+    - cmyp
+- name: eric-sec-access-mgmt
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/"
+  tags:
+    - cmyp
+- name: eric-sec-ldap-server
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/"
+  tags:
+    - cmyp
+- name: eric-data-search-engine
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/"
+  version: ">0.0.0-0"
+  tags:
+    - logging
+- name: eric-log-transformer
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  version: ">0.0.0-0"
+  tags:
+    - logging
+- name: eric-data-distributed-coordinator-ed
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  tags:
+    - security
+- name: eric-sec-sip-tls
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/"
+  tags:
+    - security
+- name: eric-sec-key-management
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm"
+  tags:
+    - security
+- name: eric-data-kvdb-ag
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/"
+  tags:
+    - datakvdb
+- name: eric-data-object-storage-mn
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-pc-gs-released-helm/"
+  tags:
+    - osmn_enabled
+- name: eric-odca-diagnostic-data-collector
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/"
+  tags:
+    - yang
+- name: eric-sec-certm
+  version: ">0.0.0-0"
+  repository: "https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/"
+  tags:
+    - yang

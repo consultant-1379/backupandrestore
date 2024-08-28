@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.metadata";
+
+/**
+    Software version information of the Data Management Service (DM) to be stored in the backup as per the yang model.
+    Can be used in a restore to determine software compatibility of a DM.
+**/
+message SoftwareVersionInfo {
+    string productName = 1;
+    string productNumber = 2;
+    string revision = 3;
+    string productionDate = 4;
+    string description = 5;
+    string type = 6;
+    string commercialVersion = 7;
+    string semanticVersion = 8;
+}

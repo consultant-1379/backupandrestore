@@ -1,0 +1,19 @@
+modelVersion: 2.0
+uses_encryption:
+  # Bouncy Castle (org.bouncycastle:bcpkix-jdk15on)
+  # Bouncy Castle (org.bouncycastle:bcprov-jdk15on)
+  - product_number: CTX1032704
+    encryptions:
+        # Explain how the encryption is used
+      - usage: "Generate PKCS8 key store to enable mTLS"
+        # Encryption Purpose (possible values: 'Data confidentiality, OAM only', 'Data confidentiality, not only OAM', 'Other than data confidentiality')
+        purpose: 'Other than data confidentiality'
+        # Encryption Protocols
+        #protocols:
+        # Cryptographic Algorithms
+        crypto_algorithms:
+            # Algorithm Name (for full list see Munin documentation)
+          - name: 3DES
+            key_length: 168
+          - name: ECDSA
+          - name: RC2

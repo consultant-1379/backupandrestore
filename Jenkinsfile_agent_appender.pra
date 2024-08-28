@@ -1,0 +1,112 @@
+def bob = './bob/bob'
+def ruleset = params.ORIGIN + '/ruleset2_0_pra.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    environment {
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+        GERRIT = credentials('eadphub-psw')
+        EVMS = credentials('eadphub-psw')
+        HELM = credentials('eadphub-psw')
+        JIRA = credentials('eadphub-psw')
+        ERIDOC = credentials('eadphub-psw')
+        MUNIN_TOKEN = credentials('munin_token')
+        ACA = credentials('eadphub-psw')
+    }
+    options {
+        timestamps()
+        timeout(time: 5, unit: 'DAYS')
+    }
+    stages {
+        stage('Check parameters'){
+            steps {
+                script {
+                    if (params.RELEASE_VERSION_2PP == null) {
+                        error("RELEASE_VERSION_2PP is mandatory")
+                    }
+                }
+            }
+        }
+        stage('Prepare bob') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Store Release Artifacts') {
+           when { expression { (params.STORE_RELEASE_ARTIFACTS) } }
+           steps {
+               withCredentials([string(credentialsId: 'hub-arm-seli-api-token', variable: 'RELEASED_ARTIFACTS_REPO_API_TOKEN')]) {
+                   sh "${bob} -r ${ruleset} store-release-artifacts"
+               }
+           }
+        }
+        stage('Upload CPI fragment') {
+            when { expression { (params.UPLOAD_CPI_FRAGMENT) } }
+            steps {
+                    sh "${bob} -r ${ruleset} upload-cpi-fragment"
+            }
+        }
+        
+        stage('Munin Update') {
+            when { expression { (params.MUNIN_UPDATE_VERSION) } }
+            steps {
+                sh "${bob} -r ${ruleset} munin-update-version"
+            }
+        }
+        stage('Fetch Artifact Checksum') {
+            when { expression { (params.GET_CHECKSUMS_FROM_ARM) } }
+            steps {
+                withCredentials([string(credentialsId: 'hub-arm-seli-api-token', variable: 'RELEASED_ARTIFACTS_REPO_API_TOKEN')]) {
+                    sh "${bob} -r ${ruleset} fetch-artifact-checksums"
+                }
+            }
+        }
+        stage('Set GitCA Artifacts in Munin') {
+            when { expression { (params.SET_GITCA_ARTIFACTS_IN_MUNIN) } }
+                steps {
+                    sh "${bob} -r ${ruleset} munin-connect-ca-artifact"
+                }
+        }
+        stage('Upload to ACA and set info in Munin') {
+            when { expression { (params.UPLOAD_TO_ACA_AND_SET_IN_MUNIN) } }
+                steps {
+                    sh "${bob} -r ${ruleset} upload-and-register-artifacts-in-aca"
+                }
+        }
+        stage('Release version in Munin') {
+            when { expression { (params.MUNIN_RELEASE_VERSION) } }
+            steps {
+                sh "${bob} -r ${ruleset} munin-release-version"
+            }
+        }
+        stage('EVMS registration agent API') {
+           when { expression { (params.EVMS_AGENT_API=="true") } }
+           steps {
+               sh "${bob} -r ./bro-agent-api/ruleset2_0_pra.yaml evms-registration-agent-api"
+           }
+        }
+        stage('EVMS registration socket appender') {
+           when { expression { (params.EVMS_REGISTRATION=="true") } }
+           steps {
+               sh "${bob} -r ./eric-log4j2-socket-appender/ruleset2_0_pra.yaml evms-registration-socket-appender"
+           }
+        }
+        stage('Trigger BRO_AGENT_API_VERSION_UPDATE job') {
+            when { expression { (params.BRO_AGENT_API_VERSION_UPDATE) } }
+            steps {
+                build job: 'BRO_AGENT_API_VERSION_UPDATE', parameters: [
+                string(name: 'RELEASE_VERSION_2PP', value: "${params.RELEASE_VERSION_2PP}"),
+                string(name: 'INCREMENTED_RELEASE_VERSION_2PP', value: "${params.INCREMENTED_RELEASE_VERSION_2PP}"),
+                string(name: 'BRO_INCREMENT_AGENT_VERSION_JIRA', value: "${params.BRO_INCREMENT_AGENT_VERSION_JIRA}"),
+                string(name: 'OLD_BRO_AGENT_API_VERSION', value: "${params.OLD_BRO_AGENT_API_VERSION}"),
+                ], wait: false
+            }
+        }
+    }
+}

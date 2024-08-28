@@ -1,0 +1,59 @@
+--- bazel/python_rules.bzl	2020-02-04 17:04:33.000000000 +0000
++++ bazel/python_rules.bzl	2020-02-15 22:04:15.378662281 +0000
+@@ -75,6 +75,11 @@
+             providers = ["files_to_run"],
+             cfg = "host",
+         ),
++        "out_path": attr.string(
++            doc = "This attribute used to specify a subdirectory for protoc (e.g.: --python_out=sub/directory)",
++            default = '',
++            mandatory = False,
++        ),
+         "_protoc": attr.label(
+             default = Label("//external:protocol_compiler"),
+             providers = ["files_to_run"],
+@@ -89,6 +94,7 @@
+         name,
+         deps,
+         plugin = None,
++        out_path = None,
+         **kwargs):
+     """Generate python code for a protobuf.
+ 
+@@ -108,6 +114,7 @@
+         name = codegen_target,
+         deps = deps,
+         plugin = plugin,
++        out_path = out_path,
+         **kwargs
+     )
+ 
+@@ -189,6 +196,12 @@
+             providers = ["files_to_run"],
+             cfg = "host",
+         ),
++        "out_path": attr.string(
++            doc = """This attribute used to specify a subdirectory for
++                     protoc (e.g.: --python_out=sub/directory)""",
++            default = '',
++            mandatory = False,
++        ),
+         "_grpc_plugin": attr.label(
+             executable = True,
+             providers = ["files_to_run"],
+@@ -210,6 +223,7 @@
+         srcs,
+         deps,
+         plugin = None,
++        out_path = None,
+         strip_prefixes = [],
+         **kwargs):
+     """Generate python code for gRPC services defined in a protobuf.
+@@ -241,6 +255,7 @@
+         deps = srcs,
+         strip_prefixes = strip_prefixes,
+         plugin = plugin,
++        out_path = out_path,
+         **kwargs
+     )
+ 

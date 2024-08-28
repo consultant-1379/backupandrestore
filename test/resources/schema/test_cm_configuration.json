@@ -1,0 +1,9 @@
+{
+    "name": "ericsson-bro-test",
+    "title": "ericsson-bro-test",
+    "data": {
+        "testPropertyOne": "value1",
+        "testPropertyTwo": "value2",
+        "testPropertyThree": "value3"
+    }
+}

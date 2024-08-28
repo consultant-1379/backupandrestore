@@ -1,0 +1,115 @@
+modelVersion: 2.0
+
+docker-images:
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+  - athena: armdocker.rnd.ericsson.se/proj-adp-rob-and-char/athena:0.6.7-4
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+
+properties:
+  - service-name: eric-ctrl-bro
+  - k8-namespace: cicd-perf${env.TEST_TYPE}
+    # Values used for monitoring tasks
+  - monitoring-namespace: monitor
+  - cluster-name: hall060
+  - monitoring-pm-service-name: eric-pm-server-0
+  - tests-output: "${env.PWD}/pod_logs/testdeploy.log"
+  - report-generator: "gen_char_report.py"
+  - template-input: "ci_config/characteristics-report.json"
+  - template-output: "updated_adp_char_report.json"
+  - dev-arm-perf-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-docs-released-test-generic-local/perf-snapshots
+  - dev-arm-documents: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-docs-dev-generic-local
+
+env:
+  - PWD
+  - KUBECONFIG
+  - API_TOKEN
+  - CI_USER
+  - USERS_YAML
+  - DOCKER_CONFIG
+  - TEST_CHART_VERSION
+  - TEST_TYPE(default=)
+  - PYTHON_FILE
+
+var:
+  - version-prefix
+  - commit-id
+  - CHART_REPO
+  - TEST_CHART_REPO
+
+
+rules:
+  characteristics:
+    - task: assert-ready
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+        - "--volume ${env.DOCKER_CONFIG}:${env.DOCKER_CONFIG}"
+      cmd:
+        - cat VERSION_PREFIX > .bob/var.version-prefix
+        - git rev-parse --short HEAD > .bob/var.commit-id
+        - kubectl get pod ${monitoring-pm-service-name} -n ${monitoring-namespace}
+    - task: generate-report-input
+      docker-image: athena
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+        - "--volume ${env.DOCKER_CONFIG}:${env.DOCKER_CONFIG}"
+      cmd:
+        # NOTE: there is no way to always pull the latest release version, and there's no way to subscribe
+        # to notifications about new releases, so I guess PlanB just needs to watch the athena repo constantly
+        # to see if a new version has been pushed. This was latest at time of writing (01/11/21)
+        - python3 ${report-generator} ${tests-output} ${k8-namespace} ${template-input} ${cluster-name}
+    - task: push-to-arm
+      docker-image: adp-release-auto
+      cmd: curl
+           -vvv
+           -H "X-JFrog-Art-Api:${env.API_TOKEN}"
+           -T "${template-output}"
+           "${dev-arm-documents}/documents/characteristics-report${env.TEST_TYPE}.json"
+    - task: daily-performance-history
+      docker-image: adp-release-auto
+      cmd: curl
+           -vvv
+           -H "X-JFrog-Art-Api:${env.API_TOKEN}"
+           -T "${template-output}"
+           "${dev-arm-perf-repo}/${var.version-prefix}/characteristics-report${env.TEST_TYPE}-${var.commit-id}.json"
+
+  run-performance-tests:
+    - task: run-performance-tests
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+        - "--volume ${env.DOCKER_CONFIG}:${env.DOCKER_CONFIG}"
+      cmd:
+        - kubectl -n ${k8-namespace} delete --ignore-not-found secret pm-bro-test-sftp-users-secret
+        - kubectl -n ${k8-namespace} delete --ignore-not-found secret armdocker
+        - kubectl create secret generic pm-bro-test-sftp-users-secret --from-file=${env.USERS_YAML} --namespace ${k8-namespace}
+        - kubectl create secret generic armdocker --from-file=.dockerconfigjson=${env.DOCKER_CONFIG} --type=kubernetes.io/dockerconfigjson --namespace ${k8-namespace}
+        - python testframework/bootstrap.py --kubernetes-admin-conf="${env.KUBECONFIG}"
+                                              --kubernetes-namespace="${k8-namespace}"
+                                              --chart-archive=""
+                                              --helm-repo="https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-internal-helm"
+                                              --test-helm-repo="https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-test-internal-helm"
+                                              --baseline_chart_version=""
+                                              --baseline_deployment_type="deployment"
+                                              --baseline_chart_name="${service-name}"
+                                              --copy-all-pod-logs=True
+                                              --test-params unused1=1
+                                              --armuser="${env.CI_USER}"
+                                              --archive-files-to-copy=True
+                                              --copy-directories test/resources/schema test/resources/keys test/resources/config test/utils
+                                              --armpswd="${env.API_TOKEN}"
+                                              --fail-first=True
+                                              --copy-plot-files=True
+                                              -s ${env.PYTHON_FILE}

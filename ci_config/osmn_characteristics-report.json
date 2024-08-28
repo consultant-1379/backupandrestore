@@ -1,0 +1,47 @@
+{
+    "ADP-Microservice-Characteristics-Report": {
+      "model_version" : "1.0.0",
+      "service": {
+        "name": "Backup and Restore Orchestrator with OSMN",
+        "version": "7.0.0"
+      },
+      "resource-configuration": [
+        {
+          "flavor": "standard",
+          "resources": [
+            {
+              "pod": "eric-ctrl-bro",
+              "instances": 1,
+              "containers": [
+                {
+                  "name": "eric-ctrl-bro",
+                  "image-size": "344Mi",
+                  "cpu-req": "1",
+                  "cpu-limit": "2",
+                  "mem-req": "2Gi",
+                  "mem-limit": "4Gi",
+                  "ephemeral-storage-req": "100Mi",
+                  "ephemeral-storage-limit": "250Mi"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "results": [],
+      "test-environment": {
+        "cluster": "hall060",
+        "cpu": {
+          "model": "Xeon_Phi-31S1P",
+          "CPU-MHz": 2400,
+          "bogomips": 4589
+        },
+        "memory": "499Gi",
+        "kaas": "CCD-2.20.1",
+        "kubernetes-version": "1.22.4",
+        "other-info": {
+          "description_url": "CI Cluster BRO Microservice"
+        }
+      }
+    }
+  }

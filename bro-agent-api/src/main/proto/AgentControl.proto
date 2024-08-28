@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+import "Action.proto";
+import "SoftwareVersionInfo.proto";
+import "CheckpointInformation.proto";
+import "AgentFeature.proto";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.control";
+
+package com.ericsson.adp.mgmt.control;
+
+/**
+    This file contains the definitions of the messages sent by agents on the control channel.
+    As a stream can only carry a single type of message the Agent Control message acts as a carrier for all other
+    messages.
+    The particular message that is sent can be checked by inspecting the agentMessageType.
+**/
+message AgentControl {
+    Action action = 1;
+    AgentMessageType agentMessageType = 2;
+
+    Register register = 3;
+    StageComplete stageComplete = 4;
+    AgentDependencies agentDependencies = 5;
+    PrepareDependency prepareDependency = 6;
+    ExecutionDependency executionDependency = 7;
+    Metrics metrics = 8;
+    CheckpointInformation checkpointInformation = 9;
+}
+
+/**
+    This message is to allow the agent to declare where the backup fragments will be stored.
+**/
+enum BackendType {
+    BRO = 0;
+    OBJECT_STORAGE = 1;
+    OBJECT_STORAGE_EXTERNAL = 2;
+}
+
+/**
+    Defines all available message types that can be sent by an agent.
+    The messages defined here are used to allow for a more streamlined parsing of the AgentControl message.
+    For details on the particular types it is best to refer to its associated message.
+**/
+enum AgentMessageType {
+    AGENT_DEPENDENCIES = 0;     // message AgentDependencies
+    STAGE_COMPLETE = 1;         // message StageComplete
+    PREPARE_DEPENDENCY = 2;     // message PrepareDependency
+    EXECUTION_DEPENDENCY = 3;   // message ExecutionDependency
+    REGISTER = 4;               // message Register
+    CHECKPOINT_INFORMATION = 5; // message CheckpointInformation
+    METRICS = 6;                // message Metrics
+}
+
+/**
+    First message sent by the agent to the Backup and Restore Orchestrator (BRO)
+    This provides general details about the agent allowing it to be identified.
+    It also provides functional information to the BRO to allow the BRO to include the agent into
+    the correct backup types and take other actions in interactions depending on the features supported.
+**/
+message Register {
+    string agentId = 1;
+    SoftwareVersionInfo softwareVersionInfo = 2;
+    string apiVersion = 3;
+    string scope = 4;
+    BackendType backendType = 5;
+    repeated AgentFeature agentFeature = 6;
+}
+
+/**
+    Sent by the agent to the Backup and Restore Orchestrator in response to a request for a metric.
+    This allows for the central reporting of metrics to maintain backwards compatibility.
+**/
+message Metrics {
+    string name = 1;
+    ResponseType responseType = 2;
+    string metricInformation = 3;
+}
+
+/**
+    The response type that is included with the metric message allows for data effective data parsing of the metric.
+    The types are intended to capture error cases (NONE, UNKNOWN) to allow the agent to respond appropriately when it is asked for a metric it does not support.
+    The other types (INT, FLOAT, STRING, INT_ARRY, FLOAT_ARRY) are to allow for coverage of the metric types as defined in the PM FAD
+    In the PM FAD the PM Metrics are divided into 4 types, Counters, Gauge, Histogram and Summary.
+    A counter is a cumulative metric that represents a single increasing counter whose value can only increase or be reset to zero on restart.
+    A gauge is a metric that represents a single numerical value that can arbitrarily go up and down.
+    A histogram samples observations and counts them in configurable buckets. It also provides a sum of all observed values.
+    A summary samples observations. While it also provides a total count of observations and a sum of all observed values, it calculates configurable quantiles over a sliding time window.
+**/
+enum ResponseType {
+    NONE = 0;
+    UNKNOWN = 1;
+    INT = 2;
+    FLOAT = 3;
+    STRING = 4;
+    INT_ARRAY = 5;
+    FLOAT_ARRAY = 6;
+}
+
+/* dependency tree discovery message */
+message AgentDependencies {
+    repeated string agentId = 1;
+}
+
+/* Preparation stage messages */
+message PrepareDependency {
+    repeated string agentId = 1;
+}
+
+/* Execution stage messages */
+message ExecutionDependency {
+    repeated string agentId = 1;
+}
+
+message StageComplete {
+    bool success = 1;
+    string agentId = 2;
+    /* provide additional user info for success or error message on fail */
+    string message = 3;
+}

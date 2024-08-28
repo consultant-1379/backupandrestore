@@ -1,0 +1,261 @@
+module ericsson-brm-ext-adp {
+    yang-version 1.1;
+    namespace "urn:rdns:com:ericsson:oammodel:ericsson-brm-ext-adp";
+    prefix brmxe;
+
+    import ericsson-yang-extensions {
+        prefix yexte;
+    }
+    import ericsson-brm {
+        prefix brme;
+    }
+
+    organization
+    "Ericsson AB";
+    contact
+    "Ericsson first line support via email";
+    description
+    "The module deviates ericsson-brm.
+
+     Copyright (c) 2020 Ericsson AB. All rights reserved.";
+
+    revision "2022-04-06" {
+        // eeistn
+        description
+          "Deviate unnecessary nodes of SFTP Server.
+           Deviate backup size";
+        yexte:version 1;
+        yexte:release 4;
+        yexte:correction 0;
+    }
+
+    revision "2021-05-12" {
+        // eeistn
+        description
+          "Update to align Housekeeping defaults to the agreed definitions.";
+        yexte:version 1;
+        yexte:release 3;
+        yexte:correction 0;
+    }
+
+    revision "2020-11-18" {
+        // eeistn
+        description
+          "Update to include Periodic Scheduling support in BRM model.";
+        yexte:version 1;
+        yexte:release 2;
+        yexte:correction 0;
+    }
+
+    revision "2020-03-12" {
+        // eeistn
+        description
+          "Update to include Housekeeping support in BRM model.
+           Housekeeping deviations removed.";
+        yexte:version 1;
+        yexte:release 1;
+        yexte:correction 0;
+    }
+
+    revision "2020-02-02" {
+        // eeistn
+        description
+          "First version of the extension file. This extension removes
+           the unsupported features from ericsson-brm. These features
+           will be implemented in future releases of the
+           ADP Backup and Restore Orchestrator.";
+        yexte:version 1;
+        yexte:release 0;
+        yexte:correction 0;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:scheduled-backup-name" {
+        deviate replace {
+            default SCHEDULED_BACKUP;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:housekeeping/brme:max-stored-manual-backups" {
+        deviate replace {
+            default 1;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:max-stored-scheduled-backups" {
+        description
+     "separate housekeeping for scheduled backups is not supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:user-label" {
+        description
+     "user label for the scheduler is not supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:calendar-based-periodic-event" {
+        description
+     "calendar based periodic events are not yet supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:scheduler/brme:single-event" {
+        description
+     "single scheduled events are not yet supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:auto-export" {
+        description
+      "auto-export is not yet supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server-connection/brme:password/brme:auto-export-password" {
+        description
+      "auto-export is not yet supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server-connection/brme:password/brme:auto-export-uri" {
+        description
+      "auto-export is not yet supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:export-package-label-prefix" {
+        description
+      "The export package label prefix is not supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:cancel-current-action" {
+        description
+      "cancel-current-action on brm level is not supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:cancel-current-action" {
+        description
+      "cancel-current-action on backup level is not supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:user-label" {
+        description
+      "user-label on backups is not supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:backup/brme:size" {
+        description
+      "backup size is not yet supported";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint" {
+        description
+        "SFTP Server endpoints are limited to one per SFTP Server";
+        deviate add {
+            max-elements 1;
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:keepalives" {
+        description
+        "Configurable parameters of the SSH transport layer not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:transport-params" {
+        description
+        "Configurable parameters of the SSH transport layer not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:server-authentication/brme:ca-certs" {
+        description "A set of certificate authority (CA) certificates used by
+         the SSH client to authenticate SSH servers not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:server-authentication/brme:server-certs" {
+        description "A set of server certificates used by
+         the SSH client to authenticate SSH servers not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:server-authentication/brme:ssh-host-keys/brme:local-or-truststore/brme:truststore/brme:truststore-reference" {
+        description
+        "A reference to a set of host keys that exist in the truststore is not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:certificate/brme:certificate" {
+        description
+        "Configurable parameters of the SSH transport layer not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:password/brme:password" {
+        description
+        "Configurable parameters of the SSH transport layer not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:keystore/brme:keystore-reference" {
+        description
+        "A reference to an asymmetric key that exists in the keystore is not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition/brme:private-key-type/brme:hidden-private-key/brme:hidden-private-key" {
+        description
+        "Hidden private key is not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition/brme:private-key-type/brme:encrypted-private-key" {
+        description
+        "Encrypted private key is not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition" {
+        deviate delete {
+            must 'public-key-format = "ct:ssh-public-key-format"';
+        }
+    }
+
+     deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition/brme:algorithm" {
+        description
+        "Algorithm is not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition/brme:private-key-type/brme:private-key/brme:private-key" {
+        deviate delete {
+            must "../private-key-format";
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition/brme:private-key-format" {
+        description
+        "Private key format is not supported.";
+        deviate not-supported;
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition/brme:public-key" {
+        deviate delete {
+            must "../public-key-format";
+        }
+    }
+
+    deviation "/brme:brm/brme:backup-manager/brme:sftp-server/brme:endpoints/brme:endpoint/brme:client-identity/brme:auth-type/brme:public-key/brme:public-key/brme:local-or-keystore/brme:local/brme:local-definition/brme:public-key-format" {
+        description
+        "Public key format is not supported.";
+        deviate not-supported;
+    }
+}
+
+

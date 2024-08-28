@@ -1,0 +1,35 @@
+{
+  "version" : "1.2.0",
+  "timestamp" : {
+    "$resolver": "timestamp"
+  },
+  "severity" : {
+    "$resolver": "pattern",
+    "pattern": "%level{WARN=warning,DEBUG=debug,ERROR=error,INFO=info,lowerCase=true}%throwable{none}"
+  },
+  "service_id": "eric-ctrl-bro",
+  "metadata": {
+    "pod_name": "${env:POD_NAME}",
+    "container_name": "${env:CONTAINER_NAME}",
+    "namespace": "${env:POD_NAMESPACE}"
+  },
+  "message": {
+    "$resolver": "message",
+    "stringified": true
+  },
+  "extra_data" : {
+    "exception": {
+      "$resolver": "exception",
+      "field": "stackTrace",
+      "stackTrace": {
+        "stringified": true
+      }
+    },
+    "location" : {
+      "class" : {
+        "$resolver": "source",
+        "field" : "className"
+      }
+    }
+  }
+}

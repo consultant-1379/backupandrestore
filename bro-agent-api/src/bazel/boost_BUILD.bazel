@@ -1,0 +1,76 @@
+genrule(
+    name = "3pp-boost-genrule",
+    srcs = glob(
+        [
+            "*.jam",
+            "bootstrap.sh",
+            "Jamroot",
+            "boost/**/*",
+            "libs/config/**/*",
+            "libs/system/**/*",
+            "libs/filesystem/**/*",
+            "tools/**/*",
+        ],
+        exclude = [
+            "**/test/**",
+            "**/serialization/**",
+        ],
+    ),
+    outs = [
+        "stage/lib/libboost_system.a",
+        "stage/lib/libboost_filesystem.a",
+    ],
+    cmd = """\
+set -euo pipefail
+
+TARGET_DIR=$$(readlink -f "$(RULEDIR)")
+OUTPUT=$$(mktemp --tmpdir="$$(pwd)")
+
+function defer-output() {
+    "$$@" >> "$${OUTPUT}" 2>&1 || { cat "$${OUTPUT}"; return 1; }
+}
+
+cd $$(dirname $(rootpath :bootstrap.sh))
+
+defer-output nice -n 19 ./bootstrap.sh \\
+    --with-libraries=system,filesystem
+
+defer-output nice -n 19 ./b2 cxxstd=14 -j "$$(nproc)"
+
+defer-output cp --verbose -t "$$TARGET_DIR" --parents stage/lib/*
+""",
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "boost-headers",
+    srcs = glob([
+        "boost/*.hpp",
+        "boost/**/*.hpp",
+        "boost/*.h",
+        "boost/**/*.h",
+        "boost/*.ipp",
+        "boost/**/*.ipp",
+    ]),
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "boost-lib",
+    srcs = [
+        "stage/lib/libboost_filesystem.a",
+        "stage/lib/libboost_system.a",
+    ],
+    linkopts = [
+        "-lpthread",
+    ],
+    includes = ["."],
+    hdrs = [
+        ":boost-headers",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "bootstrap.sh",
+])

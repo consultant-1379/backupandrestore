@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.control";
+option java_outer_classname = "ControlChannel";
+
+import "OrchestratorControl.proto";
+import "AgentControl.proto";
+
+package com.ericsson.adp.mgmt.control;
+
+/* open the stream for control messages
+ * Agent starts the stream it will send messages on and gets back the stream Orchestrator will reply on
+*/ 
+service ControlInterface {
+    rpc establishControlChannel (stream AgentControl) returns (stream OrchestratorControl) {}
+}

@@ -1,0 +1,15 @@
+{{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalUserCA
+metadata:
+ name: {{ template "eric-ctrl-bro.name" . }}-ca
+ labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+ annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+spec:
+ kubernetes:
+  generatedSecretName: {{ template "eric-ctrl-bro.name" . }}-ca
+  certificateName: broCAcertbundle.pem
+ certificate:
+  subject:
+   cn: {{ template "eric-ctrl-bro.name" . }}
+{{- end }}

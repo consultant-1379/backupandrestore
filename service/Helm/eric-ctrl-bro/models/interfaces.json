@@ -1,0 +1,207 @@
+{
+    "metadata" : {
+      "serviceHelmChartName" : "eric-ctrl-bro",
+      "usedSchemaVersion" : "1.1.0",
+      "fileVersion" : "0.0.3",
+      "dateEdited" : "2023-07-31"
+    },
+    "interfaceImpls": [
+        {
+            "id": "IMPL.ADP.BRO.HELM",
+            "provides": {
+                "dataIf": [
+                    {
+                        "id": "IF.ADP.BRO.HELM_VALUES_SCHEMA.V16",
+                        "description": "Backup and Restore Orchestrator, Helm Values Schema",
+                        "specUri": "values.schema.json",
+                        "specVer": "16.0.0",
+                        "type": "HelmValues",
+                        "scope": "clusterExternal"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "IMPL.ADP.BRO.IF.BR.MANAGEMENT.CNA",
+            "pod":"eric-ctrl-bro",
+            "container": "eric-ctrl-bro",
+            "provides": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.BRO.MANAGEMENT.REST.V1",
+                        "description": "A REST interface for controlling BRO",
+                        "specUri": "",
+                        "specVer": "1.0.0",
+                        "type": "HttpJson",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.MANAGEMENT.REST.V2",
+                        "description": "A REST interface for controlling BRO",
+                        "specUri": "",
+                        "specVer": "2.0.0",
+                        "type": "HttpJson",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.MANAGEMENT.REST.V3",
+                        "description": "A REST interface for controlling BRO",
+                        "specUri": "",
+                        "specVer": "3.0.0",
+                        "type": "HttpJson",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.MANAGEMENT.REST.V4",
+                        "description": "A REST interface for controlling BRO",
+                        "specUri": "",
+                        "specVer": "4.0.0-alpha.2",
+                        "type": "HttpJson",
+                        "setup": "direct",
+                        "scope": "clusterInternal",
+                        "maturity": "alpha"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "IMPL.ADP.BRO.IF.BR.MANAGEMENT.CNF",
+            "pod":"eric-ctrl-bro",
+            "container": "eric-ctrl-bro",
+            
+            "uses": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.CMYP.CM.ACTION.REST.V1",
+                        "specVer": "1.0.0",
+                        "duringPhases": ["runtime"]
+                    },
+                    {
+                        "id": "IF.ADP.CMM.CM.NOTIF.REST.V1",
+                        "specVer": "1.5.0",
+                        "duringPhases": ["runtime"]
+                    },
+                    {
+                        "id": "IF.ADP.CMM.CM.REST.V1",
+                        "specVer": "1.4.0",
+                        "duringPhases": ["runtime"]
+                    },
+                    {
+                        "id": "IF.ADP.KM.CRYPTO.REST.V1",
+                        "specVer": "1.0.0",
+                        "duringPhases": ["runtime"]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "IMPL.ADP.BRO.IF.BR.AGENT",
+            "pod":"eric-ctrl-bro",
+            "container": "eric-ctrl-bro",
+            "provides": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.BRO.CTRL.GRPC.V2",
+                        "description": "A GRPC interface for controlling the backup and restore process of services",
+                        "specUri": "",
+                        "specVer": "2.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.DATA.GRPC.V2",
+                        "description": "A GRPC interface for controlling the backup and restore of services",
+                        "specUri": "",
+                        "specVer": "2.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.CTRL.GRPC.V3",
+                        "description": "A GRPC interface for controlling the backup and restore process of services",
+                        "specUri": "",
+                        "specVer": "3.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.DATA.GRPC.V3",
+                        "description": "A GRPC interface for controlling the backup and restore of services",
+                        "specUri": "",
+                        "specVer": "3.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.CTRL.GRPC.V4",
+                        "description": "A GRPC interface for controlling the backup and restore process of services",
+                        "specUri": "",
+                        "specVer": "4.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.DATA.GRPC.V4",
+                        "description": "A GRPC interface for controlling the backup and restore of services",
+                        "specUri": "",
+                        "specVer": "4.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    }
+                ]
+            
+            }
+        },
+        {
+            "id": "IMPL.ADP.BRO.METRICS",
+            "pod":"eric-ctrl-bro",
+            "container": "eric-ctrl-bro",
+            "uses": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.PM.PROM.SCRAPING.V0",
+                        "specVer": "0.0.4",
+                        "duringPhases": ["runtime"]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "IMPL.ADP.BRO.LOGGING",
+            "pod":"eric-ctrl-bro",
+            "container": "eric-ctrl-bro",
+            "uses": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.LT.LOGSTREAM.SYSLOG.V1",
+                        "specVer": "1.0.0",
+                        "duringPhases": ["runtime"]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "IMPL.ADP.BRO.STORAGE",
+            "pod":"eric-ctrl-bro",
+            "container": "eric-ctrl-bro",
+            "uses": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.OSMN.S3.REST.V1",
+                        "specVer": "1.0.0",
+                        "duringPhases": ["runtime"]
+                    }
+                ]
+            }
+        }
+    ]
+}

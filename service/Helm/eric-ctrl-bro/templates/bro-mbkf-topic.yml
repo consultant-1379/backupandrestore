@@ -1,0 +1,17 @@
+{{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") -}}
+{{- if .Values.bro.enableNotifications -}}
+{{- if and (eq (include "eric-ctrl-bro.kafkaOperatorEnabled" .) "true") .Values.messageBusKF.topicBroNotificationCustomObject.enabled -}}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: bro-notification
+  labels:
+    strimzi.io/cluster: {{ template "eric-ctrl-bro.certificate-authorities.message-bus-kf" . }}
+spec:
+  partitions: {{ .Values.messageBusKF.topicBroNotificationCustomObject.defaultTopicPartitions }}
+  replicas: {{ .Values.messageBusKF.topicBroNotificationCustomObject.defaultTopicReplicas }}
+  config:
+    retention.ms: 17200000
+{{- end -}}
+{{- end -}}
+{{- end -}}

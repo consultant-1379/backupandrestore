@@ -1,0 +1,18 @@
+{{- if .Values.brAgent.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "eric-test-service-basic.agentname" . }}
+  annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4}}
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.global.adpBR.broGrpcServicePort }}
+    name: basic-service
+  selector:
+    app.kubernetes.io/name: {{ template "eric-test-service-basic.agentname" . }}
+    app.kubernetes.io/instance: {{.Release.Name | quote }}
+{{- end }}

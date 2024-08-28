@@ -1,0 +1,95 @@
+def bob = './bob/bob -r IntChart/ruleset_operator.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    environment {
+        BRANCH=params.GERRIT_BRANCH.substring(GERRIT_BRANCH.lastIndexOf("-") + 1)
+    }
+    stages {
+        stage("Set BuildName") {
+            steps {
+                  buildName "#" + currentBuild.number + " | " + params.GERRIT_CHANGE_SUBJECT.substring(0, GERRIT_CHANGE_SUBJECT.indexOf(" ")) + " | ${GERRIT_BRANCH} | " + params.GERRIT_PATCHSET_UPLOADER_NAME
+                  }
+           }
+        stage('Prepare bob') {
+            steps {
+                     sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                     sh 'git submodule sync'
+                     sh 'git submodule update --init --recursive'
+                     sh "cp IntChart/kvdb_operand.yaml IntChart/Helm/eric-bro-int/templates/"
+                  }
+            }
+        stage('Generate Version') {
+            steps {
+                sh "${bob} generate-version"
+            }
+        }
+        stage('Setup Repo Path') {
+            when { expression { (params.RELEASE) } }
+            steps {
+                script {
+                    if (env.BRANCH == "master") {
+                        sh "${bob} setup-repo-path:is-master"
+                    }
+                    else {
+                        sh "${bob} setup-repo-path:is-dev"
+                    }
+                }
+            }
+        }
+        stage('Build Snapshot of Integration Chart with latest BRO release') {
+            steps {
+                withCredentials([string(credentialsId: 'hub-arm-rnd-ki-api-token', variable: 'API_TOKEN')]) {
+                    sh "${bob} image"
+                }
+            }
+        }
+        stage('Push Snapshot of Integration Chart with latest BRO release') {
+            when { expression { (params.RELEASE) } }
+            steps {
+                withCredentials([string(credentialsId: 'hub-arm-rnd-ki-api-token', variable: 'API_TOKEN')]) {
+                    sh "${bob} push"
+                }
+            }
+        }
+        stage('System Test Operator') {
+            when { expression { (params.RELEASE) } }
+            steps {
+                script {
+                        env.PYTHON_FILE = "sys_test_operator.py"
+                        writeFile file: "namespace-used.txt", text: "ci-nightly-operator"
+                        env.NAMESPACE = readFile 'namespace-used.txt'
+                        archiveArtifacts 'namespace-used.txt'
+                }
+                withCredentials([
+                    string(credentialsId: 'hub-arm-rnd-ki-api-token', variable: 'API_TOKEN'),
+                    file(credentialsId: 'hall060', variable: 'KUBECONFIG'),
+                    file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                    file(credentialsId: 'hub-armdocker-config-json', variable: 'ARMDOCKER_CONF')
+                ]) {
+                    sh "${bob} testdeploy"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                if (env.RELEASE) {
+                    archiveArtifacts artifacts: '.bob/untar_tmp/eric-bro-int-operator/Chart.lock, output.html, pod_logs/*.*, namespace-used.txt,', allowEmptyArchive: true
+                }
+                archiveArtifacts artifacts: 'service/target/site/surefire-report.html, .bob/eridoc-upload-report.log', allowEmptyArchive: true
+            }
+        }
+
+    }
+
+}

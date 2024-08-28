@@ -1,0 +1,703 @@
+= Backup and Restore Orchestrator - GRPC API User Guide
+:author: Michael Lawless
+:doc-name: GRPC API User Guide
+:doc-no: 4/19817-APR 201 40/6
+:revnumber: A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+:TOC:
+
+== Introduction
+
+This guide is intended for engineers who want to communicate directly
+with the Backup and Restore Orchestrator, through its GRPC API. 
+
+This guide does not cover every detail of the API. For a full definition
+see <<grpcspec, Backup
+and Restore Orchestrator GRPC API Specification>>.
+
+== INT_BR_ORCH_CTRL
+
+This interface is used to control and coordinate messages / events
+between the Orchestrator and Agents.
+
+The first thing a new Agent needs to do in order to be able to
+participate in a backup/restore is register itself with the
+Orchestrator.
+
+It can do so via the _establishControlChannel_ rpc, defined in the
+_INT_BR_ORCH_CTRL.proto_ file. It establishes 2 streams which should be
+kept alive, one for the Orchestrator to send messages to the Agent and
+one for the Agent to reply back to the Orchestrator.
+
+=== Registration
+
+Through the connection with the Orchestrator, the Agent should send a
+registration message. All messages from the Agent are defined in the
+_AgentControl.proto_ file.
+
+image::INT_BR_ORCH_CTRL_Register.png[INT_BR_ORCH_CTRL_Register,title="Register an Agent Message Sequence"]
+
+A registration message, in json format for clarity, would be:
+
+....
+    {
+        "action": "REGISTER",
+        "agentMessageType": "REGISTER",
+        "register": {
+            "agentId": "myAgent",
+            "scope": "alpha",
+            "apiVersion": "1",
+            "softwareVersion": {
+                "productName": "productABC",
+                "productNumber": "1.2.3",
+                "revision": "R1A",
+                "productionDate": "2019-04-17",
+                "description": "ABC used by XYZ",
+                "type": "Database"
+            }
+        }
+    }
+....
+
+Once the registration message is successfully sent, the Agent will be
+available for the Orchestrator to trigger a backup/restore on.
+
+
+==== Registration v4 Agent
+
+The v4 Agent includes the below updates to the registration message.
+
+*  "commercialVersion" - Added to "softwareVersion". This represents the commercial version of the data management service e.g. "5.X.X". This is an optional field. If not provided by the agent, a value of 0.0.0 will be supplied.
+
+*  "semanticVersion" - Added to "softwareVersion". This represents the semantic version of the data management service e.g. "5.X.X". This is an optional field. If not provided by the agent, a value of 0.0.0 will be supplied.
+
+*  "agentFeature" - Indicates the list of available features on the agent. This currently is not used by BRO but agents should state what features they support.
+
+A registration message, in json format for clarity, would be:
+
+....
+    {
+        "action": "REGISTER",
+        "agentMessageType": "REGISTER",
+        "register": {
+            "agentId": "myAgent",
+            "scope": "alpha",
+            "apiVersion": "4.0",
+            "softwareVersion": {
+                "productName": "productABC",
+                "productNumber": "APR XXX XX",
+                "revision": "R1A",
+                "productionDate": "2019-04-17",
+                "description": "ABC used by XYZ",
+                "type": "Database",
+                "commercialVersion" : "5.X.X",
+                "semanticVersion" : "5.X.X"
+            }
+            agentFeature: PLAINTEXT
+            agentFeature: TLS
+            agentFeature: MTLS
+            agentFeature: PREPARE_STAGE
+            agentFeature: POST_STAGE
+            agentFeature: MULTIPLE_BACKUP_TYPES
+            agentFeature: SELECTIVE_BACKUP
+        }
+    }
+....
+
+Once the registration message is successfully sent and the Agent receives a RegistrationAcknowledge Message from BRO, the Agent will be
+available for the Orchestrator to trigger a backup/restore on.
+
+The RegistrationAcknowledge message will include a list of features BRO supports but the agent will not do anything with this information.
+A RegistrationAcknowledge message, in json format for clarity, would be:
+
+....
+registerAcknowledge {
+  acknowledgeMessage: "Registered Agent"
+  broSupportedAgentFeature: PLAINTEXT
+  broSupportedAgentFeature: TLS
+  broSupportedAgentFeature: MTLS
+  broSupportedAgentFeature: PREPARE_STAGE
+  broSupportedAgentFeature: POST_STAGE
+  broSupportedAgentFeature: MULTIPLE_BACKUP_TYPES
+  broSupportedAgentFeature: SELECTIVE_BACKUP
+}
+....
+
+=== Executing a Backup
+
+Once a connection with the Orchestrator has been established, a request
+to perform a backup from the Orchestrator can be made. This is done by
+sending an _OrchestratorControl_ message with an _Action_ of _BACKUP_
+and including the message _PREPARATION_.
+
+The _PREPARATION_ message is used in the backup context to send the name
+of the backup to the Agent.
+
+image::INT_BR_ORCH_CTRL_Backup.png[INT_BR_ORCH_CTRL_Backup,title="Executing a Backup Message Sequence"]
+
+A backup preparation message, in json format for clarity, would be:
+
+....
+    {
+        "action": "BACKUP",
+        "OrchestratorMessageType": "PREPARATION",
+        "Preparation": {
+            "backupName":"myBackup",
+            "softwareVersionInfo": <notSet>,
+            "fragment": <notSet>,
+            "backupType": "DEFAULT"
+        }
+    }
+....
+
+It is expected that an Agent will reply to this request by opening a
+data channel for every desired fragment belonging to the backup. On
+completion of transmission of all fragments, the Agent must send an
+indication of the completion of the action on the control channel. The
+Agent must respond with a _STAGE_COMPLETE_ message, which indicates the
+success or failure of the backup along with a message to be logged by
+the Orchestrator.
+
+A stage complete message for a successful backup, in json format for
+clarity, would be:
+
+....
+    {
+        "action": "BACKUP",
+        "agentMessageType": "STAGE_COMPLETE",
+        "StageComplete": {
+            "agentId": "myAgent",
+            "success": "true",
+            "message": "The backup for productABC has completed successfully",
+        }
+    }
+....
+
+A stage complete message for an unsuccessful backup, in json format for
+clarity, would be:
+
+....
+    {
+        "action": "BACKUP",
+        "agentMessageType": "STAGE_COMPLETE",
+        "StageComplete": {
+            "agentId": "myAgent",
+            "success": "false",
+            "message": "The backup for productABC has failed as the username was invalid",
+        }
+    }
+....
+
+=== Executing a Restore
+
+As long as a connection to the Orchestrator is held, a request to
+perform a restore of an existing backup from the Orchestrator can be
+made. This is done by sending an _OrchestratorControl_ message with an
+_Action_ of type _RESTORE_.
+
+The Restore action has three stages preparation, execution and post
+action.
+
+image::INT_BR_ORCH_CTRL_Restore.png[INT_BR_ORCH_CTRL_Restore,title="Executing a Restore Message Sequence"]
+
+==== Restore Preparation
+
+The initiation of restore action is indicated to the agent by sending a
+_PREPARATION_ message to the agent. This is done by including
+Orchestrator message type _PREPARATION_ in the _RESTORE_ message.
+
+The message includes details such as name of the backup, software
+version of the Agent and a list of backup fragments that belong to the
+Agent.
+
+A restore preparation message, in json format for clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "OrchestratorMessageType":"PREPARATION",
+      "Preparation":{
+        "backupName":"MyBackup",
+        "softwareVersion":{
+          "productName":"productABC",
+          "productNumber":"1.2.3",
+          "revision":"1",
+          "productionDate":"2019-04-17",
+          "description":"ABC used by XYZ",
+          "type":"Database"
+        },
+        "fragment":[
+          {
+            "fragmentId":"1",
+            "version":"0.0.0",
+            "sizeInBytes":"12345",
+            "customInformation": {
+                "description": "First fragment"
+            }
+          },
+          {
+            "fragmentId":"2",
+            "version":"0.0.0",
+            "sizeInBytes":"12345",
+            "customInformation": {
+                "something": "else"
+            }
+          },
+          {
+            "fragmentId":"3",
+            "version":"0.0.0",
+            "sizeInBytes":"12345",
+            "customInformation": {}
+          }
+        ],
+        "backupType": "DEFAULT"
+      }
+    }
+....
+
+The Agent is expected to use this information to check if the backup is
+still valid against the current software information of the Agent. If
+valid, the Agent opens a data channel for every desired fragment in
+order to download it. Once the required fragment download requests are
+completed the Agent must send an indication of the completion of
+_RESTORE_ _PREPARATION_ action on the control channel.
+
+The Agent must respond with a _STAGE_COMPLETE_ message, which indicates
+the success or failure of the restore preparation stage along with a
+message to be logged by the Orchestrator.
+
+A stage complete message for a successful restore, in json format for
+clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "agentMessageType":"STAGE_COMPLETE",
+      "StageComplete":{
+        "agentId":"myAgent",
+        "success":"true",
+        "message":"The restore for productABC has completed successfully."
+      }
+    }
+....
+
+A stage complete message for an unsuccessful restore, in json format for
+clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "agentMessageType":"STAGE_COMPLETE",
+      "StageComplete":{
+        "agentId":"myAgent",
+        "success":"false",
+        "message":"The restore for productABC has failed as the username was invalid."
+      }
+    }
+....
+
+==== Restore Preparation v4 Agent
+
+The message includes details such as name of the backup, software
+version of the Agent.
+
+A v4 restore preparation message, in json format for clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "OrchestratorMessageType":"PREPARATION",
+      "Preparation":{
+        "backupName":"MyBackup",
+        "softwareVersion":{
+          "productName":"productABC",
+          "productNumber":"APR XXX XX",
+          "revision":"R1A",
+          "productionDate":"2019-04-17",
+          "description":"ABC used by XYZ",
+          "type":"Database",
+          "commercialVersion" : "5.X.X",
+          "semanticVersion" : "5.X.X"
+        }
+        fragment {
+        }
+        "backupType": "DEFAULT"
+      }
+    }
+....
+
+The Agent is expected to use this information to check if the backup is
+still valid against the current software information of the Agent.
+
+The empty "fragment {}" in the RESTORE Preparation message indicates that there are fragments to be sent by the Orchestrator to Agent.
+For every fragment the Orchestrator will send a _FRAGMENT_LIST_ENTRY_ message.
+A data channel will be opened for every desired fragment in
+order to download it.
+
+The last fragment will be indicated when the key "last" is "true". An example:
+....
+fragmentListEntry {
+  fragment {
+    fragmentId: "TestAgent_1"
+    version: "0.0.0"
+    sizeInBytes: "10300"
+  }
+  last: true
+}
+....
+
+Once the required fragment download requests are
+completed the Agent must send an indication of the completion of
+_RESTORE_ _PREPARATION_ action on the control channel.
+
+The Agent must respond with a _STAGE_COMPLETE_ message, which indicates
+the success or failure of the restore preparation stage along with a
+message to be logged by the Orchestrator.
+
+A stage complete message for a successful restore, in json format for
+clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "agentMessageType":"STAGE_COMPLETE",
+      "StageComplete":{
+        "agentId":"myAgent",
+        "success":"true",
+        "message":"The restore for productABC has completed successfully."
+      }
+    }
+....
+
+A stage complete message for an unsuccessful restore, in json format for
+clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "agentMessageType":"STAGE_COMPLETE",
+      "StageComplete":{
+        "agentId":"myAgent",
+        "success":"false",
+        "message":"The restore for productABC has failed as the username was invalid."
+      }
+    }
+....
+
+==== Restore Execution
+
+After the completion of _PREPARATION_ stage the Orchestrator sends
+_RESTORE_ message with Orchestrator message type _EXECUTION_. A restore
+execution message, in json format for clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "OrchestratorMessageType":"EXECUTION",
+      "Execution":{}
+    }
+....
+
+The Agent is expected to restore the downloaded fragments at this stage.
+The Agent must respond with a _STAGE_COMPLETE_ message, which indicates
+the success or failure of the restore execution stage along with a
+message to be logged by the Orchestrator.
+
+==== Restore Post Actions
+
+After the completion of _EXECUTION_ stage the Orchestrator sends
+_RESTORE_ message with Orchestrator message type _POST_ACTIONS_. A
+restore post_actions message, in json format for clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "OrchestratorMessageType":"POST_ACTIONS",
+      "PostActions":{}
+    }
+....
+
+The agent is expected to perform cleanup actions if needed at this
+stage. The Agent must respond with a _STAGE_COMPLETE_ message, which
+indicates the success or failure of the restore post_actions stage along
+with a message to be logged by the Orchestrator.
+
+=== Cancel Restore Actions
+
+When one or more agents send _STAGE_COMPLETE_ 'false' during any of the stages of _RESTORE_,
+a _CANCEL_BACKUP_RESTORE_ message is sent to all the agents participating in the action to notify cancellation of the _RESTORE_ action.
+This message is sent in between the restore stages to indicate that the restore action will not progress to further stages.
+
+image::INT_BR_ORCH_CTRL_Cancel.png[INT_BR_ORCH_CTRL_Cancel,title="Cancel an Action Message Sequence"]
+
+A cancel message, in json format for clarity, would be:
+
+....
+    {
+      "action":"RESTORE",
+      "OrchestratorMessageType":"CANCEL_BACKUP_RESTORE",
+      "CancelBackupRestore":{}
+    }
+....
+
+The Agent may perform some cleanup operations on receiving cancel message.
+The Agent must respond with a _STAGE_COMPLETE_ message, which indicates
+the success or failure of the cancel stage along with a
+message to be logged by the Orchestrator.
+
+== INT_BR_ORCH_DATA
+
+This interface is used for two-way data transfer between the
+Orchestrator and Agents during the Backup and Restore use cases.
+
+=== Backup
+
+A backup is transferred to the Orchestrator using message _backupData_.
+The backup may consist of multiple files (fragments) and _backupData_ is
+used to send contents of each fragment of the backup. This is a wrapper
+for the actual message to be sent. A fragment consists of Metadata, a
+Backup file and optionally a Custom Metadata file, as described below.
+The _backupData_ message is used to send each of these.
+
+[arabic]
+. Metadata: Information which must be provided with a backup and is used
+by the Orchestrator for identification of a backup.
+. Filename of the backup file or the custom metadata file being
+transferred for the fragment.
+. A chunk of a backup: A small part of the overall backup. Once all data
+is sent, a checksum must be sent.
+. A chunk of custom metadata: Service specific metadata that a service
+may choose to backup. Once all data is sent, a checksum must be sent.
+
+image::INT_BR_ORCH_DATA_Backup.png[INT_BR_ORCH_DATA_Backup,title="Data Transfer for Backup Message Sequence"]
+
+A backupData message transmitting metadata, in json format for clarity,
+would be:
+
+....
+    {
+        "DataMessageType": "METADATA",
+        "Metadata": {
+            "agentId" : <notSet>,
+            "backupName" : "tuesdayBackup",
+            "fragment": {
+                "fragmentId" : "123",
+                "version" : "0.0.0",
+                "sizeInBytes" : "12345",
+                "customInformation": {
+                    "any": "string"
+                }
+            }
+        }
+    }
+....
+
+A backupData message transmitting filename for the associated backup, in
+json format for clarity, would be:
+
+....
+    {
+        "DataMessageType": "BACKUP_FILE",
+        "BackupFileChunk": {
+            "fileName" :"myBackup",
+            "content" : <notSet>,
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A backupData message transmitting a backup, in json format for clarity,
+would be:
+
+....
+    {
+        "DataMessageType": "BACKUP_FILE",
+        "BackupFileChunk": {
+            "fileName" : <notSet>,
+            "content" :"SOME_DATA_IN_BYTE_FORMAT",
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A backupData message transmitting a checksum, in json format for
+clarity, would be:
+
+....
+    {
+        "DataMessageType": "BACKUP_FILE",
+        "BackupFileChunk": {
+            "fileName" : <notSet>,
+            "content" : <notSet>,
+            "checksum" :"12345678"
+        }
+    }
+....
+
+A backupData message transmitting filename for the associated custom
+metadata, in json format for clarity, would be:
+
+....
+    {
+        "DataMessageType": "CUSTOM_METADATA_FILE",
+        "CustomMetadataFileChunk": {
+            "fileName" :"myBackup",
+            "content" : <notSet>,
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A backupData message transmitting custom metadata, in json format for
+clarity, would be:
+
+....
+    {
+        "DataMessageType": "CUSTOM_METADATA_FILE",
+        "CustomMetadataFileChunk": {
+            "fileName" : <notSet>,
+            "content" : "SOME_DATA_IN_BYTE_FORMAT",
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A backupData message transmitting a checksum for the associated custom
+metadata, in json format for clarity, would be:
+
+....
+    {
+        "DataMessageType": "CUSTOM_METADATA_FILE",
+        "CustomMetadataFileChunk": {
+            "fileName" : <notSet>,
+            "content" : <notSet>,
+            "checksum" : "12345678"
+        }
+    }
+....
+
+=== Restore
+
+The transfer of a fragment is initiated once the Orchestrator receives a
+valid metadata message for the fragment.
+
+A Metadata message for the associated backup received in json format for
+clarity, would be:
+
+....
+    {
+      "agentId":"agentId",
+      "backupName":"myBackup",
+      "fragment":{
+        "fragmentId":"123",
+        "version":"0.0.0",
+        "sizeInBytes ":"12345",
+        "customInformation": {}
+      }
+    }
+....
+
+When the backup is transferred from the Orchestrator to the Agent, the
+message _restoreData_ is used. This is a wrapper for the actual message
+to be sent. The _restoreData_ message is used to send : 1. Filename of
+the backup file or the custom metadata file being transferred for the
+fragment. 2. A chunk of a backup: A small part of the overall backup.
+Once all data chunks are sent, a checksum must be sent. 3. A chunk of
+custom metadata: Service-specific metadata that a service may choose to
+backup. Once all data is sent, a checksum must be sent.
+
+image::INT_BR_ORCH_DATA_Restore.png[INT_BR_ORCH_DATA_Restore,title="Data Transfer for Restore Message Sequence"]
+
+A restoreData message transmitting filename for the associated backup,
+in json format for clarity, would be:
+
+....
+    {
+        "DataMessageType": "BACKUP_FILE",
+        "BackupFileChunk": {
+            "fileName" : "myBackup",
+            "content" : <notSet>,
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A restoreData message transmitting a backup, in json format for clarity,
+would be:
+
+....
+    {
+        "DataMessageType": "BACKUP_FILE",
+        "BackupFileChunk": {
+            "fileName" : <notSet>,
+            "content" : "SOME_DATA_IN_BYTE_FORMAT",
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A restoreData message transmitting a checksum, in json format for
+clarity, would be:
+
+....
+    {
+        "DataMessageType": "BACKUP_FILE",
+        "BackupFileChunk": {
+            "fileName" : <notSet>,
+            "content" : <notSet>,
+            "checksum" : "12345678"
+        }
+    }
+....
+
+A restoreData message transmitting filename for the associated custom
+metadata, in json format for clarity, would be:
+
+....
+    {
+        "DataMessageType": "CUSTOM_METADATA_FILE",
+        "CustomMetadataFileChunk": {
+            "fileName" : "myBackup",
+            "content" : <notSet>,
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A restoreData message transmitting custom metadata, in json format for
+clarity, would be:
+
+....
+    {
+        "DataMessageType": "CUSTOM_METADATA_FILE",
+        "CustomMetadataFileChunk": {
+            "fileName" : <notSet>,
+            "content" : "SOME_DATA_IN_BYTE_FORMAT",
+            "checksum" : <notSet>
+        }
+    }
+....
+
+A restoreData message transmitting a checksum, in json format for
+clarity, would be:
+
+....
+    {
+        "DataMessageType": "CUSTOM_METADATA_FILE",
+        "CustomMetadataFileChunk": {
+            "fileName" : <notSet>,
+            "content" : <notSet>,
+            "checksum" : "12345678"
+        }
+    }
+....
+
+[bibliography]
+References
+----------
+[bibliography]
+* [[grpcdoc]] GRPC documentation https://grpc.io/docs/
+* [[grpcspec]] GRPC API Specification 1/15519-CAF 101 026/4 R1A

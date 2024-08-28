@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "ErrorResponse",
+  "title": "ErrorResponse",
+  "description": "Represents an error",
+  "type": "object",
+  "properties": {
+    "statusCode": {
+      "type": "integer",
+      "description": "Status code of the response"
+    },
+    "message": {
+      "type": "string",
+      "description": "Description of cause of error"
+    }
+  },
+  "required": [
+    "statusCode",
+    "message"
+  ]
+}

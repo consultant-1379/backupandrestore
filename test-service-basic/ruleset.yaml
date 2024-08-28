@@ -1,0 +1,125 @@
+modelVersion: 2.0
+
+docker-images:
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+  - java11-mvn-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-java11mvnbuilder.adp-base-os:1.32.0
+
+properties:
+  - repo-path: proj-adp-eric-ctrl-bro-test-internal
+  - helm-chart-repo: https://arm.sero.gic.ericsson.se/artifactory/${repo-path}
+  - helm-chart-name: eric-test-service-basic
+  - helm-destination-folder: .bob/eric-test-service-basic-internal
+  - image-registry: armdocker.rnd.ericsson.se
+  - registry-path: bro/bro-test-service-basic/bro-
+  - test-service-dir: test-service-basic
+  - test-service-image-name: test-service
+  - test-agent-image-name: test-agent
+
+env:
+  - PWD
+  - RELEASE (default=false)
+  - CI_USER
+  - API_TOKEN
+  - GERRIT_BRANCH
+  - BRANCH
+  - SONAR_AUTH_TOKEN
+  - SONARQUBE_SCANNER_PARAMS
+  - SONAR_HOST_URL
+  - XRAY_TOKEN
+
+
+var:
+  - version
+  - commithash
+  - IMAGE_REPOPATH_INTERNAL
+  - CHART_REPO_SUFFIX
+  - XRAY_REPORT_REPO
+  - apiVersion
+
+rules:
+  lint:
+    - task: lint
+      docker-image: adp-release-auto
+      cmd: helm lint ${test-service-dir}/Helm/eric-test-service-basic
+
+  init:
+    - task: version
+      docker-image: adp-release-auto
+      cmd: version-handler generate
+           --is-release ${env.RELEASE}
+           --output version
+           --git-repo-path .
+
+  mvn:
+    - task: package
+      docker-image: java11-mvn-builder
+      docker-flags:
+        - -v /home/lciadm100/.m2/repository/:/tmp/.m2/repository/
+        - -v /home/lciadm100/.m2/settings.xml:/tmp/.m2/settings.xml
+      cmd:
+        - mvn -f bro-agent-api/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ help:evaluate -Dexpression=project.version -q -DforceStdout install -Dpmd.skip -Dcheckstyle.skip -DskipTests  >> .bob/var.apiVersion
+        - mvn -f test-service-basic/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ -Dcheckstyle.skip -Dpmd.skip -DskipTests clean package -Dbro.agent.api.version=${var.apiVersion}
+
+  sonar:
+    - task: mvn-sonar
+      docker-image: java11-mvn-builder
+      docker-flags:
+       - -v /home/lciadm100/.m2/repository/:/tmp/.m2/repository/
+       - -v /home/lciadm100/.m2/settings.xml:/tmp/.m2/settings.xml
+       - --env SONAR_AUTH_TOKEN=${env.SONAR_AUTH_TOKEN}
+       - --env SONARQUBE_SCANNER_PARAMS=$(echo '${env.SONARQUBE_SCANNER_PARAMS}' | tr -d ' ')
+       - --env SONAR_HOST_URL=${env.SONAR_HOST_URL}
+      cmd:
+       - mvn -f bro-agent-api/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ help:evaluate -Dexpression=project.version -q -DforceStdout install -Dpmd.skip -Dcheckstyle.skip -DskipTests  >> .bob/var.apiVersion
+       - mvn -f ${test-service-dir}/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ package sonar:sonar -Dsonar.analysis.mode=publish -Dsonar.branch.name=${env.GERRIT_BRANCH} -Dbro.agent.api.version=${var.apiVersion}
+
+  setup-repo-paths:
+    - task: is-master
+      cmd:
+        - echo '${repo-path}' > .bob/var.IMAGE_REPOPATH_INTERNAL
+        - echo "-helm-local" > .bob/var.CHART_REPO_SUFFIX
+        - echo "${repo-path}-xray-local" > .bob/var.XRAY_REPORT_REPO
+    - task: is-dev
+      cmd:
+        - echo '${repo-path}-dev/${env.BRANCH}' > .bob/var.IMAGE_REPOPATH_INTERNAL
+        - echo '-dev-helm-local/${env.BRANCH}' > .bob/var.CHART_REPO_SUFFIX
+        - echo ${var.version}-${env.BRANCH} > .bob/var.version
+        - echo "adp-eric-ctrl-bro-test-internal-dev-xray-local" > .bob/var.XRAY_REPORT_REPO
+
+  image:
+    - task: docker-build-test-service
+      cmd: docker build ${env.PWD}/${test-service-dir}/Docker/${test-service-image-name} --tag ${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${registry-path}${test-service-image-name}-basic:${var.version}-SNAPSHOT
+    - task: docker-build-test-agent
+      cmd: docker build ${env.PWD}/${test-service-dir}/Docker/${test-agent-image-name} --tag ${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${registry-path}${test-agent-image-name}-basic:${var.version}-SNAPSHOT
+    - task: helm-package
+      docker-image: adp-release-auto
+      cmd: helm-package
+           --folder ${test-service-dir}/Helm/${helm-chart-name}
+           --workdir .bob --output .bob/${helm-chart-name}-internal
+           --version ${var.version}
+           --replace VERSION=${var.version}-SNAPSHOT
+           --replace REPO_PATH=${var.IMAGE_REPOPATH_INTERNAL}
+           --helm-user ${env.CI_USER}
+           --arm-api-token ${env.API_TOKEN}
+
+  push:
+    - task: test-service-image-push-snapshot
+      cmd: docker push ${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${registry-path}${test-service-image-name}-basic:${var.version}-SNAPSHOT
+    - task: test-agent-image-push-snapshot
+      cmd: docker push ${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${registry-path}${test-agent-image-name}-basic:${var.version}-SNAPSHOT
+    - task: helm-upload-snapshot
+      docker-image: adp-release-auto
+      cmd: upload_file.sh --filename=.bob/${helm-chart-name}-internal/${helm-chart-name}-${var.version}.tgz --repository=${helm-chart-repo}${var.CHART_REPO_SUFFIX}/${helm-chart-name} --api-token=${env.API_TOKEN}
+
+  get-xray-report:
+    - task: update-scanpath
+      cmd:
+        - sed -i 's|REPO|${var.XRAY_REPORT_REPO}/${var.IMAGE_REPOPATH_INTERNAL}/${registry-path}|' ci_config/Branch_Vulnerability_Report.config
+        - sed -i 's|/SERVICE|${test-agent-image-name}-basic|' ci_config/Branch_Vulnerability_Report.config
+        - sed -i 's|VERSION|${var.version}-SNAPSHOT|' ci_config/Branch_Vulnerability_Report.config
+    - task: get-xray-report-bob
+      docker-image: adp-release-auto
+      cmd:
+        - fetch-xray --user eadphub --apikey ${env.XRAY_TOKEN} --config ./ci_config/Branch_Vulnerability_Report.config --output xray_report.json
+        - va-report --md --xray xray_report.json --config ./ci_config/Branch_Vulnerability_Report.config --output .bob/XRAY-report.md

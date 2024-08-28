@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "ActionsResponse",
+  "title": "ActionsResponse",
+  "description": "All actions of a backupManager",
+  "type": "object",
+  "properties": {
+    "actions": {
+      "type": "array",
+      "description": "All actions of a backupManager",
+      "items": [
+        {
+          "type": "object",
+          "description": "One action",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Uniquely identifies the invocation of an action"
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the invoked asynchronous action"
+            },
+            "startTime": {
+              "type": "string",
+              "description": "Date and time when the current action was started"
+            },
+            "result": {
+              "type": "string",
+              "description": "Result state of a completed action. This field has value NOT_AVAILABLE if the action is not finished",
+              "enum": ["SUCCESS", "FAILURE", "NOT_AVAILABLE"]
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "startTime",
+            "result"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "actions"
+  ]
+}

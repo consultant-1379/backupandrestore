@@ -1,0 +1,801 @@
+= Backup and Restore Orchestrator Operations Guide CMYP
+:author: Sangamithraa Balaji
+:doc-name: Operations Guide CMYP
+:doc-no: 5/198 17-APR 201 40/6
+:revnumber: A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Overview
+
+The Operations Guide provides the user with the necessary commands to perform each of the use cases using CM Yang Provider. It is assumed that before using this guide, the user has already followed the steps found within the <<ServiceUserGuide, Service User Guide>> and has therefore deployed the Backup and Restore Orchestrator service with the *Configuration Management Mediator Schema Push Service* feature enabled.
+Also, the CM Yang Provider is deployed correctly following the steps found within <<CMYPServiceUserGuide, CM Yang Provider Service User Guide>>.
+
+**NOTE:** CMYP CLI does not always handle the pasting of these commands directly into the CMYP CLI. The command needs to be tabbed using the auto-completion from CMYP CLI. 
+
+== Pre-Requisites
+
+* Backup and Restore Orchestrator and its dependent services are deployed.
+* The *CMM Schema Push Service* feature has been enabled in the Backup and Restore Orchestrator.
+
+== Authorization
+
+If NACM authorization is enabled as specified in <<CMYPServiceUserGuide, CMYP Service User Guide>> then create users with _System-admin_ or _System-read-only_ roles to access the BRM configurations.
+
+== Verify BRM Configurations
+
+To verify that BRM configurations are created in CM, connect to CM Yang Provider CLI using the username and password defined in the CMYP User Configuration secret and run the following command
+
+----
+    show running-config brm
+
+    brm backup-manager DEFAULT
+    !
+    brm backup-manager subscriber
+    !
+----
+
+This shows the existing backup managers in the Orchestrator. _DEFAULT_ backup manager is created when the Orchestrator starts. The _subscriber_ backup manager is created when an agent registers with a specific backup type named _subscriber_.
+If the above command does not return a result see the <<ServiceUserGuide, Service User Guide>> for failure causes.
+
+== Creating a Backup
+
+=== Before Creating a Backup
+
+To ensure availability of space in storage for a complete backup, the unused space in the PVC and the estimation of the size of the backup should be known before initiating a backup action. Please see the <ServiceUserGuide, Service User Guide> for further information.
+
+For information about valid backup names see the Valid Backup name in Action section of <<RestApiUserGuide, REST API User Guide>>
+
+=== Creating the Backup
+
+----
+    brm backup-manager DEFAULT create-backup name myBackup
+
+    return-value 23384
+----
+
+The above example is triggering a create-backup action on the _DEFAULT_ Backup Manager.
+
+A Backup called "myBackup" will be created.
+
+The id of the action is 23384.
+
+The Orchestrator will trigger a backup on the Agents in _DEFAULT_ scope. When the Agents send all necessary fragments and backup their service, the action will be completed.
+
+== Restoring a Backup
+
+----
+    brm backup-manager DEFAULT backup myBackup restore
+
+    return-value 25715
+----
+
+The above example is triggering the restore of backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager.
+
+The id of the action is 25715.
+
+The Orchestrator will trigger a restore on all Agents associated with that backup. When all Agents download all necessary fragments and restore their service, the action will be completed.
+
+**NOTE:** You may be disconnected when performing a restore this is normal behaviour, the restore action will be completed.
+
+== Deleting a Backup
+
+----
+    brm backup-manager DEFAULT delete-backup name myBackup
+
+    return-value 14529
+----
+
+The above example is triggering the deletion of backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager.
+
+The id of the action is 14529.
+
+As the action is executed, the backup will be deleted from the Orchestrator and will no longer be available to be used for a restore or export. All of the backup's data will be deleted from the Orchestrator's storage.
+
+== Exporting and Importing a Backup
+
+=== Export a Backup using Sftp Password Credential
+
+In case of SFTP Server:
+----
+    brm backup-manager DEFAULT backup myBackup export uri sftp://user@host:port/remotepath password password
+
+    return-value 49325
+----
+
+The above example is triggering the export of backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager.
+
+The id of the action is 49325.
+
+As the action is executed, the backup folder DEFAULT will be created on the remotepath, and the backup will be exported from the Orchestrator to the remotepath/DEFAULT/myBackup-<date>T<time>Z.tar.gz on the SFTP Server.
+In the case of SFTP, a checksum will be created and exported to remotepath/DEFAULT/myBackup-<date>T<time>Z.tar.gz.xxh64
+
+The URI and password required in the command are for the SFTP Server that the backup will be stored on.
+
+**NOTE**: Exporting to a Windows SFTP Server is not supported by BRO.
+
+**NOTE**: Warning special characters in your password need to be escaped. Refer to the CMYP CLI document <CMYPAboutTheCli, About the CLI>>> for details on how to do this.
+
+=== Export a Backup using SFTP Server Key Credentials
+
+This requires an SFTP Server to be configured for a backup manager. For more information, please refer to the <<SftpServerAuthentication, SFTP Server Authentication>> section.
+
+----
+    brm backup-manager DEFAULT backup myBackup export sftp-server-name sampleSftpServer
+
+    return-value 67843
+----
+
+The above example is triggering the export of backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager using the _sampleSftpServer_ SFTP Server.
+
+The id of the action is 67843.
+
+
+=== Import
+
+Only backups taken and exported by the Backup and Restore Orchestrator can be imported. The backup to be imported must not exist on the Orchestrator.
+
+Import from SFTP Server specifying tarball:
+----
+    brm backup-manager DEFAULT import-backup uri sftp://user@host:port/remotepath/DEFAULT/myBackup-2020-07-24T15:11:19.123456Z.tar.gz password password
+
+    return-value 49555
+----
+**NOTE:** A valid checksum file must exist on the SFTP Server under the same directory of the backup otherwise the action will fail.
+
+**NOTE**: Warning when using an exclamation point in your password insert the exclamation point as an argument of commands by prefixing a backslash (\) with it or using it in single quotation marks (' ').
+
+Import from SFTP Server without specifying tarball:
+----
+    brm backup-manager DEFAULT import-backup uri sftp://user@host:port/remotepath/DEFAULT/myBackup password password
+
+    return-value 49555
+----
+
+The above example is triggering the import of backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager.
+
+The id of the action is 49555.
+
+As the action is executed, the backup _myBackup_ specified in the _uri_ will be imported to the Orchestrator from the SFTP Server based on _remotepath_/_DEFAULT_/_myBackup_.
+
+The URI and password required in the command are for the SFTP Server that the backup is stored on.
+
+=== Import a Backup using SFTP Server Key Credentials
+
+This requires an SFTP Server to be configured for a backup manager. For more information, please refer to the <<SftpServerAuthentication, SFTP Server Authentication>> section.
+
+----
+    brm backup-manager DEFAULT import-backup sftp-server-name sampleSftpServer backup-path myBackup-2022-07-29T15:11:19.123456Z.tar.gz
+
+    return-value 49556
+----
+
+The above example is triggering the import of backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager using the _sampleSftpServer_ SFTP Server.
+
+The id of the action is 49556.
+
+
+The value of the **backup-path** parameter can be any of the following:
+
+  * tarball name (e.g myBackup-2022-07-29T15:11:19.123456Z.tar.gz)
+  * backup name without specifying the tarball (e.g myBackup)
+  * relative path to the backup (e.g uploads/myBackup-2022-07-29T15:11:19.123456Z.tar.gz OR uploads/myBackup).
+
+Note that the backup-path defined is combined with the **remote-path** in order to find the actual path to the backup in the SFTP Server.
+
+If the backup-path contains only the tarball name or backup name, BRO will consider it to be located within the backupmanager folder, and subsequently append it to the remote-path.
+In this case, the resulting path would resemble remote-path/{brm-id}/backup-path.
+
+If the backup-path is a relative path, then it will be directly appended to the remote-path. For example, remote-path/backup-path.
+
+
+=== URI Validation
+
+Backup and Restore Orchestrator performs validation on URI specified in the import/export payload.
+
+  * The _user_ part of URI allows alphanumeric characters, underscore and hyphen only.
+  * The _host_ and _port_ part of URI allows both IPV4 and IPV6 address.
+  * The _remotepath_ part of URI allows alphanumeric characters and special characters (-.?:'/\+=&;%$#_,).
+
+
+== Housekeeping
+
+=== Update Housekeeping Configuration
+
+Each Backup Manager created by Orchestrator has housekeeping configuration with default values of auto-delete _enabled_ and max-stored-manual-backups _1_.
+These values can be changed by running the following command in _config_ mode of CMYP:
+
+----
+    brm backup-manager DEFAULT housekeeping auto-delete disabled
+
+    brm backup-manager DEFAULT housekeeping max-stored-manual-backups 2
+----
+
+The above example is updating the housekeeping configuration of _DEFAULT_ Backup Manager.
+
+These changes need to be committed before leaving the _config_ mode for the housekeeping action to start in the Orchestrator.
+
+As the action is executed the following steps are performed:
+
+  * Backups(including both manual and scheduled backups) are removed in the order of incomplete or corrupted backups followed by the oldest backup if the max-stored-manual-backups value specified is less than the number of backups(manual and scheduled backups) available in BRM.
+  * The BRM's housekeeping configuration is updated with specified values.
+
+=== Get a Backup Manager's Housekeeping Configuration
+
+----
+    show running-config brm backup-manager DEFAULT housekeeping
+
+    brm backup-manager DEFAULT
+    housekeeping max-stored-manual-backups 1
+    housekeeping auto-delete enabled
+    !
+----
+
+The above example gets the housekeeping configuration of _DEFAULT_ Backup Manager.
+
+
+== Scheduling
+
+=== Update a Backup Manager's Scheduler Configuration to use SFTP Server Password Credential
+
+Each Backup Manager created by the Orchestrator has a scheduler configuration with default values of admin-state _unlocked_, scheduled-backup-name _SCHEDULED_BACKUP_ and auto-export _disabled_.
+Scheduler configuration can be changed by running the following commands in _config_ mode of CMYP CLI:
+
+----
+    brm backup-manager DEFAULT scheduler admin-state locked
+    brm backup-manager DEFAULT scheduler scheduled-backup-name BACKUP
+    brm backup-manager DEFAULT scheduler auto-export enabled
+    brm backup-manager DEFAULT scheduler auto-export-uri <URI to export backups to>
+    brm backup-manager DEFAULT scheduler auto-export-password <password used to authenticate with export server>
+----
+
+The following configuration parameters can be updated by in the scheduler configuration:
+
+* 'admin-state': Administrative state of the scheduler.  _locked_ means no scheduled backups are performed.
+* 'scheduled-backup-name': The configurable portion of the scheduled backup name. The scheduled backups are named <scheduled-backup-name>-<creation date and time>.
+* 'auto-export' - Enable or disable automatic exporting of backups created as part of a schedule
+* 'auto-export-uri' - URI to export created backup tarball to
+* 'auto-export-password' - Password used to authenticate with server configured via URI
+
+The above example updates the scheduler configuration of the _DEFAULT_ Backup Manager.
+These changes need to be committed before leaving the _config_ mode for the scheduler configuration to be reflected in the Orchestrator.
+
+The auto-export password provided will be encrypted via the configured CM key before being sent to BRO, and BRO will contact KMS to decrypt
+it when needed while performing export operations. Export operations will fail if BRO cannot decrypt the password via KMS. See the
+deployment guide for the relevant configuration parameters used to contact KMS and decrypt the password.
+
+
+=== Update a Backup Manager's Scheduler Configuration to use SFTP Server Key Credentials
+
+This requires an SFTP Server to be configured for a backup manager. For more information, please refer to the <<SftpServerAuthentication, SFTP Server Authentication>> section.
+
+----
+brm backup-manager DEFAULT scheduler sftp-server-name sampleSftpServer
+----
+
+The above example updates the _DEFAULT_ backup manager's scheduler to use the _sampleSftpServer_ SFTP Server when performing auto-export.
+
+Adding the sftp-server-name will replace the existing auto-export-uri and auto-export-password parameters in the scheduler configuration and vice versa.
+
+
+=== Get a Backup Manager's Scheduler Running Configuration
+
+----
+    show running-config brm backup-manager DEFAULT scheduler
+
+    brm backup-manager DEFAULT
+    scheduler scheduled-backup-name SCHEDULED_BACKUP
+    scheduler auto-export enabled
+    scheduler auto-export-uri sftp://brsftp@192.168.5.131:22/bro_test/1/3/
+    scheduler auto-export-password 000PASSPHRASE000v01vdmF1bHQ......zcWc9PQ==
+    scheduler admin-state unlocked
+    scheduler periodic-event 1
+      weeks      0
+      days       0
+      hours      0
+      minutes    5
+      start-time 2021-03-15T15:25:00+00:00
+     !
+    !
+----
+
+The above example gets the scheduler configuration of _DEFAULT_ Backup Manager.
+
+=== Get a Backup Manager's Scheduler Configuration
+
+----
+    show brm backup-manager DEFAULT scheduler
+
+    scheduler
+      most-recently-created-auto-backup SCHEDULED_BACKUP-2020-10-23T02:15:41.415432Z
+      next-scheduled-time 2020-10-22T20:05:41.535385+00:00
+
+      progress-report 52588
+        action-name                CREATE_BACKUP
+        progress-percentage        100
+        result                     success
+        result-info                "{Agent: TestAgent, Stage: ExecutingBackupJobStage, success: true, message: Preparation for backup is successful},
+        {Agent: TestAgent, Stage: PostActionBackupJobStage, success: true, message: The test service has completed a backup for SCHEDULED_BACKUP-2020-10-23T02:15:41.415432Z and the data has been sent to the orchestrator},
+        {Agent: TestAgent, Stage: CompletedBackupJobStage, success: true, message: Post backup actions completed}"
+        state                      finished
+        time-action-started        2020-10-23T02:15:41.415432+00:00
+        time-action-completed      2020-10-23T02:18:41.647031+00:00
+        time-of-last-status-update 2020-10-23T02:18:41.647031+00:00
+----
+
+The above example gets the non-configurable parameters of the scheduler most-recently-created-auto-backup, next-scheduled-time and progress-report of _DEFAULT_ Backup Manager.
+
+
+=== Create a Periodic Scheduling Event for a Backup Manager
+
+Run the below command in _config_ mode to configure a periodic scheduled event by specifying the id(mandatory), the number of weeks, days, hours (mandatory), or minutes.
+
+Parameters 'startTime' and 'stopTime' are used to configure when the event will begin and end.
+
+* 'start-time': If not specified, the current time is set.
+* 'stop-time':  If not specified, the event continues indefinitely.
+
+----
+    brm backup-manager DEFAULT scheduler periodic-event eventId
+    Value for 'hours' (<unsignedShort>): 6
+
+    (config-periodic-event-eventId)#minutes
+    (<unsignedShort>) (0): 30
+
+    (config-periodic-event-eventId)#start-time
+    (<dateTime (CCYY-MM-DDTHH:MM:SS)>): 2020-10-22T19:45:41
+
+    (config-periodic-event-eventId)#stop-time
+    (<dateTime (CCYY-MM-DDTHH:MM:SS)>): 2020-11-21T19:45:41
+----
+
+The above example creates a periodic scheduling event for the _DEFAULT_ Backup Manager with the id 'eventId'.
+
+This will configure a scheduled backup to be performed every 6 hours and 30 minutes.
+The event will begin on 2020-10-22 at 19:45:41 and end on 2020-11-21 at 19:45:41.
+
+These changes need to be committed before leaving the _config_ mode for the periodic event to be scheduled in the Orchestrator.
+
+=== View a Periodic Scheduling Event for a Backup Manager
+
+Run the below command to view a specified periodic scheduling event.
+
+----
+    show running-config brm backup-manager DEFAULT scheduler periodic-event eventId
+
+    brm backup-manager DEFAULT
+    scheduler periodic-event eventId
+     weeks      0
+     days       0
+     hours      6
+     minutes    10
+     start-time 2020-10-22T19:45:41+00:00
+     stop-time  2020-11-21T19:45:41+00:00
+    !
+   !
+----
+
+The above example gets a specific periodic scheduling event with id 'eventId' for the _DEFAULT_ Backup Manager.
+
+
+=== Update a Periodic Scheduling Event for a Backup Manager
+
+Run the below command in _config_ mode to update a periodic scheduled event by specifying the id(mandatory), the number of months, weeks, days, hours, or minutes.
+
+----
+    brm backup-manager DEFAULT scheduler periodic-event eventId
+    hours
+    (<unsignedShort>) (6): 1
+----
+
+The periodic event will be re-scheduled with the updated values.
+
+These changes need to be committed before leaving the _config_ mode for the updated configuration to be reflected in the Orchestrator.
+
+
+=== Delete a Periodic Scheduling Event for a Backup Manager
+
+Run the below command in _config_ mode to delete a periodic scheduled event by specifying the id.
+
+----
+    no brm backup-manager DEFAULT scheduler periodic-event eventId
+----
+
+The above example deletes periodic scheduling event "eventId" from the _DEFAULT_ Backup Manager.
+
+These changes need to be committed before leaving the _config_ mode for the periodic scheduled event to be deleted in the Orchestrator.
+
+=== Daylight Savings - Scheduled Periodic Events
+
+When the daylight savings end and the clock turns back an hour, the scheduled periodic events will run an hour early adhering to the configured duration.
+Suppose an event is scheduled to run at 2AM everyday at 24 hours duration, then after daylight savings ends the schedule will run an hour early at 1AM.
+
+
+== View the result of an action
+
+Progress Reports provide information about the action requested, such as the action name and progress-percentage.
+
+=== Get the Progress Report of a create-backup/Import/delete-backup action
+----
+    show brm backup-manager DEFAULT progress-report 25672
+
+    progress-report 25672
+    action-name                CREATE_BACKUP
+    progress-percentage        100
+    result                     success
+    result-info                "{Agent: golf, Message: The test service has completed a backup for myBackup and the data has been sent to the orchestrator}{Agent: echo, Message: The test service has completed a backup for myBackup and the data has been sent to the orchestrator}"
+    state                      finished
+    time-action-started        2020-04-24T16:20:41.875123+00:00
+    time-action-completed      2020-04-24T16:20:42.943123+00:00
+    time-of-last-status-update 2020-04-24T16:20:42.943123+00:00
+----
+
+The above example gets the Progress Report of a _create-backup_ action that was executed on the _DEFAULT_ Backup Manager.
+
+The above Progress Report is for an action with the action id 25672.
+
+The result-info field is applicable for only create-backup action. Progress reports for import/delete-backup actions will not have result-info field.
+
+If the action fails due to an agent error during its lifecycle management (LCM), a progress-info field will provide the detail of the cause, such as
+
+---
+     progress-info              "Agent :bravo failed at Stage: EXECUTION, message: \"The test service failed to complete a backup mybackup, Cause: The file that was created for the backup has encountered a problem: /backupdata/bravo_1_data.txt The test service will not retry to send the backup\"\n"
+---
+
+=== Get the Progress Report of a Restore/Export action
+----
+    show brm backup-manager DEFAULT backup progress-report 25715
+
+    progress-report 25715
+    action-name                RESTORE
+    progress-percentage        100
+    result                     success
+    result-info                "{Agent: golf, Stage: PreparingRestoreJobStage, Message: success: true\nmessage: \"Preparation for restore is successful\"}{Agent: echo, Stage: PreparingRestoreJobStage, Message: success: true\nmessage: \"Preparation for restore is successful\"}{Agent: golf, Stage: ExecutingRestoreJobStage, Message: success: true\nmessage: \"The test service has completed restore of backup: myBackup\"}{Agent: echo, Stage: ExecutingRestoreJobStage, Message: success: true\nmessage: \"The test service has completed restore of backup: myBackup\"}{Agent: golf, Stage: PostActionRestoreJobStage, Message: success: true\nmessage: \"Post actions completed\"}{Agent: echo, Stage: PostActionRestoreJobStage, Message: success: true\nmessage: \"Post actions completed\"}"
+    state                      finished
+    time-action-started        2019-12-10T15:28:43.419123+00:00
+    time-action-completed      2019-12-10T15:28:45.651123+00:00
+    time-of-last-status-update 2019-12-10T15:28:45.651123+00:00
+----
+
+The above example gets the Progress Report of a _Restore_ action that was executed on the _DEFAULT_ Backup Manager.
+
+The above Progress Report is for an action with the action id 25715.
+
+The result-info field is applicable for only restore action.
+
+----
+    show brm backup-manager DEFAULT backup progress-report 38463
+
+    progress-report 38463
+    action-name                EXPORT
+    additional-info            [ "Exported Backup: myBackup-2021-05-05T09:37:31.401196Z.tar.gz" ]
+    progress-percentage        100
+    result                     success
+    state                      finished
+    time-action-started        2021-05-05T09:42:24.418641+00:00
+    time-action-completed      2021-05-05T09:42:25.922457+00:00
+    time-of-last-status-update 2021-05-05T09:42:25.922457+00:00
+----
+
+The above example gets the Progress Report of an _Export_ action that was executed on the _DEFAULT_ Backup Manager.
+
+The above Progress Report is for an action with the action id 38463.
+
+Progress report for export action will not have result-info field.
+
+Progress report for export action will include additional-info field with exported backup name.
+
+=== Get the Progress Report of a scheduled create-backup action
+----
+    show brm backup-manager DEFAULT scheduler progress-report 52588
+
+    scheduler progress-report 52588
+    action-name                CREATE_BACKUP
+    progress-percentage        100
+    result                     success
+    result-info                "{Agent: TestAgent, Stage: ExecutingBackupJobStage, success: true, message: Preparation for backup is successful},
+    {Agent: TestAgent, Stage: PostActionBackupJobStage, success: true, message: The test service has completed a backup for SCHEDULED_BACKUP-2020-10-23T02:15:41.415432Z and the data has been sent to the orchestrator},
+    {Agent: TestAgent, Stage: CompletedBackupJobStage, success: true, message: Post backup actions completed}"
+    state                      finished
+    time-action-started        2020-10-23T02:15:41.415432+00:00
+    time-action-completed      2020-10-23T02:18:41.647031+00:00
+    time-of-last-status-update 2020-10-23T02:18:41.647031+00:00
+----
+
+The above example gets the Progress Report of a scheduled _create-backup_ action that was executed on the _DEFAULT_ Backup Manager.
+
+The above Progress Report is for an action with the action id 25672.
+
+
+=== List all Backups on a Backup Manager
+----
+    show brm backup-manager DEFAULT backup
+
+    backup myBackup
+     backup-name   myBackup
+     creation-time 2020-03-06T11:28:38.478123+00:00
+     status        backup-complete
+     creation-type manual
+     sw-version "APR 201 34" 6.3.0-36
+      product-name     db1
+      production-date  2020-03-06T11:28:38.491123+00:00
+      description      db1 service
+      type             database
+     sw-version "APR XXX XX/X" R1A
+      product-name     db2
+      production-date  2020-03-06T11:28:38.492123+00:00
+      description      db2 service
+      type             database
+    backup mybackup2
+     backup-name   mybackup2
+     creation-time 2020-03-06T11:31:04.937123+00:00
+     status        backup-complete
+     creation-type manual
+     sw-version "APR 201 34" 6.3.0-36
+      product-name     db1
+      production-date  2020-03-06T11:31:04.943123+00:00
+      description      db1 service
+      type             database
+     sw-version "APR XXX XX/X" R1A
+      product-name     db2
+      production-date  2020-03-06T11:31:04.943123+00:00
+      description      db2 service
+      type             database
+----
+
+The above example lists all the backups present on the _DEFAULT_ Backup Manager.
+
+The above command also provides additional attribute information about the backups, such as status, creation time, creation type and sw-version.
+
+=== Get a specified Backup on a Backup Manager
+----
+    show brm backup-manager DEFAULT backup myBackup
+
+    backup myBackup
+     backup-name   myBackup
+     creation-time 2020-03-06T11:31:04.937123+00:00
+     status        backup-complete
+     creation-type manual
+     sw-version "APR 201 34" 6.3.0-36
+      product-name     db1
+      production-date  2020-03-06T11:31:04.943123+00:00
+      description      db1 service
+      type             database
+     sw-version "APR XXX XX/X" R1A
+      product-name     db2
+      production-date  2020-03-06T11:31:04.943123+00:00
+      description      db2 service
+      type             database
+----
+
+The above example gets the information about the backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager.
+
+The above command provides additional attribute information about the backup, such as status, creation time, creation type and sw-version.
+
+=== Get an attribute from a Backup on a Backup Manager
+----
+    show brm backup-manager DEFAULT backup myBackup status
+
+    status backup-complete
+----
+
+The above example gets the status attribute of the backup _myBackup_, that belongs to the _DEFAULT_ Backup Manager.
+
+The status of the backup is complete. This could also be incomplete or corrupted.
+
+The above command can be used to get other attributes such as creation time, creation type, software version and progress report.
+
+[[SftpServerAuthentication]]
+== SFTP Server Authentication
+
+The Backup and Restore Orchestrator supports SFTP Server authentication via NETCONF.
+
+The SFTP Server is authenticated by the BRO using the server host keys.
+The BRO SFTP Client uses a generated private and public key pair to authenticate to the SFTP Server.
+All of these keys need to be base64 encoded before they are added to the BRO configuration.
+
+This section describes the following:
+ - Required key credentials
+ - Encoding the client and the SFTP Server host keys to base64
+ - Configuring the SFTP Server using the encoded keys in the CMYP CLI
+
+
+=== Required Key Credentials
+
+This procedure requires the following:
+ - the SFTP Server host's public key.
+ - a private and public key pair generated for the client
+
+
+==== Host Key
+The SFTP Server's public host keys are usually located in /etc/ssh directory, in files usually starting with ssh_host_<rsa/dsa/ecdsa>_key and ending with ".pub". The location of the host keys may change depending on the SFTP Server configuration.
+
+
+==== Client Key Pair Generation
+The client private and public key can be generated with the ssh-keygen command.
+
+Only the following key algorithms are supported by BRO.
+* rsa1024
+* rsa2048
+* rsa3072
+* rsa4096
+* rsa7680
+* rsa15360
+* ecdsa256
+* ecdsa384
+* ecdsa521
+* ed25519
+* dsa
+
+----
+$ ssh-keygen -t <algorithm> -b <bits> -f <key-pair-name>
+
+Example:
+$ ssh-keygen -t rsa -b 1024 -f /etc/ssh/ssh_host_rsa_key
+
+----
+
+Note that no passphrase should be set when generating the keys.
+
+
+==== Private Keys
+The private key should be in the PEM format which starts with the header, -----BEGIN [RSA | EC | DSA | OPENSSH] PRIVATE KEY-----
+
+Example:
+----
+$ cat /etc/ssh/ssh_host_rsa_key
+
+-----BEGIN RSA PRIVATE KEY-----
+MIICXgIBAAKBgQDzlaS30BWJlKdhZhGId6AWTZyv5gAF27Ukh68T4uBk3Vtm1Lvx
+.
+.
+Vhe0IDZnfe1Sh7a8D9BLtTlHcuoOKpAPUBXnrqaNcBj6IQ==
+-----END RSA PRIVATE KEY-----
+----
+
+
+==== Public Keys
+In order for the SFTP Server to authenticate the BRO SFTP Client, the generated public key should be added to the authorized keys of the SFTP Server.
+
+This can be done by appending the public key file content to the user's authorized_keys file in the SFTP Server.
+
+----
+$ echo <public-key-file-content> >> <user-home-directory>/.ssh/authorized_keys
+
+Example:
+
+$ echo "ssh-rsa AAAAB3NzaC1yc.....LJMI2B4KUyMf+Q== foo@testServer" >> /home/foo/.ssh/authorized_keys
+----
+
+**NOTE:** All the public keys should be in the OpenSSH compatible format, [ALGORITHM] [KEY] [OPTIONAL COMMENT].
+When updating the public key in the model BRO does not update the public key in SFTP authorized_keys; it only serves as initial reference to the key pair.
+BRO Client needs only private key to authenticate with SFTP Server. As long as the public key is in the authorized_keys on SFTP server it will have enough information to authenticate with the SFTP server
+
+Example:
+----
+$ cat /etc/ssh/ssh_host_rsa_key.pub
+ssh-rsa AAAAB3NzaC1yc.....LJMI2B4KUyMf+Q== foo@testServer
+----
+
+When using a different format, the public key must be converted to OpenSSH format using "ssh-keygen" before encoding to base64.
+
+----
+ssh-keygen -i -f <non-open-ssh-key> -m <current-format: RFC4716 | PKCS8 | PEM>
+
+
+Example:
+$ ssh-keygen -i -f host_key.pem -m PEM
+
+ssh-rsa AAAAB3NzaC1yc.....A4JKJSDNd45+Q==
+----
+
+
+=== Base64 encode the SSH keys
+
+The keys, including the client key pair and the server host key, need to be base64 encoded before being added to the SFTP Server configuration (below).
+
+Example:
+----
+$ cat id_rsa_sftp_client | base64 -w 0
+LS0tLS1CRUd.....VktLS0tLQo=
+----
+
+
+=== Configure the SFTP Server for a Backup Manager using CMYP CLI
+
+----
+config
+
+brm backup-manager <backup-manager-id> sftp-server <sftp-server-name> endpoints endpoint <endpoint-name> remote-address <server-address>
+
+brm backup-manager <backup-manager-id> sftp-server <sftp-server-name> endpoints endpoint <endpoint-name> remote-port <server-port>
+
+brm backup-manager <backup-manager-id> sftp-server <sftp-server-name> endpoints endpoint <endpoint-name> remote-path <server-remote-path>
+
+brm backup-manager <backup-manager-id> sftp-server <sftp-server-name> endpoints endpoint <endpoint-name> client-identity username <username> public-key local-definition public-key <base64-encoded-public-key>
+
+brm backup-manager <backup-manager-id> sftp-server <sftp-server-name> endpoints endpoint <endpoint-name> client-identity username <username> public-key local-definition private-key <base64-encoded-private-key>
+
+brm backup-manager <backup-manager-id> sftp-server <sftp-server-name> endpoints endpoint <endpoint-name> server-authentication ssh-host-keys local-definition host-key <base64-encoded-host-key>
+
+commit
+----
+
+==== SFTP Server Parameters Validation
+
+All of the parameters defined above are required for the successful configuration of an SFTP Server.
+
+The Backup and Restore Orchestrator also performs validation of the following parameters:
+
+* <sftp-server-name> only allows alphanumeric characters, an underscore and a hyphen.
+* <endpoint-name> only allows alphanumeric characters, an underscore and a hyphen.
+* <remote-address> should be a valid IPv4/IPv6 address or a valid domain name.
+* <remote-port> should be within the valid port range [0..65535]. This defaults to port 22 if not set.
+* <remote-path> allows alphanumeric characters and special characters (-.?:'/\+=&;%$#_,).
+* <username> only allows alphanumeric characters, an underscore and a hyphen.
+
+
+Example:
+
+----
+config
+
+brm backup-manager DEFAULT sftp-server sampleSftpServer endpoints endpoint sampleEndpoint remote-address 192.168.108.218
+
+brm backup-manager DEFAULT sftp-server sampleSftpServer endpoints endpoint sampleEndpoint remote-port 22
+
+brm backup-manager DEFAULT sftp-server sampleSftpServer endpoints endpoint sampleEndpoint remote-path upload
+
+brm backup-manager DEFAULT sftp-server sampleSftpServer endpoints endpoint sampleEndpoint client-identity username foo public-key local-definition public-key c3NoLXJzYSB.....DAwMzE2Nwo=
+
+brm backup-manager DEFAULT sftp-server sampleSftpServer endpoints endpoint sampleEndpoint client-identity username foo public-key local-definition private-key LS0tLS1CRUd.....VktLS0tLQo=
+
+brm backup-manager DEFAULT sftp-server sampleSftpServer endpoints endpoint sampleEndpoint server-authentication ssh-host-keys local-definition host-key c3NoLXJzYSBB.....I2B4tmc3MK
+
+commit
+----
+
+The BRO supports multiple SFTP Servers per backup manager.
+
+=== Get the SFTP Server Configuration
+
+----
+brocmyp@host# show running-config brm backup-manager DEFAULT sftp-server
+
+brm backup-manager DEFAULT
+ sftp-server sampleSftpServer
+  endpoints endpoint sampleEndpoint
+   remote-address 192.168.108.213
+   remote-port    22
+   remote-path    samplePath
+   client-identity username foo
+   client-identity public-key local-definition public-key "c3NoLXJzYSB.....DAwMzE2Nwo="
+   client-identity public-key local-definition private-key "000PASSPHRASE000v01vdmF1bHQ......zcWc9PQ=="
+   server-authentication ssh-host-keys local-definition host-key [ "c3NoLXJzYSBB.....I2B4tmc3MK" ]
+  !
+ !
+!
+----
+
+=== Deleting SFTP Server Configuration
+
+Run the below command in config mode to delete a defined SFTP Server.
+
+* 'sftp-server-name': If not specified, all SFTP servers in the backup-manager will be removed.
+
+----
+config
+
+no brm backup-manager <backup-manager-id> sftp-server [sftp-server-name]
+
+commit
+----
+
+[bibliography]
+== References
+[bibliography]
+- [[ServiceUserGuide]] Backup and Restore Service User Guide, 1/1553-APR 201 40/7
+- [[CMYPServiceUserGuide]] CM YANG Provider Service User Guide, 1/1553-APR 201 41/15
+- [[CMYPAboutTheCli]] CM Yang Provider About the CLI, 3/1551-APR20141/15
+- [[RestApiUserGuide]] REST API User Guide, 3/198 17-APR 201 40/7

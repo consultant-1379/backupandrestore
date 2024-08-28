@@ -1,0 +1,16 @@
+Kubesec:
+  Product: "eric-ctrl-bro"
+  Product_internal: "eric-ctrl-bro"
+  Product_contact: "PDLADPTEAM@pdl.internal.ericsson.com"
+  KubesecYAML:
+    Scan: true
+    SkipTests: false
+    armLinks: # Add the arm links that don't require authentication
+      Links:
+        - 'https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-internal-helm-local/eric-ctrl-bro/eric-ctrl-bro-<version>.tgz'
+      valuesOverride: # If override is needed we add values.yaml names in same order as arm links
+        - ''
+  KubesecCluster:
+    Scan: false
+    KubeconfigFile: "config"
+    namespace: "${env.USER}"

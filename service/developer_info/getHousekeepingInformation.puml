@@ -1,0 +1,38 @@
+@startuml
+Title BRO getHousekeepingInformation
+control BackupManagerRepository as bmr
+control BackupRepository as br
+control BackupFileService as bkfs
+control HousekeepingFileService as hkfs
+entity HousekeepingInformation as hki
+control Housekeeping as hk
+activate bmr
+bmr->bmr:getHousekeepingInformation
+bmr->br:getBackups
+note right: get the number of backups persisted
+activate br
+br->bkfs:getBackups()
+note left: ordered by creation time
+br->br:try
+activate br
+br->hkfs:getPersistedHousekeepingInformation
+hkfs->hki**:Create
+hki-->hkfs
+hkfs -->br:HousekeepingInformation
+note over br: Create HK using persisted hk.json
+br ->hk**:Create (HousekeepingInformation)
+alt #yellow numberPersistedbackups > HousekeepingInformation
+note over br: Create HK using number of persisted backups
+br ->hk**:Create (numberPersistedbackups)
+end
+br->hk:persist
+br-->bmr:Housekeeping
+deactivate br
+deactivate br
+note over br #red: catch exception
+note over br: Create HK using number of persisted backups vs default value 1
+br ->hk**:Create (HousekeepingInformation)
+br->hk:persist
+br-->bmr:Housekeeping
+deactivate bmr
+@enduml

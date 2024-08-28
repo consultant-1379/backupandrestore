@@ -1,0 +1,26 @@
+{{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") -}}
+{{- if and (.Values.bro.enableNotifications) (or .Values.kafka.enabled .Values.messageBusKF.enabled) -}}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-mbkf-client-certificate
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+spec:
+  kubernetes:
+    generatedSecretName: {{ template "eric-ctrl-bro.mbkfClientSecret" . }}
+    certificateName: mbkfclientcert.pem
+    privateKeyName: mbkfclientprivkey.pem
+    privateKeyFormat: pkcs8
+  certificate:
+    subject:
+      cn: {{ template "eric-ctrl-bro.name" . }}-mbkf
+    extendedKeyUsage:
+      tlsClientAuth: true
+      tlsServerAuth: false
+    issuer:
+      reference: {{ template "eric-ctrl-bro.certificate-authorities.message-bus-kf" . }}-client-ca
+    subjectAlternativeName:
+      populateKubernetesDns: false
+{{- end -}}
+{{- end -}}

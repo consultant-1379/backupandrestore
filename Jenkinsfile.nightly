@@ -1,0 +1,417 @@
+def bob = './bob/bob -r service/ruleset.nightly.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        skipDefaultCheckout()
+        timestamps()
+        timeout(time: 8, unit: 'HOURS')
+    }
+    environment {
+        FUNCTIONAL = credentials('eadphub-psw')
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+        XRAY_API_TOKEN = credentials('xray-api-token')
+        KUBECONFIG = credentials('hall060')
+        VHUB_API_TOKEN = credentials('vuln-hub-api-token')
+        NAMESPACE="bro-security".plus("${env.JOB_NAME}".substring("${env.JOB_NAME}".lastIndexOf("y") + 1))
+    }
+    stages {
+        stage('Cleaning Workspace') {
+            steps {
+                dir('/home/lciadm100/jenkins/workspace/NightlyJobs/BRO_Security_Nightly') {
+                    sh 'ls -l'
+                    sh 'sudo rm -rf ./*'
+                }
+            }
+        }
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Prepare environment') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+                sh "helm3 repo add internal https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-internal-helm/ --username ${env.FUNCTIONAL_USR} --password ${env.FUNCTIONAL_PSW}"
+                sh "helm3 repo add test-service https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-test-internal-helm/ --username ${env.FUNCTIONAL_USR} --password ${env.FUNCTIONAL_PSW}"
+                sh "helm3 repo add drop https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-drop-helm/ --username ${env.FUNCTIONAL_USR} --password ${env.FUNCTIONAL_PSW}"
+                sh 'helm3 repo update'
+                }
+        }
+        stage('Deploy BRO') {
+            when { expression { (params.DEPLOY_BRO) } }
+            environment {
+                IMAGE_VERSION = "${sh(script:'echo `helm3 search repo internal --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true)}"
+            }
+            steps {
+                withCredentials([
+                        file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                        file(credentialsId: 'hub-armdocker-config-json', variable: 'DOCKER_CONFIG')
+                    ]) {
+                        sh "${bob} deploy-to-k8s"
+                    }
+            }
+        }
+        stage('Branch Deploy BRO') {
+            when { expression { (params.BRANCH_DEPLOY_BRO) } }
+            environment {
+                IMAGE_VERSION = "${params.IMAGE_VERSION}"
+            }
+            steps {
+                withCredentials([
+                        file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                        file(credentialsId: 'hub-armdocker-config-json', variable: 'DOCKER_CONFIG')
+                    ]) {
+                        sh "${bob} deploy-to-k8s"
+                    }
+            }
+        }
+        stage('Defensics') {
+            environment {
+                DEFENSICS_HOME = "${env.WORKSPACE}/defensics_home"
+            }
+            steps {
+                script {
+                    if (params.DEFENSICS){
+                        withCredentials([file(credentialsId: 'bro-defensics-tar', variable: 'DEFENSICS_HOME_TAR')]) {
+                            sh "tar -xvf $DEFENSICS_HOME_TAR"
+                            sh "${bob} defensics"
+                        }
+                    }
+                    else {
+                        sh "sed -i '/defensics-report/d' service/ruleset.nightly.yaml"
+                    }
+                }
+            }
+        }
+        stage('CISCAT') {
+            environment {
+                IMAGE_VERSION = "${sh(script:'echo `helm3 search repo internal --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true)}"
+            }
+            steps {
+                script {
+                    if (params.CISCAT){
+                        sh 'chmod 755 ./ci_config/cis_cat/build.sh'
+                        sh "./bob/bob -r service/ruleset.yaml image:pull-microcbo-image"
+                        sh "${bob} cis-cat-scan"
+                    } else {
+                        sh "sed -i '/ciscat-reports/d' service/ruleset.nightly.yaml"
+                    }
+                }
+            }
+        }
+        stage('Run NMap Scan') {
+            steps {
+                script {
+                    if (params.NMAP){
+                        sh "${bob} nmap-port-scanning"
+                    } else {
+                        sh "sed -i '/nmap-reports/d' service/ruleset.nightly.yaml"
+                    }
+                }
+            }
+        }
+        stage('Run OWASP ZAP') {
+            steps {
+                script {
+                    if (params.OWASP){
+                        sh "${bob} system-test-with-vulnerability-check"
+                    } else {
+                        sh "sed -i '/zap-reports/d' service/ruleset.nightly.yaml"
+                    }
+                }
+            }
+        }
+        stage('Cleandown K8s Resources') {
+            when {expression {(params.DEPLOY_BRO) } }
+            environment {
+                IMAGE_VERSION = "${sh(script:'echo `helm3 search repo internal --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true)}"
+            }
+            steps {
+                sh "${bob} cleandown-k8s-resources"
+            }
+        }
+        stage('VA Tools') {
+            environment {
+                IMAGE_VERSION = "${sh(script:'echo `helm3 search repo internal --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true).trim()}"
+                AGENT_IMAGE_VERSION = "${sh(script:'echo `helm3 search repo test-service --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true)}"
+                LATEST_TENABLE_DATE = sh(script: 'curl -u "eadphub:${API_TOKEN}" https://arm.sero.gic.ericsson.se/artifactory/proj-eric-ctrl-bro-va-generic-local/ | grep -o "[0-9]\\{2\\}-[A-Z][a-z]\\{2\\}-[0-9]\\{4\\}" | sort -k1.8n -k1.4,1.6M -k2n | tail -1', returnStdout: true)
+                def IMAGE_VERSION_TRIM = IMAGE_VERSION.substring(0, IMAGE_VERSION.lastIndexOf("-"))
+            }
+            parallel {
+                stage('VA-image-scan-grype') {
+                    steps {
+                        script {
+                            if (params.GRYPE){
+                                sh "${bob} grype-scan"
+                            } else {
+                                sh "sed -i '/anchore-reports/d' service/ruleset.nightly.yaml"
+                            }
+                        }
+                    }
+                }
+                stage('VA-image-scan-trivy-inline') {
+                    steps {
+                        script {
+                            if (params.TRIVY){
+                                sh "${bob} trivy-inline-bro-scan"
+                                sh "${bob} trivy-inline-api-scan"
+                            } else {
+                                sh "sed -i '/trivy-reports/d' service/ruleset.nightly.yaml"
+                            }
+                        }
+                    }
+                }
+                stage('Fetch XRAY Report') {
+                    when { expression { (params.XRAY) } }
+                    steps {
+                        catchError {
+                            sh "${bob} fetch-xray-report"
+                        }
+                    }
+                }
+                stage('Fetch Tenable Report') {
+                    environment {
+                        LATEST_TENABLE_VERSION = "${sh(script: 'curl -u "eadphub:${API_TOKEN}" https://arm.sero.gic.ericsson.se/artifactory/proj-eric-ctrl-bro-va-generic-local/ | grep ${LATEST_TENABLE_DATE} | grep -Eo "[0-9]*\\.[0-9]*\\.[0-9]*[-+][0-9]+" | tail -1', returnStdout: true).trim()}"
+                    }
+                    steps {
+                        catchError {
+                            sh 'mkdir -p build/tenablesc-reports'
+                            sh 'curl -u "eadphub:${API_TOKEN}" https://arm.sero.gic.ericsson.se/artifactory/proj-eric-ctrl-bro-va-generic-local/${LATEST_TENABLE_VERSION}/eric-ctrl-bro-${LATEST_TENABLE_VERSION}.pdf -o build/tenablesc-reports/eric-ctrl-bro-${LATEST_TENABLE_VERSION}.pdf'
+                            sh 'curl -u "eadphub:${API_TOKEN}" https://arm.sero.gic.ericsson.se/artifactory/proj-eric-ctrl-bro-va-generic-local/${LATEST_TENABLE_VERSION}/eric-ctrl-bro-${LATEST_TENABLE_VERSION}.csv -o build/tenablesc-reports/eric-ctrl-bro-${LATEST_TENABLE_VERSION}.csv'
+                        }
+                    }
+                }
+                stage('Kubeaudit') {
+                    steps {
+                        script {
+                            if (params.KUBEAUDIT){
+                                sh "sed -i \"s/<version>/${IMAGE_VERSION_TRIM}/g\" ci_config/kubeaudit_config.yaml"
+                                sh "${bob} kubeaudit"
+                            } else {
+                                sh "sed -i '/kubeaudit-reports/d' service/ruleset.nightly.yaml"
+                            }
+                        }
+                    }
+                }
+                stage('Kubesec') {
+                    steps {
+                        script {
+                            if (params.KUBESEC){
+                                sh "sed -i \"s/<version>/${IMAGE_VERSION_TRIM}/g\" ci_config/kubesec_config.yaml"
+                                sh "${bob} kubesec"
+                            } else {
+                                sh "sed -i '/kubesec-reports/d' service/ruleset.nightly.yaml"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Branch Fetch XRAY Report') {
+            when { expression { (params.BRANCH_XRAY) } }
+            environment {
+                AGENT_IMAGE_VERSION = "${sh(script:'echo `helm3 search repo test-service --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true)}"
+                IMAGE_VERSION = "${params.IMAGE_VERSION}"
+                BRANCH_ID = "${params.BRANCH_ID}"
+            }
+            steps {
+                catchError {
+                    sh "${bob} fetch-xray-report-branch"
+                }
+            }
+        }
+        stage('Fetch previous VA Report') {
+            steps {
+                script {
+                    copyArtifacts(filter: 'Vulnerability_Report.md', projectName: 'NightlyJobs/BRO_Security_Nightly', optional: true,
+                                        selector: specific("${COMPARE_BUILD_NUMBER}" ?: (currentBuild.number-1).toString()));
+                }
+                sh "[ ! -f Vulnerability_Report.md ] || mv Vulnerability_Report.md Vulnerability_Report_Previous.md"
+            }
+        }
+        stage('Generate BRO VA Report') {
+            environment {
+                IMAGE_VERSION = "${sh(script:'echo `helm3 search repo internal --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true)}"
+                UPLOAD_SCAN_RESULTS = "${params.UPLOAD_SCAN_RESULTS}"
+            }
+            steps {
+                script {
+                    try {
+                        sh "${bob} generate-VA-report:generate-bro-VA-report"
+                    } catch (err) {
+                        echo err.getMessage()
+                    }
+                }
+            }
+        }
+        stage('Check if Compare build number is set') {
+            environment {
+                COMPARISONBUILDNUMBER = " "
+            }
+            steps{
+                script {
+                    if(COMPARE_BUILD_NUMBER.isEmpty()){
+                    COMPARISONBUILDNUMBER = currentBuild.number-1
+                    }
+                    else {
+                        COMPARISONBUILDNUMBER = COMPARE_BUILD_NUMBER
+                    }
+                }
+            }
+        }
+        stage('Compare BRO VA Reports and Send Email with Result') {
+            steps {
+                script {
+                    if(fileExists('Vulnerability_Report_Previous.md')) {
+                        sh "python3 nightly/vulnerability.py Vulnerability_Report_Previous.md Vulnerability_Report.md BRO_VA_Report_Comparison_Output.txt"
+
+                        if(fileExists('BRO_VA_Report_Comparison_Output.txt')) {
+                            emailext body: "${env.BUILD_URL} , Compared build number ${COMPARISONBUILDNUMBER}, Current build number ${currentBuild.number}",
+                            attachmentsPattern: 'BRO_VA_Report_Comparison_Output.txt',
+                            mimeType: 'text/html',
+                            subject: "BRO VA Report Comparison (DIFFERENCE FOUND)",
+                            to: '$DEFAULT_RECIPIENTS',
+                            replyTo: '$DEFAULT_RECIPIENTS',
+                            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                        }
+                        else {
+                            emailext body: "${env.BUILD_URL} , Compared build number ${COMPARISONBUILDNUMBER}, Current build number ${currentBuild.number}",
+                            mimeType: 'text/html',
+                            subject: "BRO VA Report Comparison (NO DIFFERENCE)",
+                            to: '$DEFAULT_RECIPIENTS',
+                            replyTo: '$DEFAULT_RECIPIENTS',
+                            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                        }
+                    }
+                    else {
+                        emailext body: "${env.BUILD_URL} , Compared build number ${COMPARISONBUILDNUMBER}, Current build number ${currentBuild.number}",
+                        mimeType: 'text/html',
+                        subject: "BRO VA Report Comparison (SKIPPED - MANUAL CHECK REQUIRED)",
+                        to: '$DEFAULT_RECIPIENTS',
+                        replyTo: '$DEFAULT_RECIPIENTS',
+                        recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                    }
+                }
+            }
+        }
+        stage('Upload VA Config File to Vuln Hub') {
+            when { expression { (params.UPLOAD_VA_CONFIG) } }
+            environment {
+                VERSION_FOR_VULN_HUB = "${params.VERSION_FOR_VULN_HUB}"
+            }
+            steps {
+                sh "${bob} upload-VA-config"
+            }
+        }
+        stage('Fetch previous API VA Report') {
+            steps {
+                script {
+                    copyArtifacts(filter: 'API_Vulnerability_Report.md', projectName: 'NightlyJobs/BRO_Security_Nightly', optional: true,
+                                        selector: specific("${COMPARE_BUILD_NUMBER}" ?: (currentBuild.number-1).toString()));
+                }
+                sh "[ ! -f API_Vulnerability_Report.md ] || mv API_Vulnerability_Report.md API_Vulnerability_Report_Previous.md"
+            }
+        }
+        stage('Generate API VA Report') {
+            environment {
+                AGENT_IMAGE_VERSION = "${sh(script:'echo `helm3 search repo test-service --devel | awk \'{print $2}\' | tail -n 1`-SNAPSHOT', returnStdout: true)}"
+            }
+            steps {
+                script {
+                    try {
+                        sh "${bob} generate-VA-report:generate-API-VA-report"
+                    } catch (err) {
+                        echo err.getMessage()
+                    }
+                }
+            }
+        }
+        stage('Compare BRO-AGENT-API VA Reports and Send Email with Result') {
+            steps {
+                script {
+                    if(fileExists('API_Vulnerability_Report_Previous.md')) {
+                        sh "python3 nightly/vulnerability.py API_Vulnerability_Report_Previous.md API_Vulnerability_Report.md API_VA_Report_Comparison_Output.txt"
+
+                        if(fileExists('API_VA_Report_Comparison_Output.txt')) {
+                            emailext body: "${env.BUILD_URL} , Compared build number ${COMPARISONBUILDNUMBER}, Current build number ${currentBuild.number}",
+                            attachmentsPattern: 'API_VA_Report_Comparison_Output.txt',
+                            mimeType: 'text/html',
+                            subject: "API VA Report Comparison (DIFFERENCE FOUND)",
+                            to: '$DEFAULT_RECIPIENTS',
+                            replyTo: '$DEFAULT_RECIPIENTS',
+                            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                        }
+                        else {
+                            emailext body: "${env.BUILD_URL} , Compared build number ${COMPARISONBUILDNUMBER}, Current build number ${currentBuild.number}",
+                            mimeType: 'text/html',
+                            subject: "API VA Report Comparison (NO DIFFERENCE)",
+                            to: '$DEFAULT_RECIPIENTS',
+                            replyTo: '$DEFAULT_RECIPIENTS',
+                            recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                        }
+                    }
+                    else {
+                        emailext body: "${env.BUILD_URL} , Compared build number ${COMPARISONBUILDNUMBER}, Current build number ${currentBuild.number}",
+                        mimeType: 'text/html',
+                        subject: "API VA Report Comparison (SKIPPED - MANUAL CHECK REQUIRED)",
+                        to: '$DEFAULT_RECIPIENTS',
+                        replyTo: '$DEFAULT_RECIPIENTS',
+                        recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                    }
+                }
+            }
+        }
+        stage('VA-branch-image-scan-grype') {
+            when { expression { (params.BRANCH_GRYPE) } }
+            environment {
+                IMAGE_VERSION = "${params.IMAGE_VERSION}"
+                BRANCH_ID = "${params.BRANCH_ID}"
+            }
+            steps {
+                sh "${bob} grype-scan-branch"
+            }
+        }
+        stage('VA-branch-image-scan-trivy-inline') {
+            when { expression { (params.BRANCH_TRIVY) } }
+            environment {
+                IMAGE_VERSION = "${params.IMAGE_VERSION}"
+                BRANCH_ID = "${params.BRANCH_ID}"
+            }
+            steps {
+                sh "${bob} trivy-inline-scan-branch"
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts:  """API_Vulnerability_Report.md, Vulnerability_Report.md,
+                                         xray-reports/**.*,
+                                         build/**/*.*,
+                                         bro-grype-reports/**.*, api-grype-reports/**.*,
+                                         zap/reports/*.*, zap/config/*.*, nmap_reports/nmap_report/**.*,
+                                         ci_config/API_Vulnerability_Report.config, ci_config/Vulnerability_Report.config,
+                                         pod_logs/*.*, BRO_VA_Report_Comparison_Output.txt, API_VA_Report_Comparison_Output.txt""", allowEmptyArchive: true
+        }
+        failure {
+            script {
+                if (params.BRANCH_ID == null){
+                    def jobName = currentBuild.fullDisplayName
+                    emailext body: '''${SCRIPT, template="groovy-html.template"}''',
+                    mimeType: 'text/html',
+                    subject: "[BUILD FAILURE] ${jobName}",
+                    to: '$DEFAULT_RECIPIENTS',
+                    replyTo: '$DEFAULT_RECIPIENTS',
+                    recipientProviders: [[$class: 'CulpritsRecipientProvider']]
+                }
+            }
+        }
+    }
+}

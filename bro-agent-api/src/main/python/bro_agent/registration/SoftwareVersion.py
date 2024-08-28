@@ -1,0 +1,3 @@
+import bro_agent.generated.SoftwareVersionInfo_pb2 as SoftwareVersionInfo
+
+SoftwareVersion = SoftwareVersionInfo.SoftwareVersionInfo

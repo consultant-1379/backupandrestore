@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "CreateActionResponse",
+  "title": "CreateActionResponse",
+  "description": "Result of creating an action",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "ID of new action"
+    }
+  },
+  "required": [
+    "id"
+  ]
+}

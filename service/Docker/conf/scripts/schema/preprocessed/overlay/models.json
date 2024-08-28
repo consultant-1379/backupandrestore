@@ -1,0 +1,108 @@
+[
+  {
+    "name": "ietf-ssh-common@2019-11-20.yang",
+    "module-name": "ietf-ssh-common",
+    "prefix": "sshcmn",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "iana-symmetric-algs@2019-11-20.yang",
+    "module-name": "iana-symmetric-algs",
+    "prefix": "isa",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "iana-asymmetric-algs@2019-11-20.yang",
+    "module-name": "iana-asymmetric-algs",
+    "prefix": "iasa",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "ietf-crypto-types@2019-11-20.yang",
+    "module-name": "ietf-crypto-types",
+    "prefix": "ct",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "ietf-truststore@2019-11-20.yang",
+    "module-name": "ietf-truststore",
+    "prefix": "ts",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "ietf-keystore@2019-11-20.yang",
+    "module-name": "ietf-keystore",
+    "prefix": "ks",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "ietf-ssh-client@2019-11-20.yang",
+    "module-name": "ietf-ssh-client",
+    "prefix": "sshc",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "ietf-tls-common@2019-11-20.yang",
+    "module-name": "ietf-tls-common",
+    "prefix": "tlscmn",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "ietf-tls-client@2019-11-20.yang",
+    "module-name": "ietf-tls-client",
+    "prefix": "tlsc",
+    "revision": "2019-11-20",
+    "import": true
+  },
+  {
+    "name": "ericsson-ftp-client@2020-03-23.yang",
+    "module-name": "ericsson-ftp-client",
+    "prefix": "ftpclie",
+    "revision": "2020-03-23",
+    "import": true
+  },
+  {
+    "name": "ericsson-brm.yang",
+    "module-name": "ericsson-brm",
+    "prefix": "brme",
+    "revision": "2022-09-02",
+    "features": [
+      "ericsson-brm:housekeeping",
+      "ericsson-brm:scheduler",
+      "ericsson-brm:sftp-client-authentication"
+    ],
+    "deviations": [
+      "ericsson-brm-ext-adp.yang",
+      "ericsson-brm-ext-static-data-dev.yang"
+    ],
+    "annotations": [
+      "ericsson-brm-ann.yang",
+      "ericsson-brm-ext-static-data-dev-deviations-ann.yang"
+    ],
+    "import": false,
+    "schema-name": "ericsson-brm",
+    "config-name": "ericsson-brm"
+  },
+  {
+    "name": "ericsson-brm-ext-adp.yang",
+    "module-name": "ericsson-brm-ext-adp",
+    "prefix": "brmxe",
+    "revision": "2022-04-06",
+    "import": false
+  },
+  {
+    "name": "ericsson-brm-ext-static-data-dev.yang",
+    "module-name": "ericsson-brm-ext-static-data-dev",
+    "prefix": "brmxesdde",
+    "revision": "2024-01-23",
+    "import": false
+  }
+]

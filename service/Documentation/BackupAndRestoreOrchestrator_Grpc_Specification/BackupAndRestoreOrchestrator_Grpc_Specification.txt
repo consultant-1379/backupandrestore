@@ -1,0 +1,115 @@
+= Backup and Restore Orchestrator - GRPC API Specification
+:author: Michael Lawless
+:doc-name: GRPC API Specification
+:doc-no: 1/15519-CAF 101 026/6
+:revnumber: A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+:TOC:
+== Introduction
+
+The purpose of this guide is to describe the GRPC interfaces of the
+Backup and Restore Orchestrator. 
+
+The guide will show the definitions found in the .proto files, omitting
+common information, such as:
+
+....
+    syntax = "proto3";
+    option java_multiple_files = true;
+    ...
+    <imports and package>
+....
+
+== INT_BR_ORCH_CTRL
+
+This interface is used to control and coordinate messages / events
+between the Orchestrator and Agents.
+
+....
+    service ControlInterface {
+        rpc establishControlChannel (stream AgentControl) returns (stream OrchestratorControl) {}
+    }
+....
+
+=== Action
+
+Every control message sent by either Agent or Orchestrator needs to
+indicate which Action it belongs to. The options are:
+
+....
+    enum Action {
+        REGISTER = 0;
+        BACKUP = 1;
+        RESTORE = 2;
+        CANCEL = 3;
+    }
+....
+
+=== AgentControl
+
+AgentControl represents the messages that can be sent from the Agent to
+the Orchestrator.
+
+....
+    message AgentControl {
+        Action action = 1;
+        AgentMessageType agentMessageType = 2;
+        
+        Register register = 3;
+        StageComplete stageComplete = 4;
+        AgentDependencies agentDependencies = 5;
+        PrepareDependency prepareDependency = 6;
+        ExecutionDependency executionDependency = 7;
+    }
+    
+    enum AgentMessageType {  
+        AGENT_DEPENDENCIES = 0;
+        STAGE_COMPLETE = 1;
+        PREPARE_DEPENDENCY = 2;
+        EXECUTION_DEPENDENCY = 3;
+        REGISTER = 4;
+    }
+....
+
+==== Registration
+
+To send a registration message, action and agentMessageType should be
+set to REGISTER. The _Register_ message-type should hold the agent’s
+registration information, as defined in:
+
+....
+    message Register {
+        string agentId = 1;
+        SoftwareVersionInfo softwareVersionInfo = 2;
+        string apiVersion = 3;
+        string scope = 4;
+    }
+    
+    message SoftwareVersionInfo {
+        string productName = 1;
+        string productNumber = 2;
+        string revision = 3;
+        string productionDate = 4;
+        string description = 5;
+        string type = 6;
+    }
+....
+
+== INT_BR_ORCH_DATA
+
+This interface is used for two-way data transfer between the
+Orchestrator and Agents during the Backup and Restore use cases.
+
+....
+    service DataInterface {
+        rpc backup (stream BackupData) returns (google.protobuf.Empty) {}
+        rpc restore (Metadata) returns (stream RestoreData) {}
+    }
+....
+
+== References
+
+* GRPC documentation https://grpc.io/docs/

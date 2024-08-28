@@ -1,0 +1,275 @@
+= Backup and Restore Orchestrator - Agent Implementation Guide for C++
+:author: Michael Lawless (modified for C++ specific parts Istvan Bodnar B.)
+:doc-name: Agent Implementation Guide
+:doc-no: 7/19817-APR 201 40/3
+:revnumber: A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Introduction
+
+This guide is intended for engineers who want to use C++ to build their own Agents in order to backup and restore their services.
+
+This guide provides examples for creating a project, developing the Agent and packaging it.
+
+Important: This API is not officially supported if you find any problem we greatly appreciate a fix patch for it according to innersourcing guidelines!
+
+== Glossary
+
+|=======================================================================
+|Term |Description
+
+| Agent | A component of a service which terminates requests from the Orchestrator and sends and receives backups.
+| Orchestrator | The service which provides centralized control of all Agents and handles storage of backups.
+| Backup | A collection of fragments which can be used to restore/recover a service or group of services to a previous state.
+| Fragment | An individual part of a backup. A single service backup can have multiple fragments.
+| Scope | A defined set of one or many services that will be included in the same backup. Scope should be configurable at deployment time.
+
+|=======================================================================
+
+== BRO Agent API
+
+The bro-agent-api is a library that aids in the creation of backup and restore agents. This library takes care of the communication with the Orchestrator.
+The end user achieves this by implementing methods for registration, backup and restore. This allows each Agent to have its own service specific behavior for these actions.
+
+Important: For C++ agents only the v1.0 API is supported!
+
+=== Project
+
+To start using the bro-agent-api it is necessary to include the bro-agent-api in a project.
+
+To do this using Bazel build you need to include an _http_archive_ rule in your WORKSPACE file
+
+    http_archive(
+        name = "bro-agent",
+        url = "https://gerrit-gamma.gic.ericsson.se/gitweb?p=AIA/microservices/backupandrestore.git;a=snapshot;h=refs/heads/master;sf=tgz"
+        sha256 = "80f49469f1702ec64ef5d8e71302f6b781dca8ae06e560421cab42961c8c7ce6",
+        strip_prefix = "backupandrestore-master-5f7456b/bro-agent-api/src",
+        type = "tgz",
+    )
+
+Do not forget to update the sha256 and strip_prefix fields with the relevant values.
+
+After this you can depend on this with the following notation:
+
+    ...
+    deps = [
+        @bro-agent//:bro-agent-api
+    ],
+    ...
+
+== Agent Implementation
+
+The Agent implementation consists of two main parts, the creation of an Agent and the implementation of the required behavior for backup and restore for a specific service.
+
+=== Creating an Agent
+
+Once a Bazel project is setup the Agent can be created. There is a factory available for this in the bro-agent-api.
+
+To create an agent, include the Agent factory _agent/AgentFactory.hh_ into a cc file and perform the following:
+
+    BackupRestoreAgent::AgentFactory::createAgent(host, port, agentBehavior)
+
+Where the host and port should be a string literal or std::string for the Orchestrator with which the Agent will register, and agentBehavior should be an object of the user-defined class which is derived from AgentBehavior.
+The Agent's specific behavior, creating specific behavior is discussed in a later section.
+
+This method will return an instance of Agent.
+
+An example of creating an Agent can be viewed in https://gerrit-gamma.gic.ericsson.se/gitweb?p=pdu-cc/ims-common.git;a=blob_plain;f=dummy-traffic-handler/dummy-traffic-handler.cc;h=849b0ca7334e0b62969466f004557288fe697fcd;hb=refs/heads/master[here].
+
+==== Keeping the Agent Alive
+
+After an Agent is created, that instance of the Agent needs to be kept alive, since it will be responsible for listening to messages from the Orchestrator and replying, as well as triggering the service's backup and restore.
+
+How to keep that instance and the Agent application itself alive is up to the engineer.
+
+==== Behavior on loss of connectivity to Orchestrator
+
+If the Agent loses its connection to the Orchestrator, the Agent will automatically attempt to reestablish the connection.
+It will continuously try to re-register with the Orchestrator until it establishes a connection. This behavior is handled within the bro-agent-api.
+To check the connection status you can use the following method in case you used AgentFactory to create the Agent:
+
+    grpc_connectivity_state Agent::getGrpcChannelStatus(bool tryToConnect);
+
+If the status is IDLE you can instruct the agent to try to connect with the _tryToConnect_ bool parameter
+
+If the Orchestrator rejects the Agent's connection due to invalid registration information the Agent will not attempt to re-register.
+
+See the Troubleshooting section of the <<ServiceUserGuide, Service User Guide>> for failure causes for registration.
+
+== Defining Agent Specific Behavior
+
+To create an Agent the expected Agent behavior must be supplied. To do so, create a concrete class that implements the interface AgentBehavior.
+
+    class AgentBehavior
+    {
+    public:
+        virtual RegistrationInformation getRegistrationInformation() = 0;
+        virtual void executeBackup(BackupExecutionActions backupExecutionActions) = 0;
+        virtual void executeRestore(RestoreExecutionActions restoreExecutionActions) = 0;
+    }
+
+=== Agent Specific Behavior - getRegistrationInformation()
+
+Implementation of the method _getRegistrationInformation()_, allows the Agent to provide information specific to the Agent to the Orchestrator.
+
+It needs to have a unique _agentId_, as well as product information related to the service to be backed up.
+
+The Agent Id is used by the Orchestrator to identify Agents and in the event a duplicate Id is observed, that Agent will not be registered. To aid in creating a unique Agent Id it is recommended that the service name should be reflected in the Agent Id.
+
+The Agent will always participate in operations that involve all Agents. In addition to that, by setting a value to the optional field "scope", the Agent can be backed up separately or as part of a sub set of all available Agents in a deployment.
+
+A scope is not unique and can be used to indicate a group of services. It is recommended to get this field from the values.yaml to allow applications to set it as required. It is recommended to use brAgent.backupTypeList.backupType as the field in the values.yaml to take the value of scope from.
+
+The scope field supports only a single scope. If the Agent's scope is "alpha", for example, the Agent will participate in actions involving all Agents and actions involving only Agents of scope "alpha". That Agent can only be the part of scope "alpha".
+
+The apiVersion is to aid in handling older api versions in this release it should be set to 1.0.0
+
+An example of _RegistrationInformation_, in json format just for clarity, could be:
+
+    {
+        "agentId": "myAgent",
+        "scope": "alpha",
+        "apiVersion": "1.0.0",
+        "softwareVersion": {
+            "productName": "productABC",
+            "productNumber": "1.2.3",
+            "revision": "1",
+            "productionDate": "17/04/2019",
+            "description": "ABC used by XYZ",
+            "type": "Database"
+        }
+    }
+
+=== Agent Specific Behavior - executeBackup()
+
+Implementation of the method _executeBackup(BackupExecutionActions* backupExecutionActions)_, allows the Agent to perform the specified backup
+procedure when called by the Orchestrator. The _executeBackup_ should perform three main actions:
+
+* Create the backup.
+* Send the backup.
+* Indicate the state of the backup (successful/not successful).
+
+To facilitate the sending of the data and the completion message, use _backupExecutionActions_. This provides methods to perform the actions of sending the backup data and the completion message. If the backup contains multiple files they can be sent by calling
+the relevant method _backupExecutionActions.sendBackup(fragmentInformation)_ as many times as required.
+
+The name that was supplied to the Orchestrator upon request of a backup can be accessed by using _backupExecutionActions.getBackupName()_. This can be used in creating the backup file.
+
+To facilitate the case when an Agent may want to include its own metadata, the optional parameter _customMetadataFilePath_ of the _FragmentInformation_ may be used.
+
+If there is an issue in the transfer of the backup to the Orchestrator a _FailedToTransferBackupException_ can be thrown. If this is seen, then the decision can be made to take some corrective actions and retry the transfer.
+
+An example of performing a backup can be seen below, in this example the service specific logic would be implemented in the function _doSomethingToCreateBackup()_
+
+        void executeBackup(BackupExecutionActions* backupExecutionActions) override {
+            bool success = false;
+            std::string message;
+            try {
+                for (BackupRestoreAgent::BackupFragmentInformation fragment : doSomethingToCreateBackup()) {
+                    backupExecutionActions->sendBackup(fragment);
+                }
+                success = true;
+                message = "The test service has completed a backup for " + backupExecutionActions->getBackupName()
+                        + " and the data has been sent to the Orchestrator";
+            } catch (...) {
+                message = "The test service failed to complete a backup " + backupExecutionActions->getBackupName()
+                        + " The test service will not retry to send the backup";
+            }
+            backupExecutionActions->backupComplete(success, message);
+        }
+
+        std::vector<BackupRestoreAgent::BackupFragmentInformation> doSomethingToCreateBackup() {
+            //Perform backup actions
+        }
+
+As can be seen above _sendBackup_ is used to transfer the backup to the Orchestrator, and it takes in _BackupFragmentInformation_. An example of _BackupFragmentInformation_, in json format just for clarity, could be:
+
+    {
+        "backupFile": "/var/opt/ericsson/<application>/backup/backup.txt",
+        "customMetadataFilePath": "/var/opt/ericsson/<application>/backup/CustomMetadata.txt",
+        "fragmentId": "123",
+        "version": "0.0.0",
+        "sizeInBytes": "12345"
+    }
+
+Note that as with Agent Id the fragment Id should be unique. It is recommended to include the host name of the pod the fragment originated from to the fragment Id, for example "eric-db-0".
+All charts should enforce that pods should have an index or unique identifier after the name. This should aid in deciding the distribution of fragments in a restore scenario.
+
+=== Agent Specific Behavior - executeRestore()
+
+Implementation of the method _executeRestore(RestoreExecutionActions restoreExecutionActions)_, allows the Agent to perform the specified restore procedure when called by the Orchestrator.
+The _executeRestore_ should perform three main actions:
+
+* Request the fragments to be downloaded from the supplied list.
+* Perform restore.
+* Indicate the state of the restore (successful/not successful).
+
+To download the fragments and to send the completion message use _restoreExecutionActions_. This provides methods to perform the actions of downloading the fragments and sending the completion message.
+
+Before restoring data or downloading the fragments the Agent should check the compatibility of the data by validating the software version information of the backup to be restored.
+To access this information use _restoreExecutionActions->getSoftwareVersion()_.
+
+The list of fragments available in the backup can be accessed using _restoreExecutionActions->getFragmentList()_.
+This list contains fragment information that can be used to call _restoreExecutionActions->downloadFragment(fragment, restoreLocation)_ function. This will store the requested fragment in the location provided.
+
+If the backup contains multiple fragments they can be downloaded by calling the relevant function _restoreExecutionActions->downloadFragment(fragment, restoreLocation)_ as many times as required.
+
+The name of the backup that is being restored can be accessed by using _restoreExecutionActions->getBackupName()_ function.
+
+If there is an issue in the download process _FailedToDownloadException_ is thrown. If this is seen, then the decision can be made to take some corrective actions and reinitiate the restore process.
+
+An example of performing a restore can be seen below, in this example the service specific logic would be implemented in the function performCustomRestoreLogic()_
+
+    void executeRestore(RestoreExecutionActions* restoreExecutionActions) override {
+        if (currentSoftwareVersion != restoreExecutionActions->getSoftwareVersion()) {
+            restoreExecutionActions->restoreComplete(false, "Incompatible software version");
+            std::cerr << "Restore of backup " << restoreExecutionActions->getBackupName() << " failed due to incompatible software version" << std::endl;
+        }
+
+        try {
+            for (BackupRestoreAgent::FragmentInformation fragmentInformation : restoreExecutionActions->getFragmentList()) {
+                restoreExecutionActions->downloadFragment(fragmentInformation, getDownloadLocation());
+            }
+            performCustomRestoreLogic();
+            restoreExecutionActions->restoreComplete(true,
+                    "The test service has completed restore of backup: " + restoreExecutionActions->getBackupName());
+            std::cerr << "Restore of backup " << restoreExecutionActions->getBackupName() << " finished" << std::endl;
+        } catch (...) {
+            std::cerr << "Restore of backup " << restoreExecutionActions->getBackupName() << " failed due to exception " << std::endl;
+            restoreExecutionActions->restoreComplete(false, "Restore failed due to <>");
+        }
+    }
+
+    void performCustomRestoreLogic() {
+        // Perform restore actions.
+    }
+
+As can be seen above _downloadFragment_ is used to download the fragment from the Orchestrator, and it takes in _FragmentInformation_. An example of _FragmentInformation_, in json format just for clarity, could be:
+
+    {
+        "fragmentId": "123",
+        "version": "0.0.0",
+        "sizeInBytes": "12345"
+    }
+
+=== CI/CD
+
+Building proccess of the agent-api and quality checks can be found the links below:
+
+The relevant Jenkinsfiles can be reviewed https://gerrit-gamma.gic.ericsson.se/gitweb?p=AIA/microservices/backupandrestore.git;a=blob_plain;f=bro-agent-api/Jenkinsfile_cplusplus;hb=refs/changes/33/6290533/59[here].
+
+The relevant Bob rulesets for the test Agent can be reviewed https://gerrit-gamma.gic.ericsson.se/gitweb?p=AIA/microservices/backupandrestore.git;a=blob_plain;f=bro-agent-api/ruleset.yaml;hb=refs/changes/33/6290533/44[here].
+
+[[AdditionalInformation]]
+== Additional Information
+
+The Orchestrator and Agents communicate via GRPC. That communication is defined in the “xxxxxx.proto” files found inside the _bro-agent-api_ project https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/bro-agent-api/src/main/proto/[here].
+
+This guide covered how to build an Agent using the classes provided by _bro-agent-api_, which encapsulates that communication, and therefore does not cover details regarding GRPC.
+
+[bibliography]
+References
+----------
+[bibliography]
+* [[ServiceUserGuide]] Backup and Restore Service User Guide, 1/15451-APR 201 40/5

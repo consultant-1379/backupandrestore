@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.metadata";
+
+/**
+    Defines the checkpoint information that can be sent to the Backup and Restore Orchestrator by an a agent.
+    To protect against an excessive number of checkpoints a window/limit to maximum number of allowed
+    checkpoints will be in place.
+    This data is not persisted in the backup. It is only available during a single backup/restore operation.
+**/
+message CheckpointInformation {
+    string key = 1;
+    string value = 2;
+}

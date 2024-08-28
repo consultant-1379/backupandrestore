@@ -1,0 +1,30 @@
+{{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") -}}
+{{- with . }}
+{{- $logstreaming := include "eric-ctrl-bro.logstreaming" . | fromYaml }}
+{{/* direct or dual log streaming method enables tcp output*/}}
+{{- if or (eq "direct" (get $logstreaming "logOutput")) (eq "dual" (get $logstreaming "logOutput")) }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-lt-client-certificate
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+spec:
+  kubernetes:
+    generatedSecretName: {{ template "eric-ctrl-bro.name" . }}-lt-client-certificate
+    certificateName: ltclientcert.pem
+    privateKeyName: ltclientkey.pem
+    privateKeyFormat: pkcs8
+  certificate:
+    subject:
+      cn: {{ template "eric-ctrl-bro.name" . }}-lt
+    extendedKeyUsage:
+      tlsClientAuth: true
+      tlsServerAuth: false
+    issuer:
+      reference: {{ template "eric-ctrl-bro.certificate-authorities.eric-log-transformer" . }}-input-ca-cert
+    subjectAlternativeName:
+      populateKubernetesDns: false
+{{- end -}}
+{{- end -}}
+{{- end -}}

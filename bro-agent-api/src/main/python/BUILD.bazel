@@ -1,0 +1,109 @@
+load("//bazel:version.bzl", "PYTHON_AGENT_WHL_VERSION")
+
+py_library(
+    name = "bro_agent",
+    imports = ["."],
+    srcs = [
+        "bro_agent/agent/OrchestratorGrpcChannel.py",
+        "bro_agent/agent/BackupExecutionState.py",
+        "bro_agent/agent/RestoreInformation.py",
+        "bro_agent/agent/AgentFactory.py",
+        "bro_agent/agent/RestoreActions.py",
+        "bro_agent/agent/BackupExecutionActions.py",
+        "bro_agent/agent/RestorePreparationState.py",
+        "bro_agent/agent/AgentBehavior.py",
+        "bro_agent/agent/OrchestratorConnectionInformation.py",
+        "bro_agent/agent/ActionInformation.py",
+        "bro_agent/agent/FinishedActionState.py",
+        "bro_agent/agent/RestoreExecutionState.py",
+        "bro_agent/agent/CancelActionState.py",
+        "bro_agent/agent/RestoreState.py",
+        "bro_agent/agent/Agent.py",
+        "bro_agent/agent/RestoreExecutionActions.py",
+        "bro_agent/agent/AgentState.py",
+        "bro_agent/agent/PostRestoreActions.py",
+        "bro_agent/agent/RestorePreparationActions.py",
+        "bro_agent/agent/WaitingForActionState.py",
+        "bro_agent/agent/CancelActions.py",
+        "bro_agent/agent/RestorePostActionState.py",
+        "bro_agent/agent/states.py",
+        "bro_agent/exception/Exceptions.py",
+        "bro_agent/filetransfer/FileChunkServiceUtil.py",
+        "bro_agent/fragment/BackupFragmentInformation.py",
+        "bro_agent/fragment/FragmentInformation.py",
+        "bro_agent/grpc/BackupFileMessageBuilder.py",
+        "bro_agent/grpc/BackupMessageBuilder.py",
+        "bro_agent/grpc/CustomMetadataFileMessageBuilder.py",
+        "bro_agent/registration/RegistrationInformation.py",
+        "bro_agent/registration/SoftwareVersion.py",
+        "bro_agent/service/BackupService.py",
+        "bro_agent/service/RestoreService.py",
+        "bro_agent/util/ChecksumCalculator.py",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+load("@rules_python//experimental/python:wheel.bzl", "py_package", "py_wheel")
+
+py_wheel(
+    name = "bro_agent_api_whl",
+    author = "Team Nexus",
+    author_email="PDUCCTeamNexus@ericsson.onmicrosoft.com",
+    classifiers = [
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    description_file = "README.md",
+    distribution = "bro_agent",
+    homepage = "https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore",
+    license = "MIT",
+    python_tag = "py3",
+    requires = [
+        "grpcio==1.27.2",
+    ],
+    strip_path_prefixes = [
+        "main/python",
+    ],
+    version = PYTHON_AGENT_WHL_VERSION,
+    deps = [
+        ":bro_agent",
+        ":patched_generated_python",
+    ],
+)
+
+patched_files = [
+    "bro_agent/generated/Action_pb2.py",
+    "bro_agent/generated/Action_pb2_grpc.py",
+    "bro_agent/generated/AgentControl_pb2.py",
+    "bro_agent/generated/AgentControl_pb2_grpc.py",
+    "bro_agent/generated/CancelBackupRestore_pb2.py",
+    "bro_agent/generated/CancelBackupRestore_pb2_grpc.py",
+    "bro_agent/generated/Fragment_pb2.py",
+    "bro_agent/generated/Fragment_pb2_grpc.py",
+    "bro_agent/generated/INT_BR_ORCH_CTRL_pb2.py",
+    "bro_agent/generated/INT_BR_ORCH_CTRL_pb2_grpc.py",
+    "bro_agent/generated/INT_BR_ORCH_DATA_pb2.py",
+    "bro_agent/generated/INT_BR_ORCH_DATA_pb2_grpc.py",
+    "bro_agent/generated/OrchestratorControl_pb2.py",
+    "bro_agent/generated/OrchestratorControl_pb2_grpc.py",
+    "bro_agent/generated/SoftwareVersionInfo_pb2.py",
+    "bro_agent/generated/SoftwareVersionInfo_pb2_grpc.py",
+]
+
+load("//bazel:patch_generated_python.bzl", "patched_generated_python_files")
+
+patched_generated_python_files(
+    name = "patched_generated_python_files",
+    srcs = [
+        "@adp_bro//:adp_bro_py_proto",
+        "@adp_bro//:adp_bro_grpc_proto",
+    ],
+    outs = patched_files,
+)
+
+py_library(
+    name = "patched_generated_python",
+    srcs = [":patched_generated_python_files"],
+    visibility = ["//visibility:public"],
+)

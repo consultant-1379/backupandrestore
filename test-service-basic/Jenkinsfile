@@ -1,0 +1,128 @@
+def bob = './bob/bob'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    environment {
+        BRANCH=params.GERRIT_BRANCH.substring(GERRIT_BRANCH.lastIndexOf("-") + 1)
+        HUB = credentials('eadphub-psw')
+        CODE_CHANGE = "${sh(script: "git diff --name-only HEAD HEAD~1 | grep -E '^test-service-basic.*\\.java|^test-service-basic/pom.xml' | wc -l", returnStdout: true).trim()}"
+    }
+    stages {
+        stage('Init') {
+            steps {
+                buildName "#" + currentBuild.number + " | " + params.GERRIT_CHANGE_SUBJECT.substring(0, GERRIT_CHANGE_SUBJECT.indexOf(" ")) + " | ${GERRIT_BRANCH} | ${GERRIT_PATCHSET_UPLOADER_NAME}"
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Maven build') {
+            steps {
+                script {
+                    if (env.CODE_CHANGE != "0") {
+                        withSonarQubeEnv('Sonarqube Server') {
+                            sh "${bob} -r ${params.ORIGIN}/ruleset.yaml sonar"
+                        }
+                    }
+                    else {
+                        sh "${bob} -r ${params.ORIGIN}/ruleset.yaml mvn:package"
+                    }
+                }
+            }
+        }
+        stage('Bob Lint') {
+            steps {
+                sh "${bob} -r ${params.ORIGIN}/ruleset.yaml lint"
+            }
+        }
+        stage('Build Snapshot Helm Chart/Docker Image') {
+            steps {
+                sh "${bob} -r ${params.ORIGIN}/ruleset.yaml init"
+                script {
+                    if ( env.BRANCH == "master") {
+                        sh "${bob} -r ${params.ORIGIN}/ruleset.yaml setup-repo-paths:is-master"
+                    }
+                    else {
+                        sh "${bob} -r ${params.ORIGIN}/ruleset.yaml setup-repo-paths:is-dev"
+                    }
+                }
+                withCredentials([string(credentialsId: 'hub-arm-rnd-ki-api-token', variable: 'API_TOKEN')]) {
+                    sh "${bob} -r ${params.ORIGIN}/ruleset.yaml image"
+                }
+            }
+        }
+        stage('Push Snapshots of Docker and Helm') {
+            when { expression { (params.RELEASE=="true") } }
+            steps {
+                withCredentials([string(credentialsId: 'hub-arm-rnd-ki-api-token', variable: 'API_TOKEN')]) {
+                    sh "${bob} -r ${params.ORIGIN}/ruleset.yaml push"
+                }
+            }
+        }
+        stage("Quality Gate") {
+            steps {
+                script {
+                    if (!params.RELEASE && env.CODE_CHANGE != "0") {
+                        withSonarQubeEnv('Sonarqube Server') {
+                            sh "curl -u ${env.HUB_USR}:${env.HUB_PSW} '${env.SONAR_HOST_URL}/api/issues/search?componentKeys=com.ericsson.adp.mgmt:backupandrestore&branch=${params.GERRIT_BRANCH}&resolved=false' | jq -f sonar-report-builder.jq > test-service-basic/target/sonar/sonar-report.json"
+                            sonarToGerrit inspectionConfig: [autoMatch: true, baseConfig: [autoMatch: true, sonarReportPath: 'test-service-basic/target/sonar/sonar-report.json'], serverURL: 'https://sonarqube.lmera.ericsson.se'], notificationConfig: [commentedIssuesNotificationRecipient: 'NONE', negativeScoreNotificationRecipient: 'NONE'], reviewConfig: [noIssuesTitleTemplate: 'Test Service SonarQube All Clear', issueFilterConfig: [severity: 'MINOR']], scoreConfig: [noIssuesScore: 0, issueFilterConfig: [severity: 'MINOR']]
+                                for (Integer i = 0; i < 20; i++) {
+                                    try {
+                                        timeout(time: 15, unit: 'SECONDS') {
+                                            def qg = waitForQualityGate()
+                                            if (qg.status != 'OK') {
+                                                error "Pipeline aborted due to quality gate coverage failure: ${qg.status}"
+                                            } else {
+                                                i = 20
+                                            }
+                                        }
+                                    } catch (Throwable e) {
+                                        if (i == 19) {
+                                            throw e
+                                        }
+                                    }
+                                }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Retrieve XRAY report') {
+            when { expression { (params.RELEASE=="true") } }
+            steps {
+                withCredentials([string(credentialsId: 'xray-api-token', variable: 'XRAY_TOKEN')]) {
+                    script {
+                        for (Integer i = 0; i < 20; i++) {
+                            try {
+                                sleep 30
+                                status = sh(returnStatus: true, script: "${bob} -r ${params.ORIGIN}/ruleset.yaml get-xray-report")
+                                if (status == 1) {
+                                    error "XRAY Report is not available yet"
+                                } else {
+                                    i = 20
+                                }
+                            } catch (err) {
+                                if (i == 19) {
+                                    echo err.getMessage()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: '.bob/XRAY-report.md, .bob/design-rule-check-report.html', allowEmptyArchive: true
+        }
+    }
+}

@@ -1,0 +1,28 @@
+brAgent:
+  commandArgs: "cp /servicedata/CustomMetadata.txt backupdata/v4-metadata-only_1_CustomMetadata.txt; cp /servicedata/CustomMetadata.txt backupdata/v4-metadata-only_2_CustomMetadata.txt; rm -rf /servicedata; /usr/bin/java -Dlog4j.configurationFile=/var/log/ericsson/log4j2.xml -jar /testagent/brotestagent.jar /testagent/application.properties"
+  brLabelValue: "v4-metadata-only"
+  backupTypeList:
+    - "subscriber"
+  backupDataModelConfig: eric-test-service-basic-agent-backuptype
+  properties:
+    fileName: "application.properties"
+    applicationProperties:
+      #this value will be taken from the values global.adpBR.broServiceName
+      orchestrator.host: eric-ctrl-bro
+      #this value will be taken from the values global.adpBR.broGrpcServicePort
+      orchestrator.port: 3000
+      #this value will be taken from the values brAgent.brLabelValue
+      test.agent.id: ""
+      #this value will be taken from the first brAgent.backupTypeList.backupType
+      test.agent.scope: ""
+      test.agent.softwareVersion.description: agent v4-metadata-only
+      test.agent.softwareVersion.productionDate: 2019-03-03
+      test.agent.softwareVersion.productName: v4-metadata-only
+      test.agent.softwareVersion.productNumber: CXC 333 33/3
+      test.agent.softwareVersion.type: data
+      test.agent.softwareVersion.revision: R3
+      test.agent.fragment.backup.data.path: ""
+      test.agent.fragment.custom.backup.data.path: /backupdata/v4-metadata-only_1_CustomMetadata.txt,,/backupdata/v4-metadata-only_2_CustomMetadata.txt
+      test.agent.download.location: /restoredata
+      # test.agent.agentBehavior is used for BRO Orchestrator test purposes ONLY. This must be left empty otherwise.
+      test.agent.agentBehavior:

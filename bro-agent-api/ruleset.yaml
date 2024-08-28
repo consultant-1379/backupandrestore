@@ -1,0 +1,41 @@
+modelVersion: 2.0
+
+docker-images:
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+  - java11-mvn-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-java11mvnbuilder.adp-base-os:1.32.0
+
+env:
+  - SEMANTIC_VERSION
+  - MUNIN_TOKEN
+  - GERRIT_BRANCH
+  - SONAR_AUTH_TOKEN
+  - SONARQUBE_SCANNER_PARAMS
+  - SONAR_HOST_URL
+
+var:
+  - version
+  - rstate
+  - IMAGE_CREATED
+
+rules:
+  license-agreement:
+    - task: validate-license-agreement
+      docker-image: adp-release-auto
+      cmd: license-agreement validate -l bro-agent-api/Documentation/license.agreement.json
+
+  # Create product versions from product structure and FOSS dependencies
+  munin-update-version:
+    - task: create-products
+      docker-image: adp-release-auto
+      cmd: munin create-versions -t ${env.MUNIN_TOKEN} -c bro-agent-api/fossa/product_structure.yaml -v ${env.SEMANTIC_VERSION}
+
+  mvn-sonar:
+    - task: package-test-sonar
+      docker-image: java11-mvn-builder
+      docker-flags:
+        - -v /home/lciadm100/.m2/repository/:/tmp/.m2/repository/
+        - -v /home/lciadm100/.m2/settings.xml:/tmp/.m2/settings.xml
+        - --env SONAR_AUTH_TOKEN=${env.SONAR_AUTH_TOKEN}
+        - --env SONARQUBE_SCANNER_PARAMS=$(echo '${env.SONARQUBE_SCANNER_PARAMS}' | tr -d ' ')
+        - --env SONAR_HOST_URL=${env.SONAR_HOST_URL}
+      cmd: mvn -f bro-agent-api/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ package dependency:tree -DoutputFile=newdeptree.txt surefire-report:report-only sonar:sonar -Dsonar.analysis.mode=publish -Dsonar.branch.name=${env.GERRIT_BRANCH}

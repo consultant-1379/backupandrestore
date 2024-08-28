@@ -1,0 +1,36 @@
+def bob = './bob/bob -r service/ruleset.weekly.nsrecreation.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    stages {
+        stage('Prepare bob') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Namespace Recreation') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'hall060', variable: 'KUBECONFIG'),
+                ]) {
+                    script {
+                        def namespaces = "${params.CI_NAMESPACES}".split(',')
+                        namespaces.each() {
+                            env.NAMESPACE = it
+                            sh "${bob} ns-recreation"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

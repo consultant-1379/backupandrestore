@@ -1,0 +1,849 @@
+#%RAML 1.0
+title: Backup and Restore Orchestrator V1 and V3 Rest Specification
+baseUri: http://eric-ctrl-bro:7001
+version: v4
+
+documentation:
+  - title:  ""
+    content: |
+      ```
+        Ericsson   |   DocNo 2/155 19-CAF 101 027/6   |   Rev C   |   Interface Description
+      ```
+
+  - title: Overview
+    content: |
+      The purpose of this document is to be an interface specification with all details of the Backup and Restore Orchestrator REST API.
+      The major concepts are BackupManagers, Backups and Actions, which are all URI resources. 
+
+      A backupManager defines what will be backed up when a backup occurs. It holds records of all backups and actions performed on those backups.
+      There is a default backupManager, that backs up all agents.
+
+      A backup is composed of exported data of a set of services. It represents the state those services had at the time it was created, and can be used to re-create that state.
+
+      An action is a task that can be executed on a backupManager and has measurable progress. Actions are: CREATE_BACKUP, DELETE_BACKUP, IMPORT, EXPORT, RESTORE.
+
+      Note: V1 is deprecated and to be replaced by a similar spec with a more REST based nature. The timeframe for the removal of V1 has not yet been set, it will remain in place until the replacement is available at minimum.
+            V3 is used to support Housekeeping and Scheduling use cases.
+
+  - title: Supported Use Cases
+    content: |
+      The following use cases are fully supported:
+
+      - Create Backup
+      - Delete Backup
+      - Restore
+      - Import
+      - Export
+      - Housekeeping
+      - Scheduling
+
+  - title: Error messages
+    content: |
+      All error response bodies shall follow the format:
+      ```
+        {
+          "statusCode": 000,
+          "message": "error message"
+        }
+      ```
+
+types:
+  backupManagersResponse:               !include raml_schemas/backupManagersResponse.json
+  backupManagerResponse:                !include raml_schemas/backupManagerResponse.json
+  updateBackupManagerRequest:           !include raml_schemas/updateBackupManagerRequest.json
+  createActionRequest:                  !include raml_schemas/createActionRequest.json
+  createActionResponse:                 !include raml_schemas/createActionResponse.json
+  actionsResponse:                      !include raml_schemas/actionsResponse.json
+  actionResponse:                       !include raml_schemas/actionResponse.json
+  updateHousekeeperRequest:             !include raml_schemas/updateHousekeeperRequest.json
+  updateHousekeepingRequest:            !include raml_schemas/updateHousekeepingRequest.json
+  housekeepingResponse:                 !include raml_schemas/housekeepingResponse.json
+  updateSchedulerRequest:               !include raml_schemas/updateSchedulerRequest.json
+  schedulerResponse:                    !include raml_schemas/schedulerResponse.json
+  createEventRequest:                   !include raml_schemas/createEventRequest.json
+  createEventResponse:                  !include raml_schemas/createEventResponse.json
+  eventsResponse:                       !include raml_schemas/eventsResponse.json
+  eventResponse:                        !include raml_schemas/eventResponse.json
+  backupsResponse:                      !include raml_schemas/backupsResponse.json
+  updateBackupRequest:                  !include raml_schemas/updateBackupRequest.json
+  backupResponse:                       !include raml_schemas/backupResponse.json
+  healthResponse:                       !include raml_schemas/healthResponse.json
+  errorResponse:                        !include raml_schemas/errorResponse.json
+
+traits:
+  badRequest:
+    responses:
+      400:
+        description: Bad request.
+        body:
+          application/json:
+            type: errorResponse
+            example: |
+              {
+                "statusCode": 400,
+                "message": "Missing required field XYZ"
+              }
+  notFound:
+    responses:
+      404:
+        description: Not found.
+        body:
+          application/json:
+            type: errorResponse
+            example: |
+              {
+                "statusCode": 404,
+                "message": "BackupManager 123 not found"
+              }
+  unprocessableEntity:
+    responses:
+      422:
+        description: Unable to process the contained instructions.
+        body:
+          application/json:
+            type: errorResponse
+            example: |
+              {
+                "statusCode": 422,
+                "message": "unprocessableEntity"
+              }
+  internalServerError:
+    responses:
+      500:
+        description: Internal server error.
+        body:
+          application/json:
+            type: errorResponse
+            example: |
+              {
+                "statusCode": 500,
+                "message": "NullPointerException"
+              }
+  notImplemented:
+    responses:
+      501:
+        description: Not yet implemeted.
+        body:
+          application/json:
+            type: errorResponse
+            example: |
+              {
+                "statusCode": 501,
+                "message": "Not implemented"
+              }
+
+/v1:
+  is: [internalServerError]
+  /backup-manager:
+    get:
+      description: Gets all backupManagers.
+      responses:
+        200:
+          body:
+            application/json:
+              type: backupManagersResponse
+              example: |
+                {
+                  "backupManagers": [{
+                      "id": "alpha",
+                      "backupType": "System Data",
+                      "backupDomain": "System"
+                    },
+                    {
+                      "id": "beta",
+                      "backupType": "User Data",
+                      "backupDomain": "System"
+                    }
+                  ]
+                }
+    /{backupManagerId}:
+      is: [notFound, internalServerError]
+      uriParameters:
+        backupManagerId:
+          description: Identifier of backupManager
+      post:
+        description: Updates one backupManager.
+        is: [badRequest]
+        body:
+          application/json:
+            type: updateBackupManagerRequest
+            example: |
+              {
+                "backupType": "System Data",
+                "backupDomain": "System"
+              }
+        responses:
+          204:
+      get:
+        description: Gets one backupManager.
+        responses:
+          200:
+            body:
+              application/json:
+                type: backupManagerResponse
+                example: |
+                  {
+                    "id": "alpha",
+                    "backupType": "System Data",
+                    "backupDomain": "System"
+                  }
+      /action:
+        is: [notFound, internalServerError]
+        post:
+          description: Creates an action. Only for the CREATE_BACKUP, DELETE_BACKUP, RESTORE, EXPORT and IMPORT.
+          is: [badRequest, unprocessableEntity]
+          body:
+            application/json:
+              type: createActionRequest
+              example: |
+                ---------- EXAMPLE 01 ----------
+                {
+                  "action": "CREATE_BACKUP",
+                  "payload": {
+                    "backupName": "myBackup"
+                  }
+                }
+                ---------- EXAMPLE 02 ----------
+                {
+                  "action": "DELETE_BACKUP",
+                  "payload": {
+                    "backupName": "myBackup"
+                  }
+                }
+                ---------- EXAMPLE 03 ----------
+                {
+                  "action": "RESTORE",
+                  "payload": {
+                    "backupName": "myBackup"
+                  }
+                }
+                ---------- EXAMPLE 04 ----------
+                {
+                  "action": "IMPORT",
+                  "payload": {
+                    "uri": "sftp://host:port/remotepath/backupManagerId/myBackup",
+                    "password": "123456"
+                  }
+                }
+                ---------- EXAMPLE 05 ----------
+                {
+                  "action": "EXPORT",
+                  "payload": {
+                    "backupName": "myBackup",
+                    "uri": "sftp://host:port/remotepath",
+                    "password": "123456"
+                  }
+                }
+          responses:
+            201:
+              body:
+                application/json:
+                  type: createActionResponse
+                  example: |
+                    {
+                      "id": "56324"
+                    }
+        get:
+          description: Gets all actions of a backupManager.
+          responses:
+            200:
+              body:
+                application/json:
+                  type: actionsResponse
+                  example: |
+                    {
+                      "actions": [{
+                          "id": "1",
+                          "name": "CREATE_BACKUP",
+                          "startTime": "2008-09-15T15:53:00.123456Z",
+                          "result": "SUCCESS"
+                      },
+                      {
+                          "id": "2",
+                          "name": "DELETE_BACKUP",
+                          "startTime": "2008-09-15T15:54:00.123456Z",
+                          "result": "SUCCESS"
+                      }]
+                    }
+        /{actionId}:
+          is: [notFound, internalServerError]
+          uriParameters:
+            actionId:
+              description: Identifier of action
+          get:
+            description: Gets one action of one backupManager.
+            responses:
+              200:
+                body:
+                  application/json:
+                    type: actionResponse
+                    example: |
+                      {
+                        "id": "1",
+                        "name": "CREATE_BACKUP",
+                        "additionalInfo": "NONE",
+                        "progressPercentage": 1.0,
+                        "result": "SUCCESS",
+                        "resultInfo": "Something",
+                        "state": "FINISHED",
+                        "startTime": "2008-09-15T15:53:00.123456Z",
+                        "completionTime": "2008-09-15T15:54:00.123456Z",
+                        "lastUpdateTime": "2008-09-15T15:54:00.123456Z",
+                        "payload": {
+                          "backupName": ""
+                        }
+                      }
+                      {
+                        "id": "2",
+                        "name": "CREATE_BACKUP",
+                        "additionalInfo": "NONE",
+                        "progressInfo": "Agent :bravo failed at Stage: EXECUTION, message: some message",
+                        "progressPercentage": 1.0,
+                        "result": "Failure",
+                        "resultInfo": "Something",
+                        "state": "FINISHED",
+                        "startTime": "2008-09-15T15:53:00.123456Z",
+                        "completionTime": "2008-09-15T15:54:00.123456Z",
+                        "lastUpdateTime": "2008-09-15T15:54:00.123456Z",
+                        "payload": {
+                          "backupName": ""
+                        }
+                     }
+      /housekeeper:
+        is: [notFound, internalServerError, notImplemented]
+        post:
+          description: Updates housekeeping configuration for one backupManager.
+          is: [badRequest]
+          body:
+            application/json:
+              type: updateHousekeeperRequest
+              example: |
+                {
+                  "auto-delete": "enabled",
+                  "max-stored-manual-backups": 10
+                }
+          responses:
+            501:
+        get:
+          description: Gets housekeeping configuration for one backupManager.
+          responses:
+            501:
+      /scheduler:
+        is: [notFound, internalServerError, notImplemented]
+        post:
+          responses:
+            501:
+        get:
+          responses:
+            501:
+        /event:
+          is: [notFound, internalServerError, notImplemented]
+          post:
+            description: Creates a scheduled event.
+            is: [badRequest]
+            body:
+              application/json:
+                type: createEventRequest
+                example: |
+                  ---------- EXAMPLE 01 ----------
+                  {
+                    "weeks": 1,
+                    "hours": 10
+                  }
+            responses:
+              501:
+          get:
+            description: Gets all scheduled events of a backupManager.
+            responses:
+              501:
+          /{eventId}:
+            is: [notFound, internalServerError, notImplemented]
+            uriParameters:
+              eventId:
+                description: Identifier of event
+            get:
+              description: Gets one scheduledEvent of a backupManager.
+              responses:
+                501:
+            delete:
+              description: Deletes one scheduledEvent of a backupManager.
+              responses:
+                501:
+      /backup:
+        is: [notFound, internalServerError]
+        get:
+          description: Gets all backups of a backupManager.
+          responses:
+            200:
+              body:
+                application/json:
+                  type: backupsResponse
+                  example: |
+                    {
+                      "backups": [{
+                        "id": "1",
+                        "name": "1",
+                        "creationTime": "2008-09-15T15:54:00.123456Z",
+                        "status": "CORRUPTED"
+                      },
+                      {
+                        "id": "2",
+                        "name": "2",
+                        "creationTime": "2008-09-15T15:54:00.123456Z",
+                        "status": "COMPLETE"
+                      }]
+                    }
+        /{backupId}:
+          is: [notFound, internalServerError]
+          uriParameters:
+            backupId:
+              description: Identifier of backup
+          post:
+            description: Updates a backup.
+            is: [badRequest]
+            body:
+              application/json:
+                type: updateBackupRequest
+                example: |
+                  {
+                    "userLabel": "Remember this backup"
+                  }
+            responses:
+              204:
+          get:
+            description: Gets one backup.
+            responses:
+              200:
+                body:
+                  application/json:
+                    type: backupResponse
+                    example: |
+                      {
+                        "id": "1",
+                        "name": "1",
+                        "creationTime": "2008-09-15T15:54:00.123456Z",
+                        "creationType": "MANUAL",
+                        "status": "CORRUPTED",
+                        "userLabel": "Remember this backup",
+                        "softwareVersions": [
+                          {
+                            "productName": "Name",
+                            "productNumber: "12345",
+                            "productRevision": "000",
+                            "date": "2008-09-15T15:54:00",
+                            "description": "Description",
+                            "type": "Type"
+                          }
+                        ]
+                      }
+  /health:
+    get:
+      description: Gets orchestrator's health.
+      responses:
+        200:
+          body:
+            application/json:
+              type: healthResponse
+              example: |
+                {
+                  "availability": "Available",
+                  "ongoingAction": {},
+                  "registeredAgents": ["1", "2"],
+                  "status": "Healthy"
+                }
+
+/v3:
+  is: [internalServerError]
+  /health:
+    get:
+      description: Gets orchestrator's health.
+      responses:
+        200:
+          body:
+            application/json:
+              type: healthResponse
+              example: |
+                {
+                  "availability": "Available",
+                  "ongoingAction": {},
+                  "registeredAgents": ["1", "2"],
+                  "status": "Healthy"
+                }
+  /backup-managers:
+    get:
+      description: Gets all backupManagers.
+      responses:
+        200:
+          body:
+            application/json:
+              type: backupManagersResponse
+              example: |
+                {
+                  "backupManagers": [{
+                      "id": "alpha",
+                      "backupType": "System Data",
+                      "backupDomain": "System"
+                    },
+                    {
+                      "id": "beta",
+                      "backupType": "User Data",
+                      "backupDomain": "System"
+                    }
+                  ]
+                }
+    /{backupManagerId}:
+      is: [notFound, internalServerError]
+        uriParameters:
+          backupManagerId:
+            description: Identifier of backupManager
+      get:
+        description: Gets one backupManager.
+        responses:
+          200:
+            body:
+              application/json:
+                type: backupManagerResponse
+                example: |
+                  {
+                    "id": "alpha",
+                    "backupType": "System Data",
+                    "backupDomain": "System"
+                  }
+      /actions:
+        is: [notFound, internalServerError]
+        get:
+          description: Gets all actions of a backupManager.
+          responses:
+            200:
+              body:
+                application/json:
+                  type: actionsResponse
+                  example: |
+                    {
+                      "actions": [{
+                          "id": "1",
+                          "name": "CREATE_BACKUP",
+                          "startTime": "2008-09-15T15:53:00.123456Z",
+                          "result": "SUCCESS"
+                      },
+                      {
+                          "id": "2",
+                          "name": "DELETE_BACKUP",
+                          "startTime": "2008-09-15T15:54:00.123456Z",
+                          "result": "SUCCESS"
+                      }]
+                    }
+        /{actionId}:
+          is: [notFound, internalServerError]
+          uriParameters:
+            actionId:
+              description: Identifier of action
+          get:
+            description: Gets one action of one backupManager.
+            responses:
+              200:
+                body:
+                  application/json:
+                    type: actionResponse
+                    example: |
+                      {
+                        "id": "1",
+                        "name": "CREATE_BACKUP",
+                        "additionalInfo": "NONE",
+                        "progressPercentage": 1.0,
+                        "result": "SUCCESS",
+                        "resultInfo": "Something",
+                        "state": "FINISHED",
+                        "startTime": "2008-09-15T15:53:00.123456Z",
+                        "completionTime": "2008-09-15T15:54:00.123456Z",
+                        "lastUpdateTime": "2008-09-15T15:54:00.123456Z",
+                        "payload": {
+                          "backupName": ""
+                        }
+                      }
+                      {
+                        "id": "2",
+                        "name": "CREATE_BACKUP",
+                        "additionalInfo": "NONE",
+                        "progressInfo": "Agent :bravo failed at Stage: EXECUTION, message: some message",
+                        "progressPercentage": 1.0,
+                        "result": "Failure",
+                        "resultInfo": "Something",
+                        "state": "FINISHED",
+                        "startTime": "2008-09-15T15:53:00.123456Z",
+                        "completionTime": "2008-09-15T15:54:00.123456Z",
+                        "lastUpdateTime": "2008-09-15T15:54:00.123456Z",
+                        "payload": {
+                          "backupName": ""
+                        }
+                     }
+      /backups:
+        is: [notFound, internalServerError]
+        get:
+          description: Gets all backups of a backupManager.
+          responses:
+            200:
+              body:
+                application/json:
+                  type: backupsResponse
+                  example: |
+                    {
+                      "backups": [{
+                        "id": "1",
+                        "name": "1",
+                        "creationTime": "2008-09-15T15:54:00.123456Z",
+                        "status": "CORRUPTED"
+                      },
+                      {
+                        "id": "2",
+                        "name": "2",
+                        "creationTime": "2008-09-15T15:54:00.123456Z",
+                        "status": "COMPLETE"
+                      }]
+                    }
+        /{backupId}:
+          is: [notFound, internalServerError]
+          uriParameters:
+            backupId:
+              description: Identifier of backup
+          get:
+            description: Gets one backup.
+            responses:
+              200:
+                body:
+                  application/json:
+                    type: backupResponse
+                    example: |
+                      {
+                        "id": "1",
+                        "name": "1",
+                        "creationTime": "2008-09-15T15:54:00.123456Z",
+                        "creationType": "MANUAL",
+                        "status": "CORRUPTED",
+                        "userLabel": "Remember this backup",
+                        "softwareVersions": [
+                          {
+                            "productName": "Name",
+                            "productNumber: "12345",
+                            "productRevision": "000",
+                            "date": "2008-09-15T15:54:00",
+                            "description": "Description",
+                            "type": "Type"
+                          }
+                        ]
+                      }
+          /actions/{actionId}:
+            is: [notFound, internalServerError]
+            uriParameters:
+              actionId:
+                description: Identifier of action
+            get:
+              description: Gets one action of one backup.
+              responses:
+                200:
+                  body:
+                    application/json:
+                      type: actionResponse
+                      example: |
+                        {
+                          "id": "1",
+                          "name": "CREATE_BACKUP",
+                          "additionalInfo": "NONE",
+                          "progressPercentage": 1.0,
+                          "result": "SUCCESS",
+                          "resultInfo": "Something",
+                          "state": "FINISHED",
+                          "startTime": "2008-09-15T15:53:00.123456Z",
+                          "completionTime": "2008-09-15T15:54:00.123456Z",
+                          "lastUpdateTime": "2008-09-15T15:54:00.123456Z",
+                          "payload": {
+                            "backupName": ""
+                          }
+                        }
+                      {
+                        "id": "2",
+                        "name": "CREATE_BACKUP",
+                        "additionalInfo": "NONE",
+                        "progressInfo": "Agent :bravo failed at Stage: EXECUTION, message: some message",
+                        "progressPercentage": 0.33,
+                        "result": "NOT_AVAILABLE",
+                        "resultInfo": "Something",
+                        "state": "RUNNING",
+                        "startTime": "2008-09-15T15:53:00.123456Z",
+                        "lastUpdateTime": "2008-09-15T15:54:00.123456Z",
+                        "payload": {
+                          "backupName": ""
+                        }
+                     }
+      /scheduler:
+        /configuration:
+          is: [notFound, internalServerError, notImplemented]
+          put:
+            description: Updates the scheduler for one backupManager.
+            is: [badRequest]
+            body:
+              application/json:
+                type: updateSchedulerRequest
+                example: |
+                  {
+                    "adminState" : "UNLOCKED",
+                    "scheduledBackupName": "my-scheduled-backup-name",
+                    "autoExport" : "DISABLED",
+                    "autoExportPassword" : "",
+                    "autoExportUri" : None
+                  }
+            responses:
+              204:
+          get:
+            description: Gets scheduler information for one backupManager.
+            responses:
+              200:
+                body:
+                  application/json:
+                    type: schedulerResponse
+                    example: |
+                      {
+                          "adminState" : "UNLOCKED",
+                          "mostRecentlyCreatedAutoBackup": "some-backup",
+                          "scheduledBackupName": "my-scheduled-backup-name",
+                          "nextScheduledTime": "2008-09-15T15:54:00.123456Z",
+                          "autoExport" : "DISABLED",
+                          "autoExportPassword" : "",
+                          "autoExportUri" : None
+                      }
+        /periodic-events:
+          is: [notFound, internalServerError, notImplemented]
+          post:
+            description: Creates a scheduled event.
+            is: [badRequest]
+            body:
+              application/json:
+                type: createEventRequest
+                example: |
+                  {
+                    "weeks": 1,
+                    "hours": 10
+                  }
+            responses:
+              201:
+                body:
+                  application/json:
+                    type: createEventResponse
+                    example: |
+                      {
+                        "id": 12
+                      }
+          get:
+            description: Gets all scheduled events of a backupManager.
+            responses:
+              200:
+                body:
+                  application/json:
+                    type: eventsResponse
+                    example: |
+                      {
+                        "events": [{
+                          "id": "1",
+                          "days" : 1,
+                          "hours" : 1,
+                          "minutes" : 1,
+                          "weeks" : 1,
+                          "startTime" : "2008-09-15T15:54:00Z",
+                          "stopTime" : "2008-09-15T15:54:00Z",
+                        },
+                        {
+                          "id": "2",
+                          "days" : 3,
+                          "hours" : 4,
+                          "minutes" : 5,
+                          "weeks" : 6,
+                          "startTime" : "2008-09-15T15:54:00Z",
+                          "stopTime" : "2008-09-15T15:54:00Z",
+                        }]
+                      }
+          /{eventId}:
+            is: [notFound, internalServerError, notImplemented]
+            uriParameters:
+              eventId:
+                description: Identifier of event
+            get:
+              description: Gets one scheduledEvent of a backupManager.
+              responses:
+                200:
+                  body:
+                    application/json:
+                      type: eventResponse
+                      example: |
+                        {
+                          "id": "2",
+                          "days" : 3,
+                          "hours" : 4,
+                          "minutes" : 5,
+                          "weeks" : 6,
+                          "startTime" : "2008-09-15T15:54:00Z",
+                          "stopTime" : "2008-09-15T15:54:00Z",
+                        }
+            delete:
+              description: Deletes one scheduledEvent of a backupManager.
+              responses:
+                204:
+            put:
+              description: Updates a scheduled periodic event.
+              is: [badRequest]
+              body:
+                application/json:
+                  type: createEventRequest
+                  example: |
+                    {
+                      "weeks": 1,
+                      "hours": 10
+                    }
+              responses:
+                200:
+                  body:
+                    application/json:
+                      type: eventResponse
+                      example: |
+                        {
+                          "id": "2",
+                          "days" : 3,
+                          "hours" : 10,
+                          "minutes" : 5,
+                          "weeks" : 1,
+                          "startTime" : "2008-09-15T15:54:00Z",
+                          "stopTime" : "2008-09-15T15:54:00Z",
+                        }
+      /housekeeping:
+          is: [notFound, internalServerError]
+          post:
+            description: Updates housekeeping configuration for one backupManager.
+            is: [badRequest, unprocessableEntity]
+            body:
+              application/json:
+                type: updateHousekeepingRequest
+                example: |
+                  {
+                    "auto-delete": "enabled",
+                    "max-stored-manual-backups": 10
+                  }
+            responses:
+              201:
+                body:
+                  application/json:
+                    type: createActionResponse
+                    example: |
+                        {
+                          "id": "89652"
+                        }
+          get:
+            description: Gets housekeeping configuration for one backupManager.
+            responses:
+              200:
+                body:
+                  application/json:
+                    type: housekeepingResponse
+                    example: |
+                        {
+                          "auto-delete": "enabled",
+                          "max-stored-manual-backups": 10
+                        }

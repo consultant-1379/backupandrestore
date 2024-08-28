@@ -1,0 +1,1148 @@
+module ericsson-brm {
+  yang-version 1.1;
+  namespace urn:rdns:com:ericsson:oammodel:ericsson-brm;
+  prefix brme; 
+
+   import ericsson-yang-extensions {
+        prefix yexte;
+   }
+   import ericsson-yang-types {
+        prefix typese;
+   }
+   import ericsson-notifications {
+        prefix notife;
+   }
+   import ietf-yang-types {
+        prefix yang;
+   }
+   import ietf-inet-types {
+        prefix inet;
+   }
+   import ietf-netconf-acm {
+        prefix nacm;
+   }
+
+  import ericsson-ftp-client {
+        prefix ftpclie;
+  }
+
+  organization "Ericsson AB";
+  contact "Ericsson first line support via email";
+  description "Backup Restore Management root
+
+     Copyright Ericsson AB [2019-2022]. All rights reserved.";
+
+
+  revision "2022-09-02" {
+    description "Added leaf backup-path to the import-backup action when case is key-authentication";
+    yexte:version 4;
+    yexte:release 5;
+    yexte:correction 0;
+  }
+
+  revision "2022-04-04" {
+    description "Added ftpclie:sftp-client-grouping to
+                 /brm/backup-manager/ to allow SFTP Server Authentication.
+                 Added sftp-server-name to the actions import-backup and export";
+    yexte:version 4;
+    yexte:release 4;
+    yexte:correction 1;
+  }
+
+    revision "2022-01-18" {
+    description "Added ftpclie:sftp-client-grouping to
+                 /brm/backup-manager/ and /brm/backup-manager/scheduler
+                 to allow SFTP Server Authentication.";
+    yexte:version 4;
+    yexte:release 4;
+    yexte:correction 0;
+  }
+
+  revision "2021-11-15" {
+     description "Clarification to the description of /brm/backup-manager/backup/size";
+     yexte:version 4;
+     yexte:release 3;
+     yexte:correction 2;
+  }
+
+  revision "2021-10-28" {
+     description "Added size to /brm/backup-manager/backup";
+     yexte:version 4;
+     yexte:release 3;
+     yexte:correction 0;
+  }
+
+  revision "2021-06-08" {
+    description "Added privacy tags";
+    yexte:version 4;
+    yexte:release 2;
+    yexte:correction 1;
+  }
+
+  revision "2020-09-03" {
+    description "Added a key to /brm/backup-manager/backup/sw-version";
+    yexte:version 4;
+    yexte:release 1;
+    yexte:correction 0;
+  }
+
+  revision "2019-03-19" {
+    description "Changed the return type of async actions to make the usage
+      more explicit.
+      Corrected /brm/rollback-at-restore/confirm-restore/output/return-value,
+      as its action is synchronous and does not have a progress-report";
+    yexte:version 4;
+    yexte:release 0;
+    yexte:correction 2;
+  }
+
+  revision "2019-02-12" {
+    description "Added unique to /brm/backup-manager/backup/backup-name
+      Every implementation used it as unique, so the change is just editorial.
+      Updated /brm/backup-manager/delete-backup/input/name to make it a leafref
+      Every application used it as a reference so just editorial change";
+    yexte:version 4;
+    yexte:release 0;
+    yexte:correction 1;
+  }
+
+  revision "2018-11-28" {
+    description "Changed type for /brm/backup-manager/auto-export
+      Otherwise BC with 3.1.2
+      Added nacm:default-deny-all to passwords.
+      Renamed types manual-backup-auto-delete and brm-auto-export to reflect
+      the type not the usage and to have just one type (a BC change).";
+    yexte:version 4;
+    yexte:release 0;
+    yexte:correction 0;
+  }
+
+  revision "2018-10-18" {
+    description "Added auto-export, feature failsafe-backup, userlabels ";
+    yexte:version 3;
+    yexte:release 1;
+    yexte:correction 2;
+  }
+
+  revision "2017-10-18" {
+    description "Created 4 features, none are mandatory in EOI
+      Declared backup, label-store as config=false as its members
+      are already config=false.
+      Removed some unnecessary  yexte:is-system-created";
+    yexte:version 3;
+    yexte:release 0;
+    yexte:correction 1;
+  }
+
+  revision "2016-07-01" {
+    description "Initial version based on ECIM_BrM 3.4.0";
+    yexte:version 1;
+    yexte:release 0;
+    yexte:correction 0;
+  }
+
+  feature housekeeping {
+    description "Provides support for automated housekeeping of
+      manually created backups.";
+  }
+
+  feature scheduler {
+    description "Provides support for scheduling backup creation
+      for the parent backup-manager.";
+  }
+
+  feature label-store {
+    description "Provides support for labeling of certain backups.";
+  }
+
+  feature rollback-at-restore {
+    description "Provides support for confirmation of a restore
+      action or automatic rollback after an unconfirmed restore
+      operation was executed.";
+  }
+
+  feature failsafe-backups {
+    description "Support for failsafe backups";
+  }
+
+  feature sftp-client-authentication {
+    description "Support for sftp client authentication";
+  }
+
+  typedef backup-status {
+    type enumeration {
+      enum backup-complete {
+        value 1;
+        description "The backup is complete and can be safely restored.";
+      }
+
+      enum backup-incomplete {
+        value 2;
+        description "The backup is incomplete. The reason can be failure
+           during creation or deletion. An incomplete backup can never be
+           restored. The only operation permitted on an incomplete
+           backup is to delete it.";
+      }
+
+      enum backup-corrupted {
+        value 3;
+        description "The backup is corrupted. A corrupted backup is never
+          allowed to be restored. The only operation permitted on a
+          corrupted backup is to delete it.";
+      }
+    }
+
+    description "Indicates the status of a Backup. The status is INCOMPLETE
+       during creation or deletion of a backup. Once a backup is
+       successfully created, its status is COMPLETE. If the
+       integrity of the backup is violated, it is marked as
+       CORRUPTED.";
+  }
+
+  typedef backup-creation-type {
+    type enumeration {
+      enum manual {
+        value 1;
+        description "Backup created via a manual operation. A backup of this
+           creation type maybe subject to housekeeping.";
+      }
+
+      enum scheduled {
+        if-feature scheduler ;
+        value 2;
+        description "Backup created automatically based on a preconfigured
+          schedule. A backup of this creation type maybe subject to
+          housekeeping.";
+      }
+
+      enum system-created {
+        value 3;
+        description "Backup automatically created by the managed element.
+          A backup of this creation type is not subject to any
+          housekeeping policy defined by the management system and
+          can only be removed by the managed element. Such a backup
+          is primarily used for automatic recovery from catastrophic
+          failures, but may also be used as any other backup if the
+          management system chooses to restore the managed element
+          with it.";
+      }
+    }
+
+    description "Backup creation type.";
+  }
+
+  typedef enabled-disabled {
+    type enumeration {
+      enum enabled {  value 1; }
+      enum disabled { value 2; }
+    }
+
+    description "Used to enable/disable functionality.";
+  }
+
+
+  container brm {
+    description "Backup and Restore Management.";
+    notife:notifiable-state-data true;
+
+    leaf export-package-label-prefix {
+      type string;
+      description "Free text to help better identify a backup export package
+         when residing outside the ME. If specified, BRM prefixes
+         this text to the label that it generates for the backup
+         export package.";
+    }
+
+    list backup-manager {
+      key id;
+      description "Top node for a backup-domain/type.";
+      yexte:is-system-created;
+      leaf id {
+        type string;
+        description "Identity of the backup-manager.";
+      }
+
+      leaf backup-type {
+        type string;
+        config false;
+        mandatory true;
+        description " Type of backup, for example System Data or
+          User Data.";
+      }
+
+      leaf backup-domain {
+        type string;
+        config false;
+        mandatory true;
+        description "Backup domain, for example System.";
+      }
+
+      leaf auto-export {
+        type enabled-disabled ;
+        default disabled ;
+        yexte:privacy-event;
+        description "Determines whether a manual backup is to be
+          automatically exported at successful creation.
+          If enabled the manual backup most recently created
+          is exported to the location specified by leaf auto-export-uri
+          or leafref sftp-server-name after it is successfully created.
+          Note that the automatic export is only triggered if
+          creation of the manual backup was successful.
+          Otherwise, no export operation is triggered, even if this
+          attribute is set to true. Also, note that setting this
+          attribute to enabled has no impact on the manual backups
+          that were already created and stored prior to the new
+          configuration.";
+      }
+
+      choice sftp-server-connection {
+        case password {
+          leaf auto-export-uri {
+            type inet:uri;
+            yexte:privacy-event;
+            description "Uri used when
+              automatically exporting a manual backup.
+              If attribute auto-export is set to ENABLED, this uri
+              specifies the location to which the manual backup is
+              automatically exported";
+          }
+
+          leaf auto-export-password {
+            type string;
+            yexte:is-passphrase;
+            nacm:default-deny-all;
+            yexte:privacy-event;
+            description "Password used when
+              automatically exporting a manual backup.
+              If attribute auto-export is set to true this password is
+              used for authentication when automatically exporting the
+              manual backup. No need to specify this attribute if no
+              password is required for accessing auto-export-uri.";
+          }
+        }
+        case key-authentication {
+          if-feature sftp-client-authentication;
+          leaf sftp-server-name {
+            type leafref {
+              path '../sftp-server/name';
+              }
+            description "Name of the defined SFTP Server to which the
+                 backup is to be exported.";
+           }
+          }
+        }
+
+      list progress-report {
+        key action-id;
+        config false;
+        max-elements 1;
+        description "Represents the progress report and final result of the
+          ongoing (asynchronous) action, for example create-backup.
+          Supports only one action to be executed at a time.";
+        uses typese:async-action-progress;
+      }
+
+      action create-backup {
+        description "Create a new backup of the backup-type and backup-domain
+          managed by this backup-manager. This is an asynchronous
+          action - the progress and result are reported in the
+          progress-report list.";
+        input {
+          leaf name {
+            type string;
+            description "The name of the backup to create.
+              If specified, input name
+                validation is done by the implementation to forbid illegal
+                names. Backup name validation rules are defined by the
+                implementation and include duplicate backup names, names
+                exceeding maximum allowed length, etc. If not specified,
+                the implementation will generate a backup name
+                automatically with format defined by the implementation,
+                example: <hostname>_<YYYY-MM-DDThh-mm-ss>.";
+          }
+        }
+        output {
+          leaf return-value {
+            type leafref {
+              path "../../progress-report/action-id" ;
+            }
+            mandatory true;
+            description "Key to the progress-report list entry where
+              information about the progress and the result of
+              the operation can be found.";
+          }
+        }
+      }
+
+      action delete-backup {
+        description "Delete a backup specified by its name and the
+          backup-type and backup-domain managed by this
+          backup-manager. This is an asynchronous action.
+          The progress and result are reported
+          in the progress-report list.";
+        input {
+          leaf name {
+            type leafref {
+              path '../../backup/backup-name';
+            }
+            mandatory true;
+            description "The backup-name of the backup to delete. ";
+          }
+        }
+        output {
+          leaf return-value {
+            type leafref {
+              path "../../progress-report/action-id" ;
+            }
+            mandatory true;
+            description "Key to the progress-report list entry where
+              information about the progress and the result of
+              the operation can be found.";
+          }
+        }
+      }
+
+      action cancel-current-action {
+        description "Cancel an ongoing asynchronous create-backup,
+          delete-backup, or import-backup operation.";
+        output {
+          leaf return-value {
+            type leafref {
+              path "../../progress-report/action-id" ;
+            }
+            mandatory true;
+            description "Key to the progress-report list entry where
+              information about the progress and the result of
+              the operation can be found.";
+          }
+        }
+      }
+
+      action import-backup {
+        description "Import a backup using the specified resource identifier
+          (uri). This is an asynchronous action where the progress
+          and result are reported in the progress-report list.
+          Note that the type and domain of the backup to be imported
+          must match the backup type and domain indicated by the
+          instance of the backup manager on which this action is
+          invoked.";
+        yexte:privacy-event;
+        input {
+          choice sftp-server-connection {
+            mandatory true;
+            case password {
+              leaf uri {
+                type inet:uri;
+                mandatory true;
+                description "Specifies the location (url) of the
+                  backup to import or the
+                  resource name (urn) that encapsulates the backup import
+                  procedure.";
+              }
+              leaf password {
+                type string ;
+                yexte:is-passphrase;
+                description "The password required to access the
+                  location specified by the uri. If no password is
+                  required, this parameter may be omitted.";
+              }
+           }
+            case key-authentication {
+              if-feature sftp-client-authentication;
+              leaf backup-path {
+                type string;
+                mandatory true;
+                description "The path of the backup to be imported. This includes the backup name and it can
+                             include sub-directories. This is concatenated with the sftp-server remote-path
+                             at ../../sftp-server/endpoints/endpoint/remote-path to provide
+                             the full path to the backup e.g. full path = <remote-path>/<backup-path>";
+              }
+              leaf sftp-server-name {
+                type leafref {
+                  path '../../sftp-server/name';
+                 }
+                mandatory true;
+                description "Name of the defined SFTP Server from which the
+                  backup is to be imported.";
+              }
+            }
+        }
+      }
+      output {
+          leaf return-value {
+            type leafref {
+              path "../../progress-report/action-id" ;
+            }
+            mandatory true;
+            description "Key to the progress-report list entry where
+              information about the progress and the result of
+              the operation can be found.";
+          }
+      }
+     }
+
+      list backup {
+        key id;
+        unique backup-name ;
+        config false;
+        description "Represents one backup of the type and domain specified
+          by the backup-manager in which it is contained.";
+        leaf id {
+          type string;
+          description "Identity of the backup.";
+        }
+
+        leaf backup-name {
+          type string;
+          mandatory true;
+          description "Backup name, provided by the operator.";
+        }
+
+        leaf creation-time {
+          type yang:date-and-time;
+          mandatory true;
+          description "Date and time when the backup was created,
+            i.e., start time of backup procedure.";
+        }
+
+        leaf status {
+          type backup-status;
+          mandatory true;
+          description "Status of the backup.";
+        }
+
+        leaf user-label {
+          type string;
+          description "Label for free use.";
+        }
+
+        leaf size {
+          type uint32;
+          units megabyte;
+          description "Size of the backup.
+             When this leaf is not present the size of the backup
+             is unknown.";
+        }
+
+        list progress-report {
+          key action-id;
+          max-elements 1;
+          description "Represents the progress report and final result of
+            the ongoing (asynchronous) action in this backup, for example
+            restore. Backup supports only one action to be executed at
+            a time.";
+          uses typese:async-action-progress;
+        }
+
+        leaf creation-type {
+          type backup-creation-type;
+          mandatory true;
+          description "Creation type; whether manually created or automatically
+            via scheduler.";
+        }
+
+        list sw-version {
+          key "product-number product-revision";
+          description "The administrative data portion of active
+            software versions as specified in the software inventory
+            management, when the backup is created.";
+          uses typese:product-data;
+        }
+
+        action restore {
+          description "Restore from this backup. This is an
+            asynchronous action - progress and result are reported
+            in the progress-report list.";
+          output {
+            leaf return-value {
+              type leafref {
+                path "../../progress-report/action-id" ;
+              }
+              mandatory true;
+              description "Key to the progress-report list entry where
+                information about the progress and the result of
+                the operation can be found.";
+            }
+          }
+        }
+
+        action cancel-current-action {
+          description "Cancel an ongoing asynchronous restore or
+            export operation.";
+          output {
+            leaf return-value {
+              type leafref {
+                path "../../progress-report/action-id" ;
+              }
+              mandatory true;
+              description "Key to the progress-report list entry where
+                information about the progress and the result of
+                the operation can be found.";
+            }
+          }
+        }
+
+        action export {
+          description "Export the backup using the specified resource
+            identifier (uri).
+            Note: A copy of the backup is transferred and the
+            original backup remains in the ME.
+            This is an asynchronous action. Progress and the result
+            are reported in the progress-report list. ";
+          yexte:privacy-event;
+          input {
+           choice sftp-server-connection {
+             mandatory true;
+             case password {
+               leaf uri {
+                 type inet:uri;
+                 mandatory true;
+                 description "Specifies the location (url) where the
+                   backup is to be exported or the resource name (urn)
+                   that encapsulates the backup export procedure";
+               }
+               leaf password {
+                 type string ;
+                 yexte:is-passphrase;
+                 description "The password required to access the
+                   location specified by the uri. If no password
+                   is required, this parameter may be omitted.";
+               }
+             }
+             case key-authentication {
+              if-feature sftp-client-authentication;
+              leaf sftp-server-name {
+                type leafref {
+                  path '../../../sftp-server/name';
+                  }
+              description "Name of the defined SFTP Server to which the
+                 backup is to be exported.";
+              }
+             }
+           }
+          }
+          output {
+            leaf return-value {
+              type leafref {
+                path "../../progress-report/action-id" ;
+              }
+              mandatory true;
+              description "Key to the progress-report list entry where
+                information about the progress and the result of
+                the operation can be found.";
+            }
+          }
+        }
+      }
+
+      container housekeeping {
+        if-feature housekeeping ;
+        description "Provides optional support for automated housekeeping of
+          manually created backups. If auto-delete is set to ENABLED
+          before creating a new manual backup, BRM first checks the
+          number of manual backups, and if the limit specified by the
+          value of max-stored-manual-backups is reached, BRM removes the
+          oldest manual backup before creating a new one.";
+
+        leaf max-stored-manual-backups {
+          type uint16;
+          default 100;
+          description "Maximum number of manual backups, per backup type,
+            to store in the ME. When this limit is reached, if
+            auto-delete=ENABLED, BRM removes the oldest manual backup
+            before creating a new one. Otherwise an error is returned
+            when create-backup() is invoked and the NMS must perform the
+            required housekeeping activity before attempting to create
+            a new backup.";
+        }
+
+        leaf auto-delete {
+          type enabled-disabled;
+          default enabled;
+          yexte:privacy-event;
+          description "Determines whether automated housekeeping of
+            manual backups is enabled. If ENABLED and the number
+            of backups already stored on the ME is equal to the
+            value of max-stored-manual-backups, the oldest backup
+            is removed before creating a new one. If set to DISABLED,
+            no backup is removed. Instead, when action create-backup()
+            is invoked, it returns a failure parameter.";
+        }
+
+      }
+
+      container scheduler {
+        if-feature scheduler ;
+        description "Provides optional support for scheduling
+          backup creation for the parent backup-manager.
+          The scheduled backup events can be Single Events,
+          Calendar Based Periodic Events, or Periodic Events
+          as defined by the child lists.";
+
+        leaf max-stored-scheduled-backups {
+          type uint16;
+          default 5;
+          description "The maximum number of scheduled backups,
+            per backup type, to store in the ME. When this limit
+            is reached, the oldest scheduled backup is deleted
+            by BRM before creating a new one.";
+        }
+
+        leaf scheduled-backup-name {
+          type string;
+          default BACKUP;
+          description "The configurable portion of the scheduled
+            backup name. The scheduled backups are
+            named <scheduled-backup-name>-<creation date and time>,
+            where creation date and time is of type yang:date-and-time.";
+        }
+
+        list progress-report {
+          key action-id;
+          config false;
+          max-elements 1;
+          description "Reports the progress and final result of the
+            ongoing (asynchronous) scheduled backup operation.";
+          uses typese:async-action-progress;
+        }
+
+        leaf most-recently-created-auto-backup {
+          type string;
+          config false;
+          description "The name of the scheduled backup created most
+                     recently by the backup scheduler.";
+        }
+
+        leaf auto-export {
+          type enabled-disabled;
+          default disabled;
+          yexte:privacy-event;
+          description "Determines whether a scheduled backup is to be
+            automatically exported at successful creation. If set to
+            ENABLED, the scheduled backup specified by the leaf
+            most-recently-created-auto-backup is exported to the location
+            specified by either leaf auto-export-uri or leafref sftp-server-name
+            after it is successfully created.
+            Note that the automatic export is only triggered if creation
+            of the scheduled backup was successful.
+            Otherwise, no export operation is triggered,
+            even if this leaf is set to ENABLED. Also, note that
+            setting this leaf to ENABLED has no impact on the
+            scheduled backups that were already created and stored
+            prior to the new configuration.";
+        }
+
+        choice sftp-server-connection {
+          case password {
+            leaf auto-export-uri {
+              type inet:uri;
+              yexte:privacy-event;
+              description "Uri used by the backup scheduler when automatically
+                exporting a scheduled backup. If leaf auto-export is
+                set to ENABLED, this uri specifies the location to which
+                the scheduled backup is automatically exported.";
+            }
+
+            leaf auto-export-password {
+              type string;
+              yexte:is-passphrase;
+              nacm:default-deny-all;
+              yexte:privacy-event;
+              description "Password used by the backup scheduler when
+                  automatically exporting a scheduled backup.
+                  If leaf auto-export is set to ENABLED, this password is
+                  used for authentication when automatically exporting
+                  the scheduled backup. No need to specify this leaf
+                  if no password is required for accessing auto-export-uri.";
+            }
+          }
+          case key-authentication {
+            if-feature sftp-client-authentication;
+            leaf sftp-server-name {
+               type leafref {
+                 path '../../sftp-server/name';
+                 }
+               description "Name of the defined SFTP Server to which the
+                 backup is to be exported.";
+            }
+          }
+       }
+
+        leaf admin-state {
+          type typese:basic-adm-state;
+          default unlocked;
+          description "Administrative state of the scheduler.";
+        }
+
+        leaf next-scheduled-time {
+          type yang:date-and-time;
+          config false;
+          description "The date and time when the next scheduled event is
+            triggered. This is the earliest scheduled event from the
+            set of configured events, i.e. single, periodic, and
+            calendar-based periodic events.";
+        }
+
+        leaf user-label {
+          type string;
+          description "Label for free use.";
+        }
+
+
+        list single-event {
+          key id;
+          description "A single scheduled backup event.
+            This construct can be used to configure a single,
+            one-shot, scheduled backup event by
+            specifying the desired date and time.";
+          leaf id {
+            type string;
+            description "Identity of the single-event.";
+          }
+
+          leaf scheduled-time {
+            type yang:date-and-time;
+            mandatory true;
+            description "Scheduled time.";
+          }
+
+        }
+
+        list periodic-event {
+          key id;
+          description "Periodic backup event. This construct can be used to
+            configure a periodic scheduled backup event by specifying
+            the number of months, weeks, days, hours, or minutes. For
+            instance, in order to configure a scheduled backup event to
+            occur every 12 hours, the following setup must be done:
+            hours = 12. If more than one leaf is set, the values
+            are added when calculating the next scheduled event. For
+            example, if hours = 6 and minutes = 30, the scheduled
+            backup event occurs every 6 hour and 30 minutes. The start
+            time for calculating scheduled events is assumed to be the
+            current system time by default, unless explicitly set using
+            the start-time leaf. Furthermore, if the configured
+            event is to stop at a specific date, leaf stop-time
+            must be set accordingly. Daylight saving
+            adjustments in Spring and Fall are addressed in such a way
+            that the affected scheduled backup events are triggered
+            exactly once only";
+          leaf id {
+            type string;
+            description "Identity of the periodic-event.";
+          }
+
+          leaf weeks {
+            type uint16;
+            default 0;
+            description "The number of weeks.";
+          }
+
+          leaf days {
+            type uint16;
+            default 0;
+            description "The number of days.";
+          }
+
+          leaf hours {
+            type uint16;
+            mandatory true;
+            description "The number of hours.";
+          }
+
+          leaf minutes {
+            type uint16;
+            default 0;
+            description "The number of minutes.";
+          }
+
+          leaf start-time {
+            type yang:date-and-time;
+            description "Start time. If not specified,
+              the implementation uses the current system time as the
+              default value.";
+          }
+
+          leaf stop-time {
+            type yang:date-and-time;
+            description "Stop time.
+              If no stop-time present the event continues indefinitely.";
+          }
+        }
+
+        list calendar-based-periodic-event {
+          key id;
+          description "Periodic backup event using calendar-based
+            interval. This construct can be used to configure a
+            periodic scheduled backup event by specifying the
+            desired interval using the calendar. For instance,
+            in order to configure a scheduled
+            backup event to occur every night at 2:00 am, the following
+            setup must be done: time = 02:00:00. The start time for
+            calculating scheduled events is by default the current
+            system time, unless explicitly set using the start-time
+            leaf. Furthermore, if the configured event is to stop
+            at a specific date, stop-time leaf must be set
+            accordingly. A scheduled backup event of this type
+            is triggered only if ALL the conditions with regard to
+            leaf values are satisfied. For example, if day-of-week
+            is set to Monday and day-of-month is set to 1, the event is
+            triggered only if the first day of month is Monday.
+            Daylight saving adjustments in Spring and Fall are
+            addressed in such a way that the affected scheduled backup
+            events are triggered exactly once.";
+
+          leaf id {
+            type string;
+            description "Identity of the calendar-based-periodic-event.";
+          }
+
+          leaf month {
+            type typese:month;
+            default 0;
+            description "Month. Defaults to every month.";
+          }
+
+          leaf day-of-week {
+            type typese:day-of-the-week;
+            default all;
+            description "Day of week.";
+          }
+
+          leaf day-of-month {
+            type typese:day-of-month;
+            default 0;
+            description "Day of month.";
+          }
+
+          leaf time {
+            type typese:time;
+            mandatory true;
+            description "This is the time when the scheduled event
+              must occur.";
+          }
+
+          leaf day-of-week-occurrence {
+            type typese:day-of-week-occurrence;
+            default all;
+            description "The occurrence of the day of week
+              specified by day-of-week leaf in the month.";
+          }
+
+          leaf start-time {
+            type yang:date-and-time;
+            description "Start time.If not specified,
+              the implementation uses the current system time as the
+              default value.";
+          }
+
+          leaf stop-time {
+            type yang:date-and-time;
+            description "Stop time.
+              If no stop-time present the event continues indefinitely.";
+          }
+        }
+      }
+
+      container label-store {
+        if-feature label-store ;
+        config false;
+        description "A set of labels that help distinguish certain
+          backups such as the last restored backup, primary restore
+          candidate, and so on.";
+
+        leaf last-restored-backup {
+          type string;
+          description "The name of the backup that was last used to
+            restore the ME. This does not imply that the
+            currently running version of the system is the same
+            as this backup, but instead shows which one of the
+            backups was last used to restore the ME.
+            In a system that has never been restored using a backup,
+            this leaf is empty.";
+        }
+
+        leaf last-created-backup {
+          type string;
+          description "The name of the last backup created.
+            This backup can be MANUAL or SCHEDULED. Not updated
+            in the case of a failed attempt to create a backup,
+            which would result in an INCOMPLETE backup.";
+        }
+
+        leaf last-imported-backup {
+          type string;
+          description "The name of the last backup imported to the ME.
+            Not updated in the case of a failed attempt to import
+            a backup.";
+        }
+
+        leaf last-exported-backup {
+          type string;
+          description "The name of the last backup exported from the ME.
+            Not updated in the case of a failed attempt to export
+            a backup.";
+        }
+
+        leaf-list restore-escalation-list {
+          type string;
+          description "Specifies a list of backups by name, in the
+            order that is to be used to restore the ME when needed.
+            Specifically, the first element of this ordered list
+            identifies the primary restore candidate.
+            If the attempt to restore the ME with a
+            given backup fails, the next backup in the list must be
+            tried.";
+        }
+      }
+
+      container failsafe-backup {
+      if-feature failsafe-backups;
+        presence "Activates and deactivates failsafe backups";
+        description "Failsafe backups can be used when making changes to
+          sensitive parts of the model, in which an error in
+          configuration can lead to lost OAM connectivity or other
+          failures from which the system can recover by a restore
+          from a backup. When activated the failsafe backup function
+          will automatically restore the system from a backup if the
+          configuration as not been confirmed within a defined time
+          period.";
+
+        leaf backup-name {
+          type string;
+          config false;
+          description "Name of the backup that will be restored in
+            case the failsafe function is activated.";
+        }
+
+        leaf time-remaining {
+          type uint64;
+          units second;
+          config false;
+          description "The number of seconds that remains before
+            the system is restored from the selected backup.";
+          notife:notifiable-state-data false;
+        }
+
+        leaf usage-state {
+          type typese:usage-state;
+          config false;
+          mandatory true;
+          description "Shows if the failsafe function is activated or not.
+            Multiple failsafe points is not possible, therefore this
+            state is either idle or busy";
+        }
+
+        list progress-report {
+          key action-id;
+          config false;
+          max-elements 1;
+          description "Represents the progress report and final
+            result of creating backup for failsafe configuration.
+            It will return the same information as the
+            progress-report list of the backup-manager list entry.";
+          uses typese:async-action-progress;
+        }
+
+        leaf timeout-length {
+          type uint64 {
+            range "1..86400";
+          }
+          units second;
+          default 1200;
+          description "The number of seconds the system waits before
+            activating the failsafe function. If the value is set
+            while the function is active the time-remaining will be
+            changed to that time instead.";
+        }
+
+        action deactivate {
+          description "Deactivates failsafe function and the
+                     failsafe backup is removed.";
+          output {
+            leaf return-value {
+              type leafref {
+                path "../../progress-report/action-id" ;
+              }
+              mandatory true;
+              description "Key to the progress-report list entry where
+                information about the progress and the result of
+                the operation can be found.";
+            }
+          }
+        }
+
+        action activate {
+          description "Activates a failsafe backup, which is created
+                     when this action is invoked.";
+          output {
+            leaf return-value {
+              type leafref {
+                path "../../progress-report/action-id" ;
+              }
+              mandatory true;
+              description "Key to the progress-report list entry where
+                information about the progress and the result of
+                the operation can be found.";
+            }
+          }
+        }
+      }
+
+    if-feature sftp-client-authentication;
+    uses ftpclie:sftp-client-grouping;
+
+  }
+
+    container rollback-at-restore {
+      if-feature rollback-at-restore ;
+      description "Provides optional support for confirmation of a restore
+        action or automatic rollback after an unconfirmed restore
+        operation was executed.";
+
+      leaf time-allowed-before-rollback {
+        type uint16 {
+            range "1..max";
+        }
+        units second;
+        default 3600;
+        description "Number of seconds to wait for action confirm-restore to
+          invoke before performing the rollback to the state before
+          restore.";
+      }
+
+      leaf time-remaining-before-rollback {
+        type uint16;
+        units second;
+        config false;
+        description "The remaining number of seconds before performing the
+          rollback to the state before restore. The countdown stops
+          after confirm-restore action is invoked on the backup,
+          representing the restored backup. If action confirm-restore
+          is not invoked before the expiration of the rollback timer,
+          an automatic rollback is triggered. Countdown starts at
+          restore, and stops when confirm-restore() is invoked.";
+      }
+
+      action confirm-restore {
+        description "Invoking this action indicates acceptance of the previously
+          executed restore operation. The restore supervision timer,
+          counting down from the initial value indicated by the
+          time-allowed-before-rollback leaf, is stopped when this
+          action is invoked. If this action is not invoked before the
+          supervision timer expires, the system is restored to the
+          state it was in before the last restore operation was
+          invoked. This is a synchronous action.";
+        output {
+          leaf return-value {
+            type uint16;
+            mandatory true;
+            description "Zero indicates success. Non-zero error codes are
+              implementation-specific.";
+          }
+
+        }
+      }
+    }
+  }
+}

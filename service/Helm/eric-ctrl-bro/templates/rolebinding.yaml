@@ -1,0 +1,43 @@
+{{- $g := fromJson (include "eric-ctrl-bro.globalMap" .) -}}
+{{- if ne $g.securityPolicy.rolekind "" -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "eric-ctrl-bro.security-policy-rolebinding.name" . }}
+  annotations:
+    {{- $securityAnn := dict -}}
+    {{- $_ := set $securityAnn "ericsson.com/security-policy.capabilities" "" -}}
+    {{- $_ := set $securityAnn "ericsson.com/security-policy.type" "restricted/default" -}}
+    {{- $defaultAnn := fromYaml (include "eric-ctrl-bro.annotations" .) -}}
+    {{- include "eric-ctrl-bro.mergeAnnotations" (dict "location" .Template.Name "sources" (list $securityAnn $defaultAnn)) | trim | nindent 4}}
+  labels:
+    {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: {{ $g.securityPolicy.rolekind }}
+  name: {{ include "eric-ctrl-bro.securityPolicyRolename" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "eric-ctrl-bro.serviceAccountName" . }}
+{{- else -}}
+{{- if $g.security.policyBinding.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "eric-ctrl-bro.security-policy-rolebinding.name" . }}
+  annotations:
+    {{- $securityAnn := dict -}}
+    {{- $_ := set $securityAnn "ericsson.com/security-policy.capabilities" "" -}}
+    {{- $_ := set $securityAnn "ericsson.com/security-policy.type" "restricted/default" -}}
+    {{- $defaultAnn := fromYaml (include "eric-ctrl-bro.annotations" .) -}}
+    {{- include "eric-ctrl-bro.mergeAnnotations" (dict "location" .Template.Name "sources" (list $securityAnn $defaultAnn)) | trim | nindent 4}}
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ index $g.security.policyReferenceMap "default-restricted-security-policy" | quote }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "eric-ctrl-bro.serviceAccountName" . }}
+{{- end -}}
+{{- end -}}

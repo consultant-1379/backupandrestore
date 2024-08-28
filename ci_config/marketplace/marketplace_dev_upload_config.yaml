@@ -1,0 +1,27 @@
+version: indevelopment
+documents:
+  - name: "Service User Guide"
+    filepath: build/doc-marketplace/service-user-guide.zip
+    default: true
+  - name: "Inner Source README"
+    filepath: build/doc-marketplace/readme.zip
+  - name: "Contributing Guideline"
+    filepath: build/doc-marketplace/contributing-guideline.zip
+  - name: "Operations Guide for BRO with CM YP"
+    filepath: build/doc-marketplace/operations-guide-cmyp.zip
+  - name: "GRPC API Specification"
+    filepath: build/doc-marketplace/grpc-api-specification.zip
+  - name: "GRPC API User Guide"
+    filepath: build/doc-marketplace/grpc-api-user-guide.zip
+  - name: "REST API Specification V1 V3"
+    external-link: https://erilink.ericsson.se/eridoc/erl/objectId/09004cffca7039d3?docno=2/15519-CAF101027/6Uen&format=html
+  - name: "REST API Specification V4"
+    external-link: https://erilink.ericsson.se/eridoc/erl/objectId/09004cffca763d56?docno=3/15519-CAF101027/6Uen&format=html
+  - name: "REST API User Guide"
+    filepath: build/doc-marketplace/rest-api-user-guide.zip
+  - name: "Operations Guide"
+    filepath: build/doc-marketplace/operations-guide.zip
+  - name: "Agent Implementation Guide"
+    filepath: build/doc-marketplace/agent-implementation-guide.zip
+  - name: "Log4j2 Socket Appender Installation Guide"
+    filepath: build/doc-marketplace/appender-installation-guide.zip

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.data";
+option java_outer_classname = "DataChannel";
+
+import "google/protobuf/empty.proto";
+import "Fragment.proto";
+
+package com.ericsson.adp.mgmt.data;
+
+/**
+    open the stream for data messages
+    backup: the agent will open a stream to send the backupdata to the orchestrator
+    restore: the agent will send the metadata for the required backup to be transferred and get back the stream to receive the data on
+**/
+service DataInterface {
+    rpc backup (stream BackupData) returns (google.protobuf.Empty) {}
+    rpc restore (Metadata) returns (stream RestoreData) {}
+}
+
+/**
+    Provides a wrapper for all message types that can be sent over the data channel during a backup.
+    The message type can be checked by inspecting the dataMessageType.
+**/
+message BackupData {
+    DataMessageType dataMessageType = 1;
+
+    Metadata metadata = 2;
+    CustomMetadataFileChunk customMetadataFileChunk = 3;
+    BackupFileChunk backupFileChunk = 4;
+    Size size = 5;
+}
+
+/**
+    Provides a wrapper for all message types that can be sent over the data channel during a backup.
+    The message type can be checked by inspecting the dataMessageType.
+**/
+message RestoreData {
+    DataMessageType dataMessageType = 1;
+
+    CustomMetadataFileChunk customMetadataFileChunk = 2;
+    BackupFileChunk backupFileChunk = 3;
+}
+
+/**
+    To allow for the management of backup data over the data channel backup data is sent in chunks.
+**/
+message BackupFileChunk {
+    string fileName = 1;
+    bytes content = 2;
+    string checksum = 3;
+}
+
+/**
+    To allow for the management of a backups associated metadata over the data channel the metadata
+    is sent in chunks.
+**/
+message CustomMetadataFileChunk {
+    string fileName = 1;
+    bytes content = 2;
+    string checksum = 3;
+}
+
+/**
+    Information about the agent sending the backup data.
+**/
+message Metadata {
+    string agentId = 1;
+    Fragment fragment = 2;
+    string backupName = 3;
+    string backupType = 4;
+}
+
+/**
+    The total amount of data that has been sent in a transfer.
+**/
+message Size {
+    uint64 sizeInBytes = 1;
+}
+
+/**
+    All message types that can be sent on the data channel.
+**/
+enum DataMessageType {
+    METADATA = 0;
+    CUSTOM_METADATA_FILE = 1;
+    BACKUP_FILE = 2;
+    SIZE = 3;
+}

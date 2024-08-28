@@ -1,0 +1,1949 @@
+= Backup and Restore Orchestrator Rest API User Guide
+:author: Thiago Santos
+:doc-name: Rest API User Guide
+:doc-no: 3/19817-APR 201 40/6
+:revnumber: A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+:TOC:
+
+== Prerequisites
+
+A pod which has curl installed is deployed.
+
+== Introduction
+
+This guide is intended for services that want to use the REST API of the
+Backup and Restore Orchestrator. 
+
+This guide shows examples of how to use the Backup and Restore
+Orchestrator REST API with the _curl_ command.
+
+This guide does not cover every detail of the API. For a full definition
+see  Backup
+and Restore Orchestrator REST API Specification <<rest_specification, Backup
+and Restore Orchestrator REST API Specification>>.
+
+For brevity not all HTTP headers are shown in the response examples.
+
+Example of a full HTTP response header:
+
+....
+    HTTP/1.1 201 CREATED
+    Content-Type: application/json
+    Date: Wed, 08 Aug 2018 13:41:18 GMT
+    Connection: close
+    Content-Length: 48
+....
+
+Content-Type is always _application/json_ in HTTP responses.
+
+The REST API supports the HTTP methods GET, POST, DELETE on
+backupManagers, backup, action URI resources. Not every HTTP method is
+supported for each resource though.
+
+HTTP requests with a body, i.e. POST, should set the Content-Length
+header and the Content-Type header to either _application/json_ or
+_multipart/form-data_, depending on type of requests.
+
+HTTP 1.1 chunked Transfer-Encoding is not supported for requests.
+
+If an endpoint requires a Backup Manager's Id, _DEFAULT_ will be used in
+the examples.
+
+Any endpoint that requires an Id can also return 404 Not Found if the
+Id doesn't exist.
+
+*NOTE*: The examples show <bro-service-name>:<bro-rest-port> as the REST API server host and port,
+but they should be substituted with the actual values. An example of this would be http://eric-ctrl-bro:7001.
+On a Kubernetes cluster use the DNS name of the Backup and Restore Orchestrator.
+
+*NOTE*: If TLS is enabled for the REST interface on the Backup and Restore Orchestrator, please see the <<OperationsGuide, Operations Guide>> for information on how to send HTTPS requests.
+
+== Backup Manager
+
+A Backup Manager is the entity that represents a group of
+services/agents that can be backed-up/restored. The Orchestrator is
+responsible for creating and maintaining the list of Backup Managers.
+
+There is always at least one Backup Manager, with Id DEFAULT, used for
+doing backups/restores on all agents of the system.
+
+Whenever an agent registers with a new scope, a Backup Manager will be
+created with that scope as its Id. For example, if an agent registers
+with scope "alpha", there will be a new Backup Manager created with Id
+"alpha". If the agent doesn't have a scope, no new Backup Manager will
+be created, and the agent will only participate in actions triggered in
+the DEFAULT Backup Manager.
+
+=== Getting all Backup Managers
+
+Query to get all Backup Managers the Orchestrator has.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v1/backup-manager
+
+
+....
+
+Expected output:
+
+....
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {"backupManagers":[{"backupType":"myType","backupDomain":"myDomain","id":"DEFAULT"}]}
+....
+
+=== Getting one Backup Manager
+
+Query to get one specific Backup Manager. Requires Id of Backup Manager.
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT
+....
+
+Expected output:
+....
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {"backupType":"myType","backupDomain":"myDomain","id":"DEFAULT"}
+....
+
+=== Updating one Backup Manager
+
+Updates information from one Backup Manager. Requires Id of Backup
+Manager.
+....
+    curl -i -X POST \
+       -d '{"backupType":"otherType", "backupDomain":"otherDomain"}' \
+       -H "Content-Type: application/json" \
+    http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT
+....
+
+Expected output:
+....
+  HTTP/1.1 204
+....
+
+Can be used to set the value of backupType and backupDomain properties
+of a Backup Manager.
+
+The endpoint will return 204 No Content if successful. It can also
+return 400 Bad Request, if there are problems with the request body.
+
+== Action
+
+An Action is a task to be executed on a Backup Manager which has
+measurable progress.
+
+=== Creating an Action
+
+Submit an Action to be executed on a Backup Manager. Requires Id of
+Backup Manager.
+
+The endpoint returns 201 Created with the Id of the new Action in its
+response body.
+
+It can also return 400 or 422, if there are problems with the request
+body.
+
+==== Before creating a Backup
+
+To ensure availability of space in storage for a complete backup, the
+unused space in the PVC and the estimation of the size of the backup
+should be known before initiating a backup action.
+
+Before submitting the CREATE_BACKUP action, check if all the agents
+required for backup are available by calling the health endpoint.
+
+==== Valid Backup name in Action
+
+Submit an action with a valid backup name. The backup name should have
+only alphanumeric and/or special characters (\_\+\-\=\:\.), and/or white
+spaces. If the special character \.\ is used, It will not be valid for instances where only \.\ or \..\ is specified.
+A backup name may not have a length greater than 200 characters.
+
+It can return 422, if there are problems with the backup name.
+
+==== Creating a Backup
+
+This example is triggering a backup on the _DEFAULT_ Backup Manager.
+
+....
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "action": "CREATE_BACKUP",
+      "payload": {
+        "backupName": "myBackup"
+      }
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action'
+....
+
+Expected output:
+....
+  HTTP/1.1 201
+  Content-Type: application/json;charset=UTF-8
+
+  {"id":"1452"}
+....
+
+A Backup called "myBackup" will be created.
+
+The Id of the action is "1452".
+
+As the action is executed, a Backup called _myBackup_ will be created
+and can be accessed via
+\http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/backup/myBackup.
+
+==== Restoring a Backup
+
+This example is triggering the restore of backup _myBackup_, that
+belongs to the _DEFAULT_ Backup Manager.
+
+....
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "action": "RESTORE",
+      "payload": {
+        "backupName": "myBackup"
+      }
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action'
+....
+
+Expected output:
+....
+    HTTP/1.1 201
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"6846"}
+....
+
+The Id of the action is "6846".
+
+The Orchestrator will trigger a restore on all agents associated with
+that backup. When all agents download all necessary fragments and
+perform their own restores, the action will be completed.
+
+==== Exporting a Backup
+
+This example is triggering the export of backup _myBackup_, that belongs
+to the _DEFAULT_ Backup Manager.
+
+....
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "action": "EXPORT",
+      "payload": {
+        "backupName": "myBackup",
+        "uri": "sftp://user@host:port/remotepath",
+        "password": "password"
+      }
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action'
+....
+
+Expected output:
+....
+    HTTP/1.1 201
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"49325"}
+....
+
+
+The id of the action is "49325".
+
+As the action is executed, the backup folders _DEFAULT_/_myBackup_ will be created on the _remotepath_ and the backup will be exported from the Orchestrator to the _remotepath_/_DEFAULT_/_myBackup_ folder in the SFTP server.
+
+
+==== Importing a Backup
+
+This example is triggering the import of backup _myBackup_, that belongs
+to the _DEFAULT_ Backup Manager.
+
+....
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "action": "IMPORT",
+      "payload": {
+        "uri": "sftp://user@host:port/remotepath/DEFAULT/myBackup",
+        "password": "password"
+      }
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action'
+....
+
+Expected output:
+....
+    HTTP/1.1 201
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"49555"}
+....
+
+The id of the action is "49555".
+
+Example of importing a tarball from SFTP server:
+----
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "action": "IMPORT",
+      "payload": {
+        "uri": "sftp://user@host:port/remotepath/DEFAULT/myBackup-2020-07-24T15:11:19.123456Z.tar.gz",
+        "password": "password"
+      }
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action'
+----
+
+Expected output:
+----
+  HTTP/1.1 201
+  Content-Type: application/json;charset=UTF-8
+
+  {"id":"49555"}
+----
+
+This is an example of triggering an import of a tarball backup that belongs to the _DEFAULT_ Backup Manager.
+A valid checksum file must exist on the SFTP server under the same directory of backup otherwise the action will fail.
+
+As the action is executed, the backup _myBackup_ specified in the URI will be imported to the Orchestrator from the SFTP server based on _remotepath_/_DEFAULT_/_myBackup_.
+
+==== Deleting a Backup
+
+This example is triggering the deletion of backup _myBackup_, that
+belongs to the _DEFAULT_ Backup Manager.
+
+....
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "action": "DELETE_BACKUP",
+      "payload": {
+        "backupName": "myBackup"
+      }
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action'
+....
+
+Expected output:
+....
+    HTTP/1.1 201
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"29847"}
+....
+
+The Id of the action is "29847".
+
+As the action is executed, the backup will be deleted from the
+Orchestrator and will no longer be available to be used for a restore or
+any other action. All of the backup’s data will be deleted from the
+Orchestrator’s storage.
+
+=== Getting all Actions
+
+Query to get all Actions under a Backup Manager. Requires Id of the
+Backup Manager.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action
+....
+
+Expected output:
+....
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {"actions":[{"actionId":"1452","name":"CREATE_BACKUP","result":"NOT_AVAILABLE","startTime":"2019-05-07T14:52:31.831123Z"}]}
+....
+
+=== Getting one Action
+
+Query to get one Action under a Backup Manager. Requires Id of the
+Backup Manager and Action.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/action/<actionId>
+....
+
+Expected output:
+....
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {"actionId":"1452","name":"CREATE_BACKUP","result":"NOT_AVAILABLE","payload":{"backupName":"myBackup"},"state":"RUNNING","progressPercentage":0.0,"startTime":"2019-05-07T14:52:31.831123Z","lastUpdateTime":"2019-05-07T14:52:31.831123Z"}
+....
+
+Used to see the progress of an Action. As the action progresses, the `progressPercentage` will increment from 0.0 to 1.0 indicating the completion of the action. The 0.0 progressPercentage indicates 0% completion and 1.0 indicates 100% completion. Intermediate values such as 0.33 indicate approximately 33% completion of an action.
+
+If the action fails due to an agent error, progressInfo field will provide the detail of the cause with "'progressInfo': 'Agent: AgentID failed at Stage: StageName, message: "The test service failed to complete a backup myBackup106, Cause: xxxxxx" "
+
+== Backup
+
+Represents a Backup that was performed, or is being performed, under a
+Backup Manager.
+
+=== Getting all Backups
+
+Query for all Backups under a Backup Manager. Requires Id of the Backup
+Manager.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/backup
+....
+
+Expected output:
+....
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {"backups": [{"id": "myBackup", "name": "myBackup", "creationTime": "2019-05-07T14:52:31.831123Z", "status": "INCOMPLETE"}]}
+....
+
+=== Getting one Backup
+
+Query for one Backup under a Backup Manager. Requires Id of the Backup
+Manager and Backup.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/backup/myBackup
+....
+
+Expected output:
+....
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "id": "myBackup",
+      "name": "myBackup",
+      "creationTime": "2019-05-07T14:52:31.831123Z",
+      "creationType": "MANUAL",
+      "status": "INCOMPLETE",
+      "userLabel": "Remember this backup",
+      "softwareVersions": [
+        {
+          "productName": "Name",
+          "productNumber: "12345",
+          "productRevision": "000",
+          "date": "2008-09-15T15:54:00+00:00",
+          "description": "Description",
+          "type": "Type"
+        }
+      ]
+    }
+....
+
+Can be used to see the status of a backup, or which software versions
+were used when it was taken.
+
+=== Updating one Backup
+
+Updates one Backup under a Backup Manager. Requires Id of the Backup
+Manager and Backup.
+
+....
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "userLabel": "Remember this backup"
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v1/backup-manager/DEFAULT/backup/myBackup'
+....
+
+Expected output:
+....
+    HTTP/1.1 204
+....
+
+The endpoint will return 204 No Content if successful. It can also
+return 400 Bad Request, if there are problems with the request body.
+
+Can be used to set a userLabel, to better identify that Backup.
+
+== Housekeeping
+
+Provides support for automated housekeeping of backups(including both manual and scheduled backups). Housekeeping feature is enabled by default when a backup manager is created.
+If auto-delete is set to _enabled_ before creating or importing a backup, BRM first checks the number of backups, and if the limit specified by the value of max-stored-manual-backups is reached,
+BRM removes backups in the order of incomplete or corrupted backups followed by the oldest backup.
+
+=== Update Housekeeping Configuration
+
+Updates housekeeping configuration under a Backup Manager. Requires Id of the Backup Manager, auto-delete and max-stored-manual-backups values of the housekeeping.
+
+....
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "auto-delete": "enabled",
+      "max-stored-manual-backups": 10
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/housekeeping/'
+....
+
+Expected output:
+....
+    HTTP/1.1 201
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"63702"}
+....
+The id of the action is "63702".
+
+As the action is executed,
+If the limit specified by the value of max-stored-manual-backups is less than the number of backups available in BRM then,
+BRM removes backups in the order of incomplete or corrupted backups followed by the oldest backup, until the number of backups in BRM matches max-stored-manual-backups value, and the BRM's housekeeping is updated.
+
+=== Get Housekeeping Configuration
+
+Query for housekeeping configuration under a Backup Manager. Requires Id of the Backup Manager.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/housekeeping
+....
+
+Expected output:
+....
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "auto-delete": "enabled",
+      "max-stored-manual-backups": 10
+    }
+....
+
+
+== Health
+
+Query for the Orchestrator's health.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/v1/health
+....
+
+Expected output:
+....
+    HTTP/1.1 200
+    Content-Type: application/json;charset=UTF-8
+    Transfer-Encoding: chunked
+    Date: Wed, 11 Sep 2019 13:32:25 GMT
+
+    Response when available:
+
+    {"status":"Healthy","availability":"Available","ongoingAction":{},"registeredAgents":[]}
+
+    Response when busy:
+
+    {
+        "availability": "Busy",
+        "ongoingAction": {
+            "backupManagerId": "DEFAULT",
+            "actionId": "19822"
+        },
+        "registeredAgents": [
+            "busyTestAgent"
+        ],
+        "status": "Healthy"
+    }
+....
+
+Can also be used to check which agents are currently registered and if
+there is an ongoing Action.
+
+== Scheduling
+
+Each Backup Manager created by the Orchestrator has a scheduler configuration with default values of adminState _UNLOCKED_, scheduledBackupName _SCHEDULED_BACKUP_ and autoExport _DISABLED_.
+These values can be viewed by GET request to the scheduler endpoint.
+
+=== Get a Backup Manager's Scheduler Configuration
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/scheduler
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"adminState":"UNLOCKED","mostRecentlyCreatedAutoBackup":null,"nextScheduledTime":null,"scheduledBackupName":"SCHEDULED_BACKUP","autoExport":"DISABLED","autoExportPassword":"","autoExportUri":null}
+----
+
+The above example gets the scheduler configuration of the _DEFAULT_ Backup Manager.
+
+
+=== Update a Backup Manager's Scheduler Configuration
+
+The following configuration parameters can be updated by using a PUT request to the scheduler configuration endpoint:
+
+* 'adminState': Administrative state of the scheduler.  _LOCKED_ means no scheduled backups are performed.
+* 'scheduledBackupName': The configurable portion of the scheduled backup name. The scheduled backups are named <scheduled-backup-name>-<creation date and time>.
+* 'autoExport' - This may be set to "ENABLED" or "DISABLED"
+* 'autoExportPassword' - If using a secure export protocol (SFTP), this is the password used to authenticate the username provided in the export URI. Note this password is stored in an encrypted format and not returned as part of the scheduler configuration in response to a GET request.
+* 'autoExportUri' - This is the URI specifying the export location to export any successful scheduled backup to.
+
+When a backup managers scheduler is configured as above, the backup manager will automatically execute an EXPORT action following any successful scheduled backup, using the configured URI and password to configure the action. Scheduled backups which fail will not be exported.
+
+----
+    curl -i -X PUT \
+       -H "Content-Type: application/json" \
+       -d \
+       '{
+          "scheduledBackupName":"MY_SCHED_BACKUP",
+          "autoExport":"ENABLED",
+          "autoExportUri":"sftp://username@192.168.32.9/path/to/export/location",
+          "autoExportPassword":"somePassword"
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/scheduler/configuration
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"adminState":"UNLOCKED","mostRecentlyCreatedAutoBackup":null,"nextScheduledTime":"2020-10-20T20:57:22.123456Z","scheduledBackupName":"MY_SCHED_BACKUP","autoExport":"ENABLED","autoExportPassword":"*****","autoExportUri":"sftp://username@192.168.32.9/path/to/export/location"}
+----
+
+The above example updates the scheduler configuration of the _DEFAULT_ Backup Manager.
+
+=== Create a Periodic Scheduling Event for a Backup Manager
+
+The POST request on the periodic-events endpoint can be used to configure a periodic scheduled backup event by specifying the number of weeks, days, hours (mandatory), or minutes.
+
+Note that a maximum of 256 characters is allowed in the full path (which would include backup-manager's name and periodic-event's id).
+
+Parameters 'startTime' and 'stopTime' are used to configure when the event will begin and end.
+
+* 'startTime': If not specified, the current time is set.
+* 'stopTime':  If not specified, the event continues indefinitely.
+
+Note that if the 'startTime' or 'stopTime' is specified, but the timezone is not added then the system's default timezone will be used.
+
+----
+    curl -i -X POST \
+       -H "Content-Type: application/json" \
+       -d \
+       '{
+          "hours": 6,
+          "minutes": 30,
+          "startTime": "2020-10-22T19:45:41",
+          "stopTime": "2020-11-21T19:45:41"
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/scheduler/periodic-events
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"id":"20392"}
+----
+
+The above example creates a periodic scheduling event for the _DEFAULT_ Backup Manager.
+
+The id of the event is "20392".
+
+This will configure a scheduled backup to be performed every 6 hours and 30 minutes.
+The event will begin on 2020-10-22 at 19:45:41 and end on 2020-11-21 at 19:45:41.
+
+
+=== View a Periodic Scheduling Event for a Backup Manager
+
+All periodic events for a backup manager can be viewed by GET request on the periodic-events endpoint:
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/scheduler/periodic-events
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+
+   {
+    "events":
+       [
+         {"startTime":"2020-10-11T12:53:35Z","minutes":56,"hours":6,"days":2,"weeks":8,"id":"58785"},
+         {"startTime":"2020-10-22T19:45:41Z","minutes":30,"hours":6, "stopTime":"2020-11-21T19:45:41Z","id":"20392"}
+       ]
+    }
+----
+
+The above example gets all the periodic scheduling events for the _DEFAULT_ Backup Manager.
+
+
+A specific periodic event can be viewed by including the event id:
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/scheduler/periodic-events/<eventId>
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"startTime":"2020-10-22T19:45:41Z","minutes":30,"hours":6, "stopTime":"2020-11-21T19:45:41Z","id":"20392"}
+----
+
+The above example gets a specific periodic scheduling event for the _DEFAULT_ Backup Manager.
+
+=== Update a Periodic Scheduling Event for a Backup Manager
+
+A specific periodic event can be updated via a PUT request on the periodic-events endpoint:
+
+----
+    curl -i -X PUT \
+        -H "Content-Type: application/json" \
+        -d \
+        '{
+          "hours": 1
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/scheduler/periodic-events/20392
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"startTime":"2020-10-22T19:45:41Z","minutes":30,"hours":1, "stopTime":"2020-11-21T19:45:41Z","id":"20392"}
+----
+
+The periodic event will be re-scheduled with the updated values.
+
+=== Delete a Periodic Scheduling Event for a Backup Manager
+
+A periodic scheduling event can be deleted using the DELETE request on the periodic-events endpoint:
+
+----
+    curl -i -X DELETE \
+       -H "Content-Type: application/json"  \
+       http://<bro-service-name>:<bro-rest-port>/v3/backup-managers/DEFAULT/scheduler/periodic-events/20392
+----
+
+Expected output:
+----
+     HTTP/1.1 204
+----
+
+The above example deletes periodic scheduling event "20392" for the _DEFAULT_ Backup Manager.
+
+
+== HTTP Errors
+
+In most cases the error message returned back in the HTTP response
+should be clear.
+
+All errors should be in the format:
+
+....
+    {
+      "statusCode": XYZ,
+      "message": "error description"
+    }
+....
+
+The error 400 with message containing httpMessageNotReadable means that
+the content in the request body does not match the specified
+Content-Type in the request header. So for example if you specify
+application/json as Content-Type and the supplied data is not
+syntactically correct JSON, then you will get this error. Also if you
+specify multipart/form-data as Content-Type, but supplies JSON data, or
+if you omit Content-Length and have Content-Type defined.
+
+In case of 500 internal server errors, check the logs for further
+information about the fault. Usually a stack trace is logged for this
+error.
+
+Error 501 is returned if endpoint has not yet been implemented.
+
+==  BRO v4 REST API
+
+This section shows examples of how to use the Backup and Restore
+Orchestrator v4 REST API version with the _curl_ command.
+
+This guide does not cover every detail of the API. For a full definition
+see  BRO v4 REST API Specification.
+
+===  Get Orchestrator's Health
+
+Query for the Orchestrator's health.
+
+....
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/health
+....
+
+Expected output:
+....
+    HTTP/1.1 200
+    Content-Type: application/json;charset=UTF-8
+    Transfer-Encoding: chunked
+    Date: Wed, 11 Sep 2019 13:32:25 GMT
+
+    Response when available:
+
+    {
+        "status": "Healthy",
+    }
+
+    Response when busy:
+
+    {
+        "status": "Healthy",
+    }
+....
+
+
+===  Get all backup managers
+
+Query to get all the backup managers in the orchestrator.
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+    "backupManagers" : [
+        {
+            "id" : "DEFAULT",
+            "backupType": "myType",
+            "backupDomain": "myDomain"
+            "ongoingTasks" : []
+            "availableTasks" : [
+                {
+                "export" : {
+                  "href" : "/backup-restore/v4/backup-managers/DEFAULT/backups/mySampleBackup/exports",
+                  "method" : "POST"
+                }
+                },
+                {
+                "create" : {
+                    "href" : "/backup-restore/v4/backup-managers/DEFAULT/backups",
+                    "method" : "POST"
+                }
+                },
+                {
+                "import" : {
+                    "href" : "/backup-restore/v4/backup-managers/DEFAULT/imports",
+                    "method" : "POST"
+                }
+                },
+                {
+                "delete" : {
+                    "href" : "/backup-restore/v4/backup-managers/DEFAULT/backups/mySampleBackup",
+                    "method" : "DELETE"
+                }
+                },
+                {
+                "restore" : {
+                    "href" : "/backup-restore/v4/backup-managers/DEFAULT/backups/mySampleBackup/restores",
+                    "method" : "POST"
+                }
+                }
+            ],
+        },
+        {
+            "id" : "DEFAULT-bro",
+            "ongoingTasks" : [],
+            "availableTasks" : [
+                {
+                "restore" : {
+                    "href" : "/backup-restore/v4/backup-managers/DEFAULT/backups/mySampleBackup/restores",
+                    "method" : "POST"
+                }
+                }
+            ]
+        },
+        {
+
+            "id" : "configuration-data",
+            "backupType": "Configuration Data",
+            "backupDomain": "Configuration"
+            "ongoingTasks" : [],
+            "availableTasks" : [
+                {
+                "create" : {
+                    "href" : "/backup-restore/v4/backup-managers/configuration-data/backups",
+                    "method" : "POST"
+                }
+                },
+                {
+                "import" : {
+                    "href" : "/backup-restore/v4/backup-managers/configuration-data/imports",
+                    "method" : "POST"
+                }
+                }
+            ],
+        },
+        {
+            "id" : "configuration-data-bro",
+            "ongoingTasks" : [],
+            "availableTasks" : []
+        }
+    ]
+    }
+----
+
+The example response above shows 4 backup managers, of which 2 are BRO BRMs.
+
+The "DEFAULT" backup manager has a backup "mySampleBackup" which it can RESTORE, EXPORT, or DELETE. In addition, it can perform a CREATE_BACKUP or an IMPORT operation.
+Its associated BRO BRM, "DEFAULT-bro", can only perform a RESTORE operation using "mySampleBackup".
+
+On the other hand, the "configuration-data" backup manager does not have any backup. As such, its operations are limited to CREATE_BACKUP or IMPORT operation.
+As there is no backup, the corresponding BRO BRM, "configuration-data-bro", cannot perform a RESTORE operation.
+
+===  Get one Backup Manager
+
+Query to get one specific Backup Manager. Requires Id of Backup Manager.
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+    "id" : "DEFAULT",
+    "backupType": "myType",
+    "backupDomain": "myDomain"
+    "ongoingTasks": [
+        {
+        "create" : {
+            "href" : "/backup-restore/v4/backup-managers/DEFAULT/backups/newBackup",
+            "method" : "GET"
+        }
+        }
+    ]
+    "availableTasks" : [
+        {
+            "export" : {
+                "href" : "/backup-restore/v4/backup-managers/DEFAULT/backups/mySampleBackup/exports",
+                "method" : "POST"
+            }
+        }
+    ],
+    }
+
+----
+
+The example above shows the response for a DEFAULT backup manager which has an existing backup "mySampleBackup".
+It is in the process of executing a CREATE_BACKUP operation. In this particular situation, the feature allowing limited parallel action is enabled.
+As such, the DEFAULT backup manager can simultaneously perform an EXPORT operation for the existing backup.
+
+
+===  Get Agents Registered to a Backup Manager
+
+Query to get the agents registered to a backup manager. The query returns a list containing the agents' ids.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/agents
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    ["alpha", "bravo"]
+----
+
+===  Get all Backups
+
+Query for all Backups under a Backup Manager. Requires Id of the Backup Manager.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/backups
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [{
+      "id": "myBackup",
+      "name": "myBackup",
+      "creationTime": "2021-11-11T20:21:55.190728Z",
+      "creationType": "MANUAL",
+      "status": "COMPLETE",
+      "softwareVersions": [
+        {
+          "productName": "Name",
+          "productNumber: "12345",
+          "productRevision": "000",
+          "date": "2008-09-15T15:54:00+00:00",
+          "description": "Description",
+          "type": "Type"
+        }]
+----
+
+===  Get one Backup
+
+Query for one Backup under a Backup Manager. Requires Id of the Backup
+Manager and Backup.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/backups/myBackup
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "id": "myBackup",
+      "name": "myBackup",
+      "creationTime": "2021-11-11T15:08:13.733618Z",
+      "creationType": "MANUAL",
+      "status": "COMPLETE",
+      "softwareVersions": [
+        {
+          "productName": "Name",
+          "productNumber: "12345",
+          "productRevision": "000",
+          "date": "2008-09-15T15:54:00+00:00",
+          "description": "Description",
+          "type": "Type"
+        }
+      ],
+      "task": {
+        "result": "SUCCESS",
+        "resultInfo": "{Agent: TestAgent, Stage: EXECUTION, success: true, message: Preparation for backup is successful}, {Agent: TestAgent, Stage: POST_ACTIONS, success: true, message: The test service has completed a backup for myBackup and the data has been sent to the orchestrator}, {Agent: TestAgent, Stage: COMPLETE, success: true, message: Post backup actions completed}",
+        "state": "FINISHED",
+        "progressPercentage": 1.0,
+        "startTime": "2021-11-11T15:08:12.244462",
+        "completionTime": "2021-11-11T15:08:14.876179",
+        "lastUpdateTime": "2021-11-11T15:08:14.876179"
+      }
+    }
+----
+
+This can be used to see the status of a backup, or which software versions
+were used when it was taken.
+
+===  Get the last completed task
+
+Query to get last completed task from a Backup Manager.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/last-task
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "result" : "SUCCESS",
+      "resultInfo" : "{Agent: lastTask, Stage: EXECUTION, success: true, message: Ended: [ Caller: backup, AgentId: lastTask ]}, {Agent: lastTask, Stage: POST_ACTIONS, success: true, message: Ended: [ Caller: backup, AgentId: lastTask ]}, {Agent: lastTask, Stage: COMPLETE, success: true, message: Ended: [ Caller: backup, AgentId: lastTask ]}",
+      "state" : "FINISHED",
+      "progressPercentage" : 1.0,
+      "startTime" : "2021-11-11T13:45:46.3862653",
+      "completionTime" : "2021-11-11T13:45:48.5477249",
+      "lastUpdateTime" : "2021-11-11T13:45:48.5477249",
+      "resource" : "/backup-restore/v4/backup-managers/DEFAULT/backups/myBackup/"
+    }
+----
+
+===  Get all tasks
+
+Query to get the list of running and completed tasks of a backup manager.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/tasks
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [{
+      "id" : "9066",
+      "name" : "CREATE_BACKUP",
+      "result" : "SUCCESS",
+      "startTime" : "2022-11-22T07:36:17.549843Z"
+     },
+     {
+      "id" : "64535",
+      "name" : "HOUSEKEEPING",
+      "result" : "SUCCESS",
+      "startTime" : "2022-11-22T07:36:17.704552Z"
+     }]
+----
+
+===  Get a specific task
+
+Query to get a specific running or completed task from a backup manager.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/tasks/9066
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+    {
+     "completionTime" : "2022-11-22T07:36:48.586907",
+     "lastUpdateTime" : "2022-11-22T07:36:48.586907",
+     "progressPercentage" : 1,
+     "resource" : "/backup-restore/v4/backup-managers/DEFAULT/backups/backup/",
+     "result" : "SUCCESS",
+     "resultInfo" : "{Agent: testAgent, Stage: EXECUTION, success: true, message: Ended: [ Caller: backup, AgentId: testAgent ]}, {Agent: testAgent, Stage: POST_ACTIONS, success: true, message: Ended: [ Caller: backup, AgentId: testAgent ]}, {Agent: testAgent, Stage: COMPLETE, success: true, message: Ended: [ Caller: backup, AgentId: testAgent ]}",
+     "startTime" : "2022-11-22T07:36:17.549843",
+     "state" : "FINISHED"
+    }
+----
+
+===  Get all Import actions
+
+Query to get all the Import actions from a Backup Manager. Requires Id of Backup Manager.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/imports
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+   [
+      {
+        "uri" : "sftp://user@localhost:222/remote/DEFAULT/myBackup-2021-05-04T11:32:43.167332Z.tar.gz",
+        "backup" : "/backup-restore/v4/backup-managers/DEFAULT/backups/myBackup",
+        "id" : "20540"
+     }
+    ]
+----
+
+===  Get one Import action
+
+Query to get an Import action from a Backup Manager. Requires Id of Backup Manager and Import action.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/imports/20540
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "uri" : "sftp://user@localhost:222/remote/DEFAULT/myBackup",
+      "task" : {
+        "result" : "SUCCESS",
+        "state" : "FINISHED",
+        "progressPercentage" : 1.0,
+        "startTime" : "2021-11-15T16:51:59.5908398",
+        "completionTime" : "2021-11-15T16:52:03.7622094",
+        "lastUpdateTime" : "2021-11-15T16:52:03.7622094"
+      },
+      "backup" : "/backup-restore/v4/backup-managers/DEFAULT/backups/myBackup",
+      "id" : "20540"
+    }
+----
+
+===  Get all Export actions
+
+Query to get all the Export actions of a backup from a Backup Manager. Requires Id of Backup Manager and Id of backup.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/backups/<backup-id>/exports
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+      {
+        "uri" : "sftp://user@localhost:222/remote/DEFAULT/",
+        "id" : "17153"
+      }
+    ]
+----
+
+===  Get one Export action
+
+Query to get an Export action of a backup from a Backup Manager. Requires Id of Backup Manager, Id of backup, and Id of Export action.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/backups/<backup-id>/exports/30849
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "uri" : "sftp://user@localhost:222/remote/DEFAULT/",
+      task: {
+        "result" : "SUCCESS",
+        "state" : "FINISHED",
+        "progressPercentage" : 1.0,
+        "additionalInfo":"Exported Backup: myBackup-2021-11-15T17:12:21.3410408Z.tar.gz",
+        "startTime" : "2021-11-15T17:12:21.3410408",
+        "completionTime" : "2021-11-15T17:12:25.4891661",
+        "lastUpdateTime" : "2021-11-15T17:12:25.4891661"
+      }
+    }
+
+----
+
+===  Get all Restore actions
+
+Query to get all the Restore actions of a backup from a Backup Manager. Requires Id of Backup Manager and Id of backup.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/backups/<backup-id>/restores
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+          {
+           "id" : "1324"
+        }
+      ]
+----
+
+===  Get one Restore action
+
+Query to get a Restore action of a backup from a Backup Manager. Requires Id of Backup Manager, Id of backup and of Id Restore action.
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/backups/<backup-id>/restores/49559
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "task" {
+        "result" : "SUCCESS",
+        "resultInfo" : "{Agent: Restores, Stage: EXECUTION, success: true, message: Ended: [ Caller: downloadFragments, AgentId: Restores ]}, {Agent: Restores, Stage: POST_ACTIONS, success: true, message: Ended: [ Caller: downloadFragments, AgentId: Restores ]}, {Agent: Restores, Stage: COMPLETE, success: true, message: Ended: [ Caller: downloadFragments, AgentId: Restores ]}",
+        "state" : "FINISHED",
+        "progressPercentage" : 1.0,
+        "startTime" : "2021-11-15T17:21:35.6546013",
+        "completionTime" : "2021-11-15T17:21:36.6878966",
+        "lastUpdateTime" : "2021-11-15T17:21:36.6878966"
+      }
+    }
+----
+
+===  Get a Backup Manager's Housekeeping Configuration
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/housekeeping
+----
+
+Expected output:
+----
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {"autoDelete": "enabled", "maxStoredBackups": 10}
+----
+
+The above example gets the housekeeping configuration of _DEFAULT_ Backup Manager.
+
+
+===  Put a Backup Manager's Housekeeping Configuration
+
+Updates housekeeping configuration under a Backup Manager by PUT method. Requires Id of the Backup Manager, autoDelete and maxStoredBackups values of the housekeeping.
+
+....
+    curl -i -X PUT \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "autoDelete": "enabled",
+      "maxStoredBackups": 10
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/housekeeping'
+....
+
+Expected output:
+....
+    HTTP/1.1 204
+    X-Content-Type-Options: nosniff
+    Date: Wed, 15 Jun 2022 10:02:17 GMT
+....
+
+If the limit specified by the value of maxStoredBackups is less than the number of backups available in BRM then,
+BRM removes backups in the order of incomplete or corrupted backups followed by the oldest backup, until the number of backups in BRM matches maxStoredBackups value, and the BRM's housekeeping is updated.
+
+if autoDelete or maxStoredBackups is missing from the REST call, the result will indicate the missing field, for example:
+
+....
+    curl -i -X PUT \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "autoDelete": "enabled"
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/housekeeping'
+....
+
+Expected output:
+....
+    HTTP/1.1 202
+    Content-Type: application/json;charset=UTF-8
+
+    {"statusCode":400, "message": "Missing required field maxStoredBackups"}
+....
+
+===  Patch a Backup Manager's Housekeeping Configuration
+
+Partially update housekeeping configuration under a Backup Manager by PATCH method. Requires Id of the Backup Manager and either autoDelete or maxStoredBackups values of the housekeeping.
+
+....
+    curl -i -X PATCH \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "autoDelete": "enabled"
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/housekeeping'
+....
+
+Expected output:
+....
+    HTTP/1.1 204
+    X-Content-Type-Options: nosniff
+    Date: Wed, 15 Jun 2022 10:04:32 GMT
+....
+
+The only difference between PATCH and PUT is that PATCH endpoint allows partially updating housekeeping.
+
+
+===  Get a Backup Manager's Scheduler Configuration
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/scheduling
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"adminState":"UNLOCKED","mostRecentlyCreatedAutoBackup":null,"nextScheduledTime":null,"scheduledBackupNamePrefix":"SCHEDULED_BACKUP","autoExport":"DISABLED","autoExportPassword":"","autoExportUri":null}
+----
+
+The above example gets the scheduler configuration of the _DEFAULT_ Backup Manager.
+
+===  PUT a Backup Manager's Scheduler Configuration
+
+Updates scheduler configuration under a Backup Manager by PUT method.
+----
+curl -i -X PUT \
+   -H "Content-Type: application/json" \
+   -d \
+  '{
+    "adminState": "UNLOCKED",
+    "scheduledBackupName":"backup",
+    "autoExport":"DISABLED",
+    "autoExportUri":"sftp://user@host:port/remotepath",
+    "autoExportPassword":""
+  }' \
+  'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/scheduling'
+----
+
+Expected output:
+----
+    HTTP/1.1 204
+    X-Content-Type-Options: nosniff
+    Date: Wed, 15 Jun 2022 10:15:05 GMT
+----
+
+If there is a field missing in the request body, for example:
+
+....
+    curl -i -X PUT \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+      "scheduledBackupName": "backup",
+      "autoExportUri":"sftp://user@host:port/remotepath",
+      "autoExportPassword":""
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/scheduling'
+....
+
+Expected output:
+....
+    HTTP/1.1 202
+    Content-Type: application/json;charset=UTF-8
+
+    {"statusCode":400, "message": "Missing required field autoExport"}
+....
+
+===  PATCH a Backup Manager's Scheduler Configuration
+
+Partially update scheduler configuration under a Backup Manager by PATCH method. At least one field should be provided in the request body.
+
+----
+curl -i -X PATCH \
+   -H "Content-Type: application/json" \
+   -d \
+  '{
+    "scheduledBackupName":"backup2"
+  }' \
+  'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/configuration/scheduling'
+----
+
+Expected output:
+----
+    HTTP/1.1 204
+    X-Content-Type-Options: nosniff
+    Date: Wed, 15 Jun 2022 10:17:13 GMT
+----
+
+===  View All Periodic Scheduling Events for a Backup Manager
+
+All periodic events for a backup manager can be viewed by GET request on the periodic-schedules endpoint:
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/periodic-schedules
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+
+   {
+    "schedules":
+       [
+         {"startTime":"2020-10-11T12:53:35Z","minutes":56,"hours":6,"days":2,"weeks":8,"id":"58785"},
+         {"startTime":"2020-10-22T19:45:41Z","minutes":30,"hours":6, "stopTime":"2020-11-21T19:45:41Z","id":"20392"}
+       ]
+    }
+----
+
+The above example gets all the periodic scheduling events for the _DEFAULT_ Backup Manager.
+
+===  View a Periodic Scheduling Event for a Backup Manager
+
+A specific periodic event can be viewed by including the event id:
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/periodic-schedules/20392
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"startTime":"2020-10-22T19:45:41Z","minutes":30,"hours":6, "stopTime":"2020-11-21T19:45:41Z","id":"20392"}
+----
+
+The above example gets a specific periodic scheduling event for the _DEFAULT_ Backup Manager.
+
+===  Create a Periodic Schedule for a Backup Manager
+
+The POST request on the periodic-schedules endpoint can be used to configure a periodic schedule backup by specifying the number of weeks, days, hours, or minutes.
+
+Parameters 'startTime' and 'stopTime' are used to configure when the event will begin and end.
+
+* 'startTime': If not specified, the current time is set.
+* 'stopTime':  If not specified, the event continues indefinitely.
+
+----
+    curl -i -X POST \
+       -H "Content-Type: application/json" \
+       -d \
+       '{
+          "hours": 6,
+          "minutes": 30,
+          "startTime": "2020-10-22T19:45:41",
+          "stopTime": "2020-11-21T19:45:41"
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/periodic-schedules
+
+----
+
+Expected output:
+----
+    HTTP/1.1 201
+    Content-Type: application/json
+
+    {"id":"20392"}
+----
+
+The above example creates a periodic-schedule for the _DEFAULT_ Backup Manager.
+
+The id of the action is "20392".
+
+This will configure a scheduled backup to be performed every 6 hours and 30 minutes.
+The event will begin on 2020-10-22 at 19:45:41 and end on 2020-11-21 at 19:45:41.
+
+===  PUT a Periodic Schedules for a Backup Manager
+
+The PUT request on the periodic-schedules endpoint can be used to replace an existing schedule.
+
+Fields that are not provided will be reset to its default values:
+
+* 'minutes': 0
+* 'hours': 0
+* 'weeks': 0
+* 'days': 0
+* 'startTime': If not specified, the current time is set.
+* 'stopTime':  If not specified, the event continues indefinitely.
+
+----
+    curl -i -X PUT \
+        -H "Content-Type: application/json" \
+        -d \
+        '{
+          "startTime":"2020-10-22T19:45:41Z",
+          "hours": 1
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/periodic-schedules/20392
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"startTime":"2020-10-22T19:45:41Z","minutes":0,"hours":1,"days":0,"weeks":0,"id":"19034"}
+----
+
+The periodic schedule will be re-scheduled with the updated values.
+
+===  PATCH a Periodic Schedule for a Backup Manager
+
+A specific periodic-schedule can be updated via a PATCH request on the periodic-schedule endpoint:
+
+----
+    curl -i -X PATCH \
+        -H "Content-Type: application/json" \
+        -d \
+        '{
+          "hours": 1,
+          "minutes": 10
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/periodic-schedules/20392
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"id":"20392"}
+----
+
+The periodic schedule will be re-scheduled with the updated values.
+
+===  Delete a Periodic Schedule for a Backup Manager
+
+A periodic schedule can be deleted using the DELETE request on the periodic-schedule endpoint:
+
+----
+    curl -i -X DELETE \
+       -H "Content-Type: application/json"  \
+       http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/periodic-schedules/20392
+----
+
+Expected output:
+----
+     HTTP/1.1 204
+----
+
+The above example deletes periodic schedule "20392" for the _DEFAULT_ Backup Manager.
+
+===  Create a Calendar Schedule for a Backup Manager
+
+The POST request on the calendar-schedules endpoint can be used to configure a calendar schedule backup by specifying following parameters.
+
+* 'startTime': If not specified, the current time is set.
+* 'stopTime':  If not specified, the event continues indefinitely.
+* 'time': This is the time when the scheduled event must occur. It's the only required parameter.
+* 'month': The month when the scheduled event must occur.
+* 'dayOfMonth': The day of month when the scheduled event must occur.
+* 'dayOfWeek': Day of week. SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, ALL
+* 'dayOfWeekOccurrence': The occurrence of the day of week specified by day-of-week leaf in the month. FIRST, SECOND, THIRD, FOURTH, LAST, ALL
+
+Note that if the 'startTime' or 'stopTime' is specified, but the timezone is not added then the system's default timezone will be used.
+
+Example 1:
+----
+    curl -i -X POST \
+       -H "Content-Type: application/json" \
+       -d \
+       '{
+          "time": "14:00:00"
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/calendar-schedules
+
+
+    HTTP/1.1 201
+    Content-Type: application/json
+
+    {"id":"54235"}
+----
+
+The above example creates a calendar-schedule for the _DEFAULT_ Backup Manager.
+
+The id of the action is "54235".
+
+This will configure a scheduled backup to be performed every day at 14:00:00.
+
+Example 2:
+----
+    curl -i -X POST \
+       -H "Content-Type: application/json" \
+       -d \
+       '{
+           "month": "2",
+           "dayOfMonth": "15",
+           "time": "14:00:00"
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/calendar-schedules
+
+
+    HTTP/1.1 201
+    Content-Type: application/json
+
+    {"id":"54273"}
+----
+
+This will configure a scheduled backup to be performed every 15th of February at 14:00:00.
+
+Example 3:
+----
+    curl -i -X POST \
+       -H "Content-Type: application/json" \
+       -d \
+       '{
+           "dayOfWeek": "SUNDAY",
+           "dayOfWeekOccurrence": "FIRST",
+           "time": "14:00:00"
+        }' \
+        http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/calendar-schedules
+
+
+    HTTP/1.1 201
+    Content-Type: application/json
+
+    {"id":"54233"}
+----
+
+This will configure a scheduled backup to be performed every first Sunday of every month at 14:00:00.
+
+===  View All Calendar Schedules for a Backup Manager
+
+All calendar events for a backup manager can be viewed by GET request on the calendar-schedules endpoint:
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/calendar-schedules
+
+    HTTP/1.1 200
+    Content-Type: application/json
+
+
+   {
+    "schedules":
+       [
+            {"id":"14297","time":"14:52:00","startTime":"2022-05-26T12:29:09.629000600+01:00","month":0,"dayOfMonth":0,"dayOfWeek":"ALL","dayOfWeekOccurrence":"ALL"},
+            {"id":"45298","time":"08:20:00","startTime":"2022-05-26T13:56:41.255035300+01:00","month":2,"dayOfMonth":15}
+       ]
+    }
+----
+
+The above example gets all the calendar schedules for the _DEFAULT_ Backup Manager.
+
+===  View a Calendar Schedule for a Backup Manager
+
+A specific calendar schedule can be viewed by including the schedule id:
+
+----
+    curl -i http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/periodic-schedules/45298
+
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"id":"45298","time":"08:20:00","startTime":"2022-05-26T13:56:41.255035300+01:00","month":2,"dayOfMonth":15}
+----
+
+The above example gets a specific calendar schedule for the _DEFAULT_ Backup Manager.
+
+===  Delete a Calendar Schedule for a Backup Manager
+
+A calendar schedule can be deleted using the DELETE request on the calendar-schedules endpoint:
+
+----
+    curl -i -X DELETE \
+       -H "Content-Type: application/json"  \
+       http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/calendar-schedules/45298
+
+
+     HTTP/1.1 204
+----
+
+The above example deletes calendar schedule "45298" for the _DEFAULT_ Backup Manager.
+
+===  Replace a Calendar Schedule for a Backup Manager
+
+A calendar schedule can be replaced using the PUT request on the calendar-schedules endpoint:
+
+----
+    curl -i -X PUT \
+       -H "Content-Type: application/json"  \
+       -d \
+       '{
+          "time": "14:00:00"
+        }' \
+       http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/calendar-schedules/20226
+
+
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"id":"20226","time":"14:00:00","startTime":"2022-08-29T12:14:29.666526+01:00","month":0,"dayOfMonth":0,"dayOfWeek":"ALL","dayOfWeekOccurrence":"ALL"}
+----
+
+The above example replaces calendar schedule "20226" for the _DEFAULT_ Backup Manager.
+
+===  Update a Calendar Schedule for a Backup Manager
+
+A calendar schedule can be updated using the PATCH request on the calendar-schedules endpoint:
+
+----
+    curl -i -X PATCH \
+       -H "Content-Type: application/json"  \
+       -d \
+       '{
+          "dayOfWeek": "SUNDAY"
+        }' \
+       http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/DEFAULT/calendar-schedules/20226
+
+
+    HTTP/1.1 200
+    Content-Type: application/json
+
+    {"id":"20226","time":"14:00:00","startTime":"2022-08-29T13:56:41.255035300+01:00","month":0,"dayOfMonth":0,"dayOfWeek":"SUNDAY","dayOfWeekOccurrence":"ALL"}
+----
+
+The above example updates calendar schedule "20226" for the _DEFAULT_ Backup Manager, which was replaced by previous example.
+
+===   Creating the Backup
+
+----
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+        "name": "myBackup"
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/configuration-data/backups'
+----
+
+Expected output:
+----
+    HTTP/1.1 202
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"13286"}
+----
+
+This example is requesting a CREATE_BACKUP on the _configuration-data_ Backup Manager.
+
+A Backup called "myBackup" will be created.
+
+The id of the action is "13286".
+
+
+===  Restoring a Backup
+
+----
+    curl -i -X POST \
+    'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/configuration-data/backups/myBackup/restores'
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"13298"}
+----
+
+This example is requesting a RESTORE of specified backup-id on the _configuration-data_ Backup Manager.
+
+The id of the restore is "13298".
+
+
+===   Exporting a Backup
+
+----
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+        "uri": "sftp://user@host:port/remotepath",
+        "password": "password"
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/configuration-data/backups/<backup-id>/exports'
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json;charset=UTF-8
+
+    {
+      "id":"65486",
+      "uri": "remotepath/configuration-data/<backup-id>-<date>T<time><timezone>.tar.gz"
+    }
+----
+
+This example is requesting an EXPORT of specified backup on the _configuration-data_ Backup Manager.
+
+The id of the export is "65486".
+
+Here, the backup folder _configuration-data_ will be created on the _remotepath_, and the backup will be exported from the Orchestrator to the _remotepath_/_configuration-data_/_<backup-id>-<date>T<time><timezone>.tar.gz_ on the SFTP server.
+
+In the case of SFTP, a checksum will be created and exported to _remotepath_/_configuration-data_/_<backup-id>-<date>T<time><timezone>.tar.gz.xxh64_
+
+**NOTE**: Exporting to a Windows SFTP server is not supported by BRO.
+
+===   Importing a Backup
+
+Only backups taken and exported by the Backup and Restore Orchestrator can be imported. The backup to be imported must not exist on the Orchestrator.
+
+Import from SFTP Server specifying tarball:
+----
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+        "uri": "sftp://user@host:port/remotepath/configuration-data/<backup-id>-<date>T<time><timezone>.tar.gz",
+        "password": "password"
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/configuration-data/imports'
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"13632"}
+----
+
+This example is requesting an IMPORT of a tarball backup. A valid checksum file must exist on the SFTP server otherwise the import will fail.
+
+The id of the import is "13632".
+
+Import from SFTP Server without specifying tarball:
+----
+    curl -i -X POST \
+       -H "Content-Type:application/json" \
+       -d \
+    '{
+        "uri": "sftp://user@host:port/remotepath/configuration-data/<backup-id>",
+        "password": "password"
+    }' \
+     'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/configuration-data/imports'
+----
+
+Expected output:
+----
+    HTTP/1.1 200
+    Content-Type: application/json;charset=UTF-8
+
+    {"id":"13632"}
+----
+
+In this case the import URI payload only specifies backup-id.
+If a tarball exists with the prefix of backup-id e.g _<backup-id>-<date>T<time><timezone>.tar.gz.xxh64_ it will be selected for import. A valid checksum file must exist on the SFTP server otherwise the import will fail.
+If a backup exists in the form of a directory _backup-id_ and tarball exists with the prefix _backup-id_, the directory will take precedence and be selected for import.
+Where multiple backups exists on the SFTP as a tarball with same prefix _myBackup_, a specific tarball will have to be set in the URI payload.
+
+This example is requesting the import of backup _backup-id_, that belongs to the _configuration-data_ Backup Manager.
+
+The id of the import is "13632".
+
+Here, the backup _backup-id_ specified in the URI will be imported to the Orchestrator from the SFTP server based on _remotepath_/_configuration-data_/_backup-id_.
+
+=== URI Validation
+
+Backup and Restore Orchestrator performs validation on URI specified in the import/export payload.
+
+  * The _user_ part of URI allows alpha numeric characters, underscore and hyphen only.
+  * The _host_ and _port_ part of URI allows both IPV4 and IPV6 address.
+  * The _remotepath_ part of URI allows alpha numeric characters and special characters (-.?:'/\+=&;%$#_,).
+
+
+===   Deleting the Backup
+
+----
+    curl -i -X DELETE \
+    'http://<bro-service-name>:<bro-rest-port>/backup-restore/v4/backup-managers/configuration-data/backups/myBackup'
+----
+
+Expected output:
+----
+    HTTP/1.1 204
+----
+
+This example is requesting deletion of backup _myBackup_, that belongs to the _configuration-data_ Backup Manager.
+
+Here, the backup will be deleted from the Orchestrator and will no longer be available to be used for a restore or export. All of the backup's data will be deleted from the Orchestrator's storage.
+
+
+[bibliography]
+References
+----------
+[bibliography]
+* curl https://curl.haxx.se/docs/manpage.html
+* [[rest_specification]]Backup and Restore Orchestrator Rest Specification 2/15519-CAF 101 27/5 R1A
+* [[OperationsGuide]]Backup and Restore Operations Guide 2/19817-APR 201 40/5

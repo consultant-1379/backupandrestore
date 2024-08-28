@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "context": {
+      "type": "string",
+      "description": "Where the action was called"
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "ericsson-brm:uri": {
+          "type": "string",
+          "description": "URI of remote location"
+        },
+        "ericsson-brm:password": {
+          "type": "string",
+          "description": "Password to access it"
+        }
+      }
+    }
+  },
+  "required": [
+    "context",
+    "input"
+  ]
+}

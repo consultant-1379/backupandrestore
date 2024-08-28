@@ -1,0 +1,7 @@
+lazy-fossa:
+  directory: "service"
+  project: "Backup and Restore Orchestrator"
+  team: "ADP-BRO-PlanB"
+  primary-list: "fossa/parents.txt"
+  version: 10.3.0
+  product-structure: "fossa/product_structure.yaml"

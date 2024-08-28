@@ -1,0 +1,30 @@
+= Trademark Information
+:author: Prem Kumar
+:doc-name: Trademark Information
+:doc-no: 1/00651-APR 201 40/3
+:revnumber: Rev A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Services
+
+- Backup and Restore Orchestrator
+
+== Trademarks Used in Services
+
+For the documents about **Backup and Restore Orchestrator**, the trademarks used and their respective owners, are as follows:
+
+- **Spring^(R)^** is a registered trademark of Pivotal Software, Inc.
+- **gRPC^(R)^** is a registered trademark of THE LINUX FOUNDATION^(R)^.
+- **ESAPI** (The OWASP Enterprise Security API) is a trademark of the OWASP Foundation.
+- **Apache^(R)^ Kafka** and **Kafka^(R)^** are registered trademarks or trademarks of the Apache Software Foundation in the United States and/or other countries.
+- **Apache^(R)^ ZooKeeper** and **ZooKeeper^(TM)^** are trademarks of the Apache Software Foundation in the United States and/or other countries.
+- **Apache ^(R)^**, **Apache HttpComponents^(TM)^**, **Commons HttpClient^(TM)^** are trademarks of the Apache Software Foundation in the United States and/or other countries.
+- **Helm^(TM)^** is a trademark of THE LINUX FOUNDATION^(R)^.
+- **KUBERNETES^(R)^** is a registered trademark of THE LINUX FOUNDATION^(R)^.
+- **jsch** is a trademark of SSH Communications Security Corp.
+- **Docker** and the Docker logo are trademarks or registered trademarks of Docker, Inc. in the United States and/or other countries.
+  Docker, Inc. and other parties may also have trademark rights in other terms used herein.
+- **Oracle** and **Java** are registered trademarks of Oracle and/or its affiliates. Other names may be trademarks of their respective owners.
+- **Ericsson** is the trademark or registered trademark of Telefonaktiebolaget LM Ericsson.

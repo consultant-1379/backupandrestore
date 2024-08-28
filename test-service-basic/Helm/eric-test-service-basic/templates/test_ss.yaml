@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "eric-test-service-basic.name" . }}
+  annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4}}
+spec:
+  selector:
+    matchLabels:
+       app.kubernetes.io/name: {{ template "eric-test-service-basic.name" . }}
+       app.kubernetes.io/instance: {{.Release.Name | quote }}
+  serviceName:  {{ template "eric-test-service-basic.name" . }}
+  podManagementPolicy: "Parallel"
+  replicas: {{ .Values.testServiceBasic.replicas }}
+  updateStrategy:
+    type: {{ .Values.updateStrategy.type | quote }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ template "eric-test-service-basic.name" . }}
+        app.kubernetes.io/version: {{ template "eric-test-service-basic.version" . }}
+        app.kubernetes.io/instance: {{.Release.Name | quote }}
+      annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 8 }}
+    spec:
+{{- include "eric-test-service-basic.pullsecret" . }}
+      serviceAccountName: {{ template "eric-test-service-basic.serviceAccountName" . }}
+      securityContext:
+        fsGroup: 287330
+      containers:
+      - name:  {{ .Chart.Name }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          privileged: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        imagePullPolicy: {{ .Values.imagePullPolicy | quote }}
+        {{- if .Values.imageCredentials.registry.url }}
+        image: "{{ .Values.imageCredentials.registry.url }}/{{ .Values.imageCredentials.repoPath }}/{{ .Values.imageCredentials.brSubPath }}/{{ .Values.images.testservicebasic.name }}:{{ .Values.images.testservicebasic.tag }}"
+        {{- else }}
+        image: "{{ .Values.global.registry.url }}/{{ .Values.imageCredentials.repoPath }}/{{ .Values.imageCredentials.brSubPath }}/{{ .Values.images.testservicebasic.name }}:{{ .Values.images.testservicebasic.tag }}"
+        {{- end }}
+        resources:
+          requests:
+            memory: {{ .Values.testServiceBasic.resources.requests.memory | quote }}
+            cpu: {{ .Values.testServiceBasic.resources.requests.cpu | quote }}
+          limits:
+            memory: {{ .Values.testServiceBasic.resources.limits.memory | quote }}
+            cpu: {{ .Values.testServiceBasic.resources.limits.cpu | quote }}
+        ports:
+        - containerPort: {{ .Values.testServiceBasic.port }}
+          name: agentbasic
+        command: ["/bin/sh","-c"]
+        args: ["cp /servicedata/data.txt backupdata/data.txt; cp /servicedata/CustomMetadata.txt backupdata/CustomMetadata.txt; tail -f  /dev/null"]
+        readinessProbe:
+          exec:
+            command:
+            - uname
+            - -a
+          initialDelaySeconds: {{ .Values.testServiceBasic.readinessProbeInitialDelaySeconds }}
+          timeoutSeconds: {{ .Values.testServiceBasic.readinessProbeTimeoutSeconds }}
+        livenessProbe:
+          exec:
+            command:
+            - uname
+            - -a
+          initialDelaySeconds: {{ .Values.testServiceBasic.livenessProbeInitialDelaySeconds }}
+          timeoutSeconds: {{ .Values.testServiceBasic.livenessProbeTimeoutSeconds }}
+        volumeMounts:
+        - name: testdatadir
+          mountPath: /backupdata
+  volumeClaimTemplates:
+  - metadata:
+      name: testdatadir
+    spec:
+      accessModes: [ {{ .Values.testServiceBasic.persistantVolumeClaim.accessModes | quote }} ]
+      resources:
+        requests:
+          storage: {{ .Values.testServiceBasic.persistantVolumeClaim.storage | quote }}
+      {{- if and (ne .Values.testServiceBasic.persistantVolumeClaim.storageClassName "default") (.Values.testServiceBasic.persistantVolumeClaim.storageClassName) }}
+      storageClassName: {{ .Values.testServiceBasic.persistantVolumeClaim.storageClassName | quote }}
+      {{- end }}
+

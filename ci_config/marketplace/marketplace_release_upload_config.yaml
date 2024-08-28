@@ -1,0 +1,47 @@
+is_cpi_updated: true
+documents:
+  - name: "Service User Guide"
+    filepath: build/doc-marketplace/service-user-guide.zip
+    default: true
+  - name: "Characteristics Report"
+    filepath: build/doc-marketplace/characteristics-report.zip
+  - name: "Agent Implementation Guide"
+    filepath: build/doc-marketplace/agent-implementation-guide.zip
+  - name: REST API Specification V1 V3
+    external-link: https://apiguild.internal.ericsson.com/catalog/#api-portal/api-finder/api-viewer?id=eb6b55dc-c378-46b6-b614-46e80c677cf4&version=3.0.0
+  - name: REST API Specification V4
+    external-link: https://apiguild.internal.ericsson.com/catalog/#api-portal/api-finder/api-viewer?id=eb6b55dc-c378-46b6-b614-46e80c677cf4&version=4.0.0
+  - name: "REST API User Guide"
+    filepath: build/doc-marketplace/rest-api-user-guide.zip
+  - name: "GRPC API Specification"
+    filepath: build/doc-marketplace/grpc-api-specification.zip
+  - name: "GRPC API User Guide"
+    filepath: build/doc-marketplace/grpc-api-user-guide.zip
+  - name: "Operations Guide"
+    filepath: build/doc-marketplace/operations-guide.zip
+  - name: "Operations Guide for BRO with CM YP"
+    filepath: build/doc-marketplace/operations-guide-cmyp.zip
+  - name: "Product Revision Information (PRI)"
+    external-link: PRI_DOC_LINK
+  - name: "Software Vendor List (SVL)"
+    filepath: build/bro-doc-svl/svl.zip
+  - name: "SVL for BRO-AGENT-API"
+    filepath: build/agent-doc-svl/agent-svl.zip
+  - name: "Risk Assessment & Privacy Impact Assessment"
+    external-link: RA_DOC_LINK
+    restricted: true
+  - name: "Secure Coding Report"
+    external-link: SECURE_CODING_REPORT_DOC_LINK
+    restricted: true
+  - name: "BRO Vulnerability Analysis Report"
+    external-link: BRO_VA_DOC_LINK
+    restricted: true
+  - name: "Agent API Vulnerability Analysis Report"
+    external-link: AGENT_API_VA_DOC_LINK
+    restricted: true
+  - name: "Test Specification"
+    external-link: TEST_SPECIFICATION_DOC_LINK
+  - name: "Test Report"
+    external-link: TEST_REPORT_DOC_LINK
+  - name: "Log4j2 Socket Appender Installation Guide"
+    filepath: build/doc-marketplace/appender-installation-guide.zip

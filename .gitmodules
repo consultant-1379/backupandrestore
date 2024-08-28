@@ -1,0 +1,13 @@
+[submodule "bob"]
+	path = bob
+	url = ../../../adp-cicd/bob
+[submodule "testframework"]
+	path = testframework
+	url = ../testframework
+	ignore = dirty
+[submodule "smart-helm-hooks"]
+	path = smart-helm-hooks
+	url = ../../../adp-flex-teams/smart-helm-hooks
+[submodule "httpprobe"]
+	path = httpprobe
+	url = ../../../adp-common-src/httpprobe

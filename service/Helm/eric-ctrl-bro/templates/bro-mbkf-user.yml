@@ -1,0 +1,51 @@
+{{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") -}}
+{{- if .Values.bro.enableNotifications -}}
+{{- if and (eq (include "eric-ctrl-bro.kafkaOperatorEnabled" .) "true") .Values.messageBusKF.userCustomObject.enabled -}}
+apiVersion: mbkf.data.ericsson.com/v1
+kind: User
+metadata:
+  name: eric-ctrl-bro-mbkf
+spec:
+  userName: eric-ctrl-bro-mbkf # If userName not mentioned then metadata.name will be taken as user name.
+  messageBusKfClusters:
+  - {{ template "eric-ctrl-bro.certificate-authorities.message-bus-kf" . }}
+  authorization:
+    acls:
+    # Example ACL rules for consuming from bro-notification using consumer group my-group
+    - resource:
+        type: topic
+        name: bro-notification
+        patternType: literal
+      operation: Read
+      host: "*"
+    - resource:
+        type: topic
+        name: bro-notification
+        patternType: literal
+      operation: Describe
+      host: "*"
+    - resource:
+        type: group
+        name: my-group
+        patternType: literal
+      operation: Read
+      host: "*"
+    # Example ACL rules for producing to topic bro-notification
+    - resource:
+        type: topic
+        name: bro-notification
+        patternType: literal
+      operation: Write
+      host: "*"
+    - resource:
+        type: topic
+        name: bro-notification
+        patternType: literal
+      operation: Create
+      host: "*"
+  quotas:
+    producerByteRate: 1048576
+    consumerByteRate: 2097152
+{{- end -}}
+{{- end -}}
+{{- end -}}

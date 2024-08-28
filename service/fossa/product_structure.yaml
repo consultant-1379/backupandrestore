@@ -1,0 +1,173 @@
+modelVersion: "2.0"
+flavor: "ADP 2.0"
+service:
+  # name of the service:
+  name: "Backup and Restore Orchestrator"
+  # Design Country (set on the source products)
+  design_countries:
+    - IE # Ireland
+  # Compilation Country (Set on the derivative products)
+  sw_compilation_country: SE
+  # Release responsible
+  release_responsible: BCSDRAFF
+  #  Design responsible
+  design_responsible: BCSDRAFF
+  # Bookmarks
+  bookmark: PRIM
+  # The documents is optional if all eridoc document revisions are set
+  documents:
+    import: "../Documentation/documents.yaml"
+    # Read documents revisions from this file
+    # Use munin-adp generate-pri-input and pri.py to generate the file
+    # Relative file path to product_structure.yaml
+    # import: ../build/pri/documents.yaml
+    # Documentation
+  # Details of the APR product structure:
+  top_product:
+    alias: ["eric-ctrl-bro"]
+    # APR Product Number
+    number: APR 201 40
+    # Description
+    description: "The Backup and Restore Orchestrator service provides a consistent set of API's to backup and restore application data for cloud native micro services and orchestration across multiple services agents."
+    # Includes
+    includes:
+      # Documents will also be added here
+      # SUSE Licenses
+      - prim: 1/FAL 115 3215
+        rstate: R1A
+      - prim: 3/FAL 115 3215
+        rstate: R1A
+      - prim: 5/FAL 115 3215
+        rstate: R1A
+      - prim: 7/FAL 115 3215
+        rstate: R1A
+      # PRI
+      - eridoc: 109 21-APR 201 40
+        step_strategy: highest ordinal number
+      # Risk Assessment doc
+      - eridoc: 1/006 64-APR 201 40
+        step_strategy: highest revision letter
+      # User Guide
+      - eridoc: 1/1553-APR 201 40
+        step_strategy: highest revision letter
+      # secure coding report
+      - eridoc: 1/0360-APR 201 40
+        step_strategy: highest revision letter
+      # Agent implementation Guide
+      - eridoc: 1/198 17-APR 201 40
+        step_strategy: highest revision letter
+      # Operations Guide (REST)
+      - eridoc: 2/198 17-APR 201 40
+        step_strategy: highest revision letter
+      # REST User Guide
+      - eridoc: 3/198 17-APR 201 40
+        step_strategy: highest revision letter
+      # GRPC USER Guide
+      - eridoc: 4/198 17-APR 201 40
+        step_strategy: highest revision letter
+      #Operations Guide CMYP
+      - eridoc: 5/198 17-APR 201 40
+        step_strategy: highest revision letter
+      # Test Specification
+      - eridoc: 1/152 41-APR 201 40
+        step_strategy: highest revision letter
+      # Test Report
+      - eridoc: 1/152 83-APR 201 40
+        step_strategy: highest ordinal number
+      # Characteristics report
+      - eridoc: 2/152 83-APR 201 40
+        step_strategy: highest ordinal number
+      #VA report
+      - eridoc: 1/1597-APR 201 40
+        step_strategy: highest ordinal number
+      # Scan Report for Defensics.
+      - eridoc: 3/152 83-APR 201 40
+        step_strategy: highest ordinal number
+      # Scan Report for CISCAT.
+      - eridoc: 4/152 83-APR 201 40
+        step_strategy: highest ordinal number
+  # Details of the Source product structure
+  src_products:
+    # Interwork APIs
+    - label: API_GRPC
+      number: "CAF 101 026"
+      description: "Backup and Restore Orchestrator - GRPC API"
+      includes:
+        - eridoc: 1/155 19-CAF 101 026
+          step_strategy: highest ordinal number
+    - label: API_REST
+      number: "CAF 101 027"
+      description: "Backup and Restore Orchestrator - REST API"
+      includes:
+        - eridoc: 2/155 19-CAF 101 027
+          step_strategy: highest ordinal number
+        - eridoc: 3/155 19-CAF 101 027
+          step_strategy: highest ordinal number
+    # Source Code Product
+    - label: Source
+      number: CAV 101 082
+      provides:
+        - munin: CAF 101 026
+        - munin: CAF 101 027
+  # Details of zero or more derivative product structures, use [] for zero
+  derivative_products:
+    - label: "HELM"
+      number: "CXC 201 2182"
+      alias: ["eric-ctrl-bro"]
+      derivedFrom:
+        munin: CAV 101 082
+    - label: "IMAGE"
+      number: "CXC 201 2181"
+      description: "Backup and Restore Orchestrator - IMAGE"
+      includes:
+        # Common Base OS Micro Image
+        - munin: CXU 101 1463
+          version: 6.17.0
+          secondPartyProduct: "True"
+        # Common Base OS Repository
+        - munin: CXC 201 2031
+          version: 6.17.0
+          secondPartyProduct: "True"
+        # Common Base OS GO SDK
+        - munin: CXA 302 30
+          version: 6.17.0
+          secondPartyProduct: "True"
+        # BRO AGENT API
+        - munin: CXA 301 09
+          version: 5.8.0
+          secondPartyProduct: "True"
+        # Log4j2 Socket Appender
+        - munin: CXA 301 004
+          version: 1.0.10
+          secondPartyProduct: "True"
+      uses_foss:
+        - dependencies_file: ./dependencies.yaml
+      #  FOSS Usage YAML, optional only needed if you make changes to a 3PP
+      #       - foss_usage: foss.usage.yaml
+      uses_encryption:
+        - import: ./encryptions.yaml
+      derivedFrom:
+        munin: CAV 101 082
+    - label: "Backup and Restore Smart Helm Hook Image"
+      number: "CXU 101 1837"
+      description: "Backup and Restore Orchestrator Smart Helm Hook Image"
+      designation: "Backup and Restore Orchestrator Smart Helm Hook Image"
+      includes:
+        # Common Base OS Micro Image
+        - munin: CXU 101 1463
+          version: 6.17.0
+          secondPartyProduct: "True"
+        # Common Base OS Repository
+        - munin: CXC 201 2031
+          version: 6.17.0
+          secondPartyProduct: "True"
+        # Common Base OS GO SDK
+        - munin: CXA 302 30
+          version: 6.17.0
+          secondPartyProduct: "True"
+      uses_encryption:
+        - import: ../../smart-helm-hooks/ci_config/encryptions.yaml
+      uses_foss:
+        - dependencies_file: ../../smart-helm-hooks/ci_config/golang.dependencies.yaml
+      derivedFrom:
+        munin: CAV 101 082

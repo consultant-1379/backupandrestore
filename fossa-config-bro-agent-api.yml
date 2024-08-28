@@ -1,0 +1,7 @@
+lazy-fossa:
+  directory: "bro-agent-api"
+  project: "BRO Agent API"
+  team: "ADP-BRO-PlanB"
+  primary-list: "fossa/agent_parents.txt"
+  version: 5.9.0
+  product-structure: "fossa/product_structure.yaml"

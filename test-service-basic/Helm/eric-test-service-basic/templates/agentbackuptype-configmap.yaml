@@ -1,0 +1,15 @@
+{{- if and .Values.brAgent.enabled .Values.brAgent.backupTypeList}}
+{{- if gt (len .Values.brAgent.backupTypeList) 1 }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-test-service-basic.backuptype.name" . }}
+  annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4}}
+data:
+  backuptype.properties: |
+    test.agent.backuptype.list = {{ template "{{.Chart.Name}}.list.backuptype" . }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,138 @@
+def bob = './bob/bob -r eric-log4j2-socket-appender/ruleset.yaml'
+def bobrelease = './bob/bob -r ./eric-log4j2-socket-appender/ruleset2_0_pra.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    environment {
+        HUB = credentials('eadphub-psw')
+        GERRIT = credentials('eadphub-psw')
+        SEMANTIC_VERSION = "${sh(script:'cat fossa-config-eric-log4j2-socket-appender.yml | sed -n -e \'s/^.*version: //p\'', returnStdout: true).trim()}"
+        CODE_CHANGE = "${sh(script: "git diff --name-only HEAD HEAD~1 | grep -E '^eric-log4j2-socket-appender.*\\.java|^eric-log4j2-socket-appender/pom.xml' | wc -l", returnStdout: true).trim()}"
+    }
+    tools {
+        jdk "JDK11"
+    }
+    stages {
+        stage('Init') {
+            steps {
+                script {
+                    if ( !currentBuild.rawBuild.getCauses()[0].toString().contains('UserIdCause') ){
+                        buildName "#" + currentBuild.number + " | " + params.GERRIT_CHANGE_SUBJECT.substring(0, GERRIT_CHANGE_SUBJECT.indexOf(" ")) + " | ${GERRIT_BRANCH} | ${GERRIT_PATCHSET_UPLOADER_NAME}"
+                    }
+                }
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Validate dependency tree'){
+            steps {
+                sh 'mvn -f eric-log4j2-socket-appender/pom.xml dependency:tree -DoutputFile=newdeptree.txt'
+                sh 'sed -i 1d eric-log4j2-socket-appender/newdeptree.txt'
+                sh 'diff eric-log4j2-socket-appender/currentdeptree.txt eric-log4j2-socket-appender/newdeptree.txt'
+            }
+        }
+        stage('Generate eridoc files') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'eadphub-psw', usernameVariable: 'ERIDOC_USERNAME', passwordVariable: 'ERIDOC_PASSWORD')]) {
+                  script {
+                      sh "${bob} generate-docs"
+                      if (env.RELEASE == 'false') {
+                          sh "${bob} eridoc:dryrun"
+                      }
+                  }
+                }
+            }
+        }
+        stage('Maven build') {
+            steps {
+                script {
+                    if (env.CODE_CHANGE != "0") {
+                        withSonarQubeEnv('Sonarqube Server') {
+                            sh "mvn package surefire-report:report-only sonar:sonar ${params.MVN_FLAGS} -f eric-log4j2-socket-appender/pom.xml -Dsonar.analysis.mode=publish -Dsonar.branch.name=${params.GERRIT_BRANCH}"
+                        }
+                    }
+                    else {
+                        sh "mvn -f eric-log4j2-socket-appender/pom.xml -Dcheckstyle.skip -Dpmd.skip -DskipTests package"
+                    }
+                }
+            }
+        }
+        stage('Upload sdif files to Eridoc') {
+            when { expression {(params.RELEASE=="true")} }
+            steps {
+               withCredentials([usernamePassword(credentialsId: 'eadphub-psw', usernameVariable: 'ERIDOC_USERNAME', passwordVariable: 'ERIDOC_PASSWORD')]) {
+                    sh "${bob} eridoc:upload"
+               }
+            }
+        }
+        stage('Munin Set/Create Version') {
+            steps {
+                withCredentials([string(credentialsId: 'munin_token', variable: 'MUNIN_TOKEN')]) {
+                    script {
+                        uplift = sh (script: "git log -1 | grep '.*\\[UPLIFT\\].*'", returnStatus: true)
+                        if (uplift == 0) {
+                            sh "${bob} munin-update-version"
+                        }
+                    }
+                }
+            }
+        }
+        stage('Validate license agreement') {
+            steps {
+                sh "${bob} license-agreement"
+            }
+        }
+        stage('Push to Nexus: eric-log4j-socket-appender') {
+            when { expression {(params.RELEASE=="true")} }
+            steps {
+                script{
+                    if(params.RELEASE_TO_NEXUS=="RELEASE") {
+                        sh "git branch --set-upstream-to=origin/master master"
+                        sh "git pull --rebase"
+                        sh "mvn release:prepare release:perform ${params.MVN_FLAGS} -f eric-log4j2-socket-appender/pom.xml"
+                    }
+                    else {
+                        sh "mvn -f eric-log4j2-socket-appender/pom.xml -Dcheckstyle.skip -Dpmd.skip -DskipTests deploy"
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                if (params.RELEASE!="true" && env.CODE_CHANGE != "0") {
+                    archiveArtifacts artifacts: 'eric-log4j2-socket-appender/target/site/surefire-report.html', allowEmptyArchive: true
+                    withSonarQubeEnv('Sonarqube Server') {
+                        sh "curl -u ${env.HUB_USR}:${env.HUB_PSW} '${env.SONAR_HOST_URL}/api/issues/search?componentKeys=com.ericsson.adp.mgmt:eric-log4j2-socket-appender&branch=${params.GERRIT_BRANCH}&resolved=false' | jq -f sonar-report-builder.jq > eric-log4j2-socket-appender/target/sonar/sonar-report.json"
+                        for (Integer i = 0; i < 20; i++) {
+                            try {
+                                timeout(time: 15, unit: 'SECONDS') {
+                                    def qg = waitForQualityGate()
+                                    if (qg.status != 'OK') {
+                                        error "Pipeline aborted due to quality gate coverage failure: ${qg.status}"
+                                    } else {
+                                        i = 20
+                                    }
+                                }
+                            } catch (Throwable e) {
+                                if (i == 19) {
+                                    throw e
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

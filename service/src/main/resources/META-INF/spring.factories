@@ -1,0 +1,1 @@
+org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration=com.ericsson.adp.mgmt.bro.pm.actuator.TomcatPMServerConfiguration

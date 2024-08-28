@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-product-check
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+data:
+  # Match Type must be (ANY/EXACT_MATCH/LIST)
+    matchType: {{ toString .Values.bro.productMatchType }}
+  # Comma seperated list of product numbers to be used for validation
+  {{- if .Values.bro.productNumberList }}
+    productNumberList: {{- template "eric-ctrl-bro.productNumberList" . }}
+  {{- end }}

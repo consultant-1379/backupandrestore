@@ -1,0 +1,48 @@
+def bob = './bob/bob -r service/ruleset.yang.model.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+    }
+    environment {
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+        FUNCT = credentials('eadphub-psw')
+    }
+    stages {
+        stage('Prepare bob') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Add Helm Repo') {
+            steps {
+                sh "helm3 repo add int https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-broint-internal-helm --username ${env.FUNCT_USR} --password ${env.FUNCT_PSW}"
+                sh 'helm3 repo update'
+                sh 'helm3 pull int/eric-bro-int --devel --untar'
+            }
+        }
+        stage('Yang Model Tests') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'hall060', variable: 'KUBECONFIG'),
+                    file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                    file(credentialsId: 'hub-armdocker-config-json', variable: 'DOCKER_CONFIG')
+                ]) {
+                        sh "${bob} run-yang-model-tests"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'output.html, pod_logs/*.*, testdeploy.log, eric-bro-int/Chart.lock', allowEmptyArchive: true
+        }
+    }
+}

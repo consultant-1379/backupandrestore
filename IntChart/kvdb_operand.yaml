@@ -1,0 +1,35 @@
+
+apiVersion: kvdbrd.data.ericsson.com/v1beta1
+kind: KVDBRDCluster
+metadata:
+  name: eric-cloud-native-kvdb-rd-operand
+spec:
+  instanceVersions:
+    - ""
+  log:
+    level: "debug"
+    streamingMethod: "indirect"
+  increasedReplicationDuringUpgrade: true
+  masterReplicaAntiAffinity: "hard"
+  metrics:
+    enabled: false
+  networkPolicy:
+    enabled: false
+  resources:
+    flavor: ""
+  replicas:
+    masters: 1
+    replicationFactor: 1
+  security:
+    acl:
+      enabled: true
+      users:
+        - name: "bro-user"
+          permissions: "~* &* +@all"
+    tls:
+      enforced: "optional"
+      verifyClientCertificate: "optional"
+  settings:
+    - "maxmemory 30mb"
+    - "maxmemory-policy noeviction"
+  suspend: false

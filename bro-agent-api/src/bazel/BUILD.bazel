@@ -1,0 +1,3 @@
+exports_files([
+    "patch_generated_python.sh",
+])

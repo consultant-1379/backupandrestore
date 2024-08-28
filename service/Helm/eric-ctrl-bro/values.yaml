@@ -1,0 +1,343 @@
+imageCredentials:
+   #pullSecret:
+   bro:
+     registry:
+       url: # overrides global registry url
+       imagePullPolicy: # overrides global imagePullPolicy
+     repoPath: #optional repoPath,overrides global.repoPath
+   hooklauncher:
+     registry:
+       url: # overrides global registry url
+       imagePullPolicy: # overrides global imagePullPolicy
+     repoPath: #optional repoPath,overrides global.repoPath
+
+updateStrategy:
+  type: "RollingUpdate"
+
+productInfo:
+  # R-State of the product. R State should match helm chart version (3.1.0 -> R2A)
+  # Value is auto-generated from the chart.
+  rstate: RSTATE
+
+tolerations:
+  backupAndRestore: []
+  hooklauncher: []
+
+nodeSelector:
+  backupAndRestore: {}
+  hooklauncher: {}
+
+networkPolicy:
+  enabled: true
+
+terminationGracePeriodSeconds: 30
+
+probes:
+  backupAndRestore:
+    startupProbe:
+      failureThreshold: 30
+      periodSeconds: 10
+      initialDelaySeconds: 0
+      timeoutSeconds: 15
+    livenessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 0
+      periodSeconds: 10
+      timeoutSeconds: 15
+    readinessProbe:
+      failureThreshold: 3
+      initialDelaySeconds: 0
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 15
+
+bro:
+  replicas: 1
+  restPort: 7001
+  restTlsPort: 7002
+  pmTlsPort: 7003
+  cmmNotifTlsPort: 7004
+  pmPort: 7005
+  enableNotifications: false
+  enableAgentDiscovery: false
+  enableConfigurationManagement: false
+  enableLimitedParallelActions: false
+  # Value is auto-generated from the chart
+  namespaceEnvironmentVariable: ORCHESTRATOR_NAMESPACE
+  vBRMAutoCreate: NONE
+  deleteVBRM: false
+
+  backupLocation: /bro
+  CMMediatorUrl: http://eric-cm-mediator:5003/cm
+  CMMediatorUrlTLS: https://eric-cm-mediator:5004/cm
+  immediateFailedBackupDeletion: false
+
+  # Application Product Check
+  # The name of the config map annotated with the application product information
+  # Please quote your value if you are using helm templating variable. e.g. "{{ .Release.Name }}"
+  appProductInfoConfigMap:
+  # Selected Match Type must be (PRODUCT/SEMVER)
+  selectedMatchType: PRODUCT
+  # Product Match Type must be (ANY/EXACT_MATCH/LIST)
+  productMatchType: ANY
+  # Add list of product numbers to be used for validation
+  productNumberList:
+  # Semantic Version Match Type must be (ANY/GREATER_THAN)
+  semVerMatchType: ANY
+  # The lowest semantic version which will be allowed to restore
+  productLowestAllowedVersion: 0.0.0
+
+  logging:
+    #Backup and restore logging configuration
+    #Logging level for Backup and Restore Orchestrator
+    level: info
+    #Logging level for Backup and Restore third-party components
+    rootLevel: info
+    #Logging level for internal Log4j2 log messages
+    log4j2Level: info
+    #log4j2 properties file name
+    log4j2File: "log4j2.xml"
+    # Location to store the log4j properties file
+    logDirectory: "/var/log/ericsson/backup_and_restore"
+    # Format of console logs. Valid options are "json" and "plaintext"
+    consoleFormat: json
+
+  grpc:
+    restore:
+      # Time, in seconds, to wait for the data channel to be ready before aborting the restore
+      dataChannelTimeoutSecs: 30
+      # Maximum Size, in KiB, of fragment chunk to send with each restore data message
+      fragmentChunkSize: 512
+
+hooklauncher:
+  cleanup: "true"
+  terminateEarlyOnFailure: "true"
+  backoffLimit: 6
+
+messageBusKF:
+  enabled: false
+  clusterName:
+  clientCertSecret:
+  port: 9092
+  tlsPort: 9093
+  retry:
+    maxAttempts: 10
+    maxDelay: 3000
+  producer:
+    delivery:
+      timeout:
+        ms: 30000
+  topicBroNotificationCustomObject:
+    enabled: true
+    defaultTopicReplicas: 3
+    defaultTopicPartitions: 1
+  userCustomObject:
+    enabled: true
+
+# TO BE DEPRECATED
+kafka:
+  enabled: true
+  operatorMode: false
+  clusterName: eric-data-message-bus-kf
+  hostname: eric-data-message-bus-kf-client
+  port: 9092
+  tlsPort: 9093
+  retry:
+    maxAttempts: 10
+    maxDelay: 3000
+  producer:
+    delivery:
+      timeout:
+        ms: 30000
+  replicationFactor: 3
+  partitions: 1
+
+# TO BE DEPRECATED
+keyValueDatabaseRd:
+  enabled: false
+  hostname: eric-data-key-value-database-rd-operand
+  port: 6379
+  tlsPort: 6380
+  maxLen: 30
+  retry:
+    maxAttempts: 10
+    maxDelay: 3000
+  acl:
+    enabled: true
+    username: userbro
+  # Format of the Redis notification value. Valid options are "ASAJSONSTRING" and "ASASTRING"
+  notificationValueFormat: ASASTRING
+
+keyValueDatabaseRD:
+  enabled: false
+  clusterName: eric-cloud-native-kvdb-rd-operand
+  port: 6379
+  tlsPort: 6380
+  maxLen: 30
+  retry:
+    maxAttempts: 10
+    maxDelay: 3000
+  acl:
+    user: bro-user
+  # Format of the Redis notification value. Valid options are "ASAJSONSTRING" and "ASASTRING"
+  notificationValueFormat: ASASTRING
+
+sftp:
+  retry:
+    attempts: 10
+    delayMs: 3000
+  archive:
+    compressionLevel: BEST_SPEED
+
+kms:
+  hostname: eric-sec-key-management
+  port: 8200
+  cm:
+    key:
+      name: eric-cm-key-v1
+      role: eric-cm-key-role
+
+#Configured to connect to the LT syslog endpoint
+logtransformer:
+  host: eric-log-transformer
+  port: 5014
+  tlsPort: 5015
+
+sipTls:
+  host: eric-sec-sip-tls
+
+# Used for deriving client CA for CM Mediator
+cmm:
+  host: eric-cm-mediator
+  retry:
+    maxAttempts: 10
+    maxDelay: 3000
+
+## If cmyang.host is populated CMEIA is not active
+## To enable CMEIA set cmyang.host to ""
+cmyang:
+  host: "eric-cm-yang-provider"
+  caSecretSuffix: "-ca-secret"
+
+pm:
+  host: eric-pm-server
+
+#requires a kubernetes secret to be available.
+osmn:
+  enabled: false
+  bucketName: bro
+  region: # Region should be same as OSMN. If not specified defaults to us-west-2
+  host: eric-data-object-storage-mn
+  port: 9000
+
+log:
+  # Supported values ["indirect", "direct", "dual", "", null]
+  streamingMethod: ""
+
+#Base Persistent Volume Claim for the size of backup data
+persistence:
+  persistentVolumeClaim:
+    # Mandatory: volume size
+    # keep at default value unless required for dimensioning or compatibility with storage provisioner
+    # minimum supported volume size is 500Mi
+    size: "15Gi"
+    storageClassName: "default"
+    storageConnectivity: networked
+
+podPriority:
+  eric-ctrl-bro:
+    priorityClassName:
+  hooklauncher:
+    priorityClassName: ""
+
+resources:
+  backupAndRestore:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+      ephemeral-storage: "250Mi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+      ephemeral-storage: "100Mi"
+    jvm:
+      initialMemoryAllocationPercentage: 50
+      smallMemoryAllocationMaxPercentage: 80
+      largeMemoryAllocationMaxPercentage: 90
+  hooklauncher:
+    requests:
+      memory: "50Mi"
+      cpu: "50m"
+      ephemeral-storage: "100Mi"
+    limits:
+      memory: "100Mi"
+      cpu: "100m"
+      ephemeral-storage: "100Mi"
+
+metrics:
+  enabled: true
+  enableNewScrapePattern: false
+
+service:
+  endpoints:
+    server:
+      ttl: 604800
+    broToAgent:
+      tls:
+        enforced: required # WHEN GLOBAL.SECURITY.TLS.ENABLED IS TRUE, ALL AGENTS MUST SUPPORT AT LEAST TLS SO THIS IS ALWAYS REQUIRED
+        verifyClientCertificate: required
+    restActions:
+      tls:
+        enforced: required
+        verifyClientCertificate: required
+    scrape:
+      pm:
+        tls:
+          enforced: required
+          verifyClientCertificate: required
+    ## This is controlling the tls enforcement of action, statedata and validator
+    cmmHttpNotif:
+      tls:
+        enforced: required
+        verifyClientCertificate: required
+    # CM FA Callback endpoints according to CMEIA MS1
+    # supporting different callback invokers needed for CloudRAN and preparation for CMEIA MS1
+    # extensible with additional tls configuration if callback servers in AUM would be split
+    # Callbacks can come from different sources
+    #   - State Data
+    #   - Validation
+    #   - Action
+    action:
+      actionService: eric-cm-yang-provider
+    statedata:
+      statedataService: eric-cm-yang-provider
+    validator:
+      validatorService: eric-cm-yang-provider
+
+# DR-D1123-134 - Role name for security policy
+securityPolicy:
+  eric-ctrl-bro:
+    rolename: eric-ctrl-bro
+  hooklauncher:
+    rolename: eric-lcm-smart-helm-hooks
+
+labels: {}
+
+bandwidth:
+  backupAndRestore:
+    maxEgressRate: # maximum outgoing traffic rate from BRO
+
+egress:
+  backupStorageSvr:
+    dscp: 0
+
+appArmorProfile:
+  type: ""
+
+seccompProfile:
+  type: ""
+
+# DR-D1123-135 - A set of local supplementalGroups values
+# These are amended to global.podSecurityContext.supplementalGroups values
+podSecurityContext:
+  supplementalGroups: null  # {value='0..max'} (default=null)

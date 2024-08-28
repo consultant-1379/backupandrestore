@@ -1,0 +1,478 @@
+modelVersion: 2.0
+
+import:
+  common: common-properties.yaml
+  hooklauncher-image: ../smart-helm-hooks/delivery/include/hooklauncher/image.yaml
+  hooklauncher-chart-fragments: ../smart-helm-hooks/delivery/include/hooklauncher/chart-fragments.yaml
+  httpprobe: ../httpprobe/ruleset2.0.yaml
+
+docker-images:
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+  - adp-helm-dr-check: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/common-library-adp-helm-dr-check:latest
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+  - py3-kube-helm-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-py3kubehelmbuilder:latest
+  - asciidoc-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-asciidocbuilder:latest
+  - java11-mvn-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-java11mvnbuilder.adp-base-os:1.68.0
+  - java17-mvn-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-java17mvnbuilder.adp-base-os:latest
+  - image-dr-check: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/adp-image-dr-check:latest
+  - admission-control: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/adp-security-admission-control:latest
+  - bob-adp-checker: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-checker:latest
+
+properties:
+  - repo-path: proj-adp-eric-ctrl-bro-internal
+  - helm-chart-repo: https://arm.sero.gic.ericsson.se/artifactory/${repo-path}
+  - helm-chart-test-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-test-internal
+  - dev-arm-documents: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-docs-dev-generic-local
+  - doc-arm-released-path: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-docs-released-generic-local
+  - image-registry: armdocker.rnd.ericsson.se
+  - generated-ug-fragments-dir: ${env.PWD}/service/Documentation/BackupAndRestoreOrchestrator_User_Guide/fragments/.generated
+  - pm-metrics-file-name: eric-ctrl-bro_pm_metrics.json
+  - pm-metrics-file-path: service/Documentation/${pm-metrics-file-name}
+  - service-ports-file-name: eric-ctrl-bro_service_ports.json
+  - service-ports-file-path: service/Documentation/${service-ports-file-name}
+  - chart-tmp-dir: ${env.PWD}/.bob/helm
+
+  - commit-hash: ${var.commithash}
+  - date: ${var.IMAGE_CREATED}
+  - image-name: ${common.service-name}-hooklauncher
+  - image-repo-path: ${var.IMAGE_REPOPATH_INTERNAL}
+  - image-tag: ${var.version}-SNAPSHOT
+  - image-version: ${var.version}-SNAPSHOT
+  - product-revision: ${var.rstate}
+  - src-repo-path: ${env.PWD}/smart-helm-hooks/src
+
+env:
+  - PWD
+  - RELEASE (default=false)
+  - KUBECONFIG
+  - API_TOKEN
+  - CI_USER
+  - ERIDOC_USERNAME
+  - ERIDOC_PASSWORD
+  - USERS_YAML
+  - DOCKER_CONFIG
+  - GERRIT_CHANGE_ID
+  - GERRIT_BRANCH
+  - BRANCH
+  - LATEST_BRO_VERSION
+  - TEST_CHART_VERSION
+  - SONAR_AUTH_TOKEN
+  - SONARQUBE_SCANNER_PARAMS
+  - SONAR_HOST_URL
+  - XRAY_TOKEN
+  - MUNIN_TOKEN
+  - MUNIN_USERNAME
+  - SEMANTIC_VERSION
+  - NAMESPACE
+  - PYTHON_FILE
+  - HUB_USR
+  - HUB_PSW
+
+var:
+  - version
+  - semver
+  - rstate
+  - commithash
+  - MVN_COMMAND
+  - IMAGE_CREATED
+  - IMAGE_REPOPATH_INTERNAL
+  - CHART_REPO
+  - CHART_REPO_SUFFIX
+  - TEST_CHART_REPO
+  - XRAY_REPORT_REPO
+  - apiVersion
+  - CBO_VERSION
+  - released-version-without-build-number
+
+rules:
+  lint:
+    - task: helm-lint-v3
+      docker-image: adp-release-auto
+      cmd: helm lint service/Helm/${common.service-name}
+
+  build-httpprobe:
+    - rule: httpprobe.build
+      properties:
+       - cbo_version: ${common.cbo-version}
+       - httpprobe_home: "httpprobe"
+
+  mvn:
+    - task: mvn-master
+      cmd:
+        - echo ' ' > .bob/var.MVN_COMMAND
+    - task: mvn-dev
+      docker-image: java11-mvn-builder
+      docker-flags:
+        - -v /home/lciadm100/.m2/repository/:/tmp/.m2/repository/
+        - -v /home/lciadm100/.m2/settings.xml:/tmp/.m2/settings.xml
+      cmd:
+        - mvn -f bro-agent-api/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ help:evaluate -Dexpression=project.version -q -DforceStdout install -Dpmd.skip -Dcheckstyle.skip -DskipTests  >> .bob/var.apiVersion
+        - echo '-Dbro.agent.api.version=${var.apiVersion}' > .bob/var.MVN_COMMAND
+        - echo ' -Dsonar.coverage.jacoco.xmlReportPaths=service/target/jacoco.xml' >> .bob/var.MVN_COMMAND
+
+    - task: package-test-sonar
+      docker-image: java17-mvn-builder
+      docker-flags:
+        - -v /home/lciadm100/.m2/repository/:/tmp/.m2/repository/
+        - -v /home/lciadm100/.m2/settings.xml:/tmp/.m2/settings.xml
+        - --env SONAR_AUTH_TOKEN=${env.SONAR_AUTH_TOKEN}
+        - --env SONARQUBE_SCANNER_PARAMS=$(echo '${env.SONARQUBE_SCANNER_PARAMS}' | tr -d ' ')
+        - --env SONAR_HOST_URL=${env.SONAR_HOST_URL}
+      cmd: mvn -f service/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ package dependency:tree surefire-report:report-only sonar:sonar -Dsonar.analysis.mode=publish -Dsonar.branch.name=${env.GERRIT_BRANCH} -DoutputFile=newdeptree.txt ${var.MVN_COMMAND}
+    - task: package
+      docker-image: java17-mvn-builder
+      docker-flags:
+        - -v /home/lciadm100/.m2/repository/:/tmp/.m2/repository/
+        - -v /home/lciadm100/.m2/settings.xml:/tmp/.m2/settings.xml
+      cmd: mvn -f service/pom.xml -gs /tmp/.m2/settings.xml -Dmaven.repo.local=/tmp/.m2/repository/ -Dcheckstyle.skip -Dpmd.skip -DskipTests package ${var.MVN_COMMAND}
+
+  license-agreement:
+    - task: validate-license-agreement
+      docker-image: adp-release-auto
+      cmd: license-agreement validate -l service/Documentation/license.agreement.json
+  
+  validate-interfaces:
+    - task: validate-interfaces-fragment
+      docker-image: adp-release-auto
+      cmd: interfaces-structure-data validate --file service/Helm/eric-ctrl-bro/models/interfaces.json
+    - task: validata-api-interfaces-fragment
+      docker-image: adp-release-auto
+      cmd:
+        - interfaces-structure-data validate --file bro-agent-api/Documentation/bro_java_agent_lib_v5_implementation-interfaces.json
+        - interfaces-structure-data validate --file bro-agent-api/Documentation/bro_java_agent_lib_v4_implementation-interfaces.json
+        - interfaces-structure-data validate --file bro-agent-api/Documentation/bro_java_agent_lib_v3_implementation-interfaces.json
+
+  init:
+    - task: version
+      docker-image: adp-release-auto
+      cmd: version-handler generate
+        --is-release ${env.RELEASE}
+        --output version
+        --git-repo-path .
+    - task: semantic-version
+      cmd:
+        - cat .bob/var.version | cut -d '-' -f 1 > .bob/var.semver
+    - task: rstate
+      docker-image: adp-release-auto
+      cmd: get_rstate.py ${var.version} > .bob/var.rstate
+    - task: timestamp
+      cmd: date -u +'%Y-%m-%dT%H:%M:%SZ'  > .bob/var.IMAGE_CREATED
+
+  set-version:
+    - task: set-version
+      cmd:
+        - echo '${env.LATEST_BRO_VERSION}' > .bob/var.version
+
+  setup-repo-paths:
+    - task: is-master
+      cmd:
+        - echo '${repo-path}' > .bob/var.IMAGE_REPOPATH_INTERNAL
+        - echo "-helm-local" > .bob/var.CHART_REPO_SUFFIX
+        - echo "${helm-chart-repo}-helm" > .bob/var.CHART_REPO
+        - echo "proj-adp-${common.service-name}-internal-docker-global" > .bob/var.XRAY_REPORT_REPO
+    - task: is-dev
+      cmd:
+        - echo '${repo-path}-dev/${env.BRANCH}' > .bob/var.IMAGE_REPOPATH_INTERNAL
+        - echo '-dev-helm-local/${env.BRANCH}' > .bob/var.CHART_REPO_SUFFIX
+        - echo ${var.version}-${env.BRANCH} > .bob/var.version
+        - echo "${helm-chart-repo}-dev-helm" > .bob/var.CHART_REPO
+        - echo "${repo-path}-dev-docker-global" > .bob/var.XRAY_REPORT_REPO
+    - task: set-dev-test-repo
+      cmd:
+        - echo '${helm-chart-test-repo}-dev-helm;${env.TEST_CHART_VERSION}' > .bob/var.TEST_CHART_REPO
+    - task: set-test-repo
+      cmd:
+        - echo '${helm-chart-test-repo}-helm' > .bob/var.TEST_CHART_REPO
+
+  image:
+    # Get MicroCBO image to ensure microCBO base image is present on docker host
+    # This enables `buildah` inside the build container to run w/o --authfile
+    - task: pull-microcbo-image
+      cmd: docker pull ${common.microcbo-image}:${common.cbo-version}
+
+    - task: commit
+      cmd: git rev-parse --short HEAD > .bob/var.commithash
+    
+    - rule: hooklauncher-image.hooklauncher
+      properties:
+        - common-base-os-image-name: sles
+        - common-base-os-image-repo: armdocker.rnd.ericsson.se/proj-ldc/common_base_os_release
+        - common-base-os-version: ${common.cbo-version}
+        - commit-hash: ${commit-hash}
+        - date: ${date}
+        - image-name: ${image-name}
+        - image-registry: ${image-registry}
+        - image-repo-path: ${image-repo-path}
+        - image-tag: ${image-tag}
+        - image-version: ${image-version}
+        - product-number: CXU 101 1837
+        - variant: microcbo
+        - product-revision: ${product-revision}
+        - src-repo-path: ${src-repo-path}
+
+    - task: set-permission
+      cmd: chmod 755 ./service/Docker/build.sh
+
+    - task: build-bro-image
+      cmd: docker run --rm --privileged --workdir ${env.PWD}
+            --volume ${env.PWD}:${env.PWD}
+            --volume $HOME/.docker/armdocker-config.json:/armdocker-config.json
+            --volume /var/run/docker.sock:/var/run/docker.sock
+            --env CBO_REPO=${common.cbo-sles-repo}
+            --env CBO_VERSION=${common.cbo-version}
+            --env CBO_DEVENV_REPO=${common.cbo-devenv-repo}
+            --env BRO_REGISTRY=${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${common.service-name}
+            --env BRO_VERSION=${var.version}-SNAPSHOT
+            --env PROD_NUM="CXC2012181"
+            --env COMMIT=${var.commithash}
+            --env BUILD_TIME=${var.IMAGE_CREATED}
+            --env MICROCBO_IMAGE=${common.microcbo-image}:${common.cbo-version}
+            ${common.cbo-image}:${common.cbo-version}
+            ./service/Docker/build.sh
+
+    - task: reset-permission
+      cmd: chmod 644 ./service/Docker/build.sh
+
+    - task: create-temp-dir
+      # We copy the chart to a temporary directory to be able to add the
+      # hooklauncher templates. This task is not necessary if the chart is already
+      # copied to .bob before packaging.
+      cmd:
+        - mkdir -p ${chart-tmp-dir} &&
+          cp -r service/Helm/${common.service-name} ${chart-tmp-dir}
+
+      # It is possible to choose the location where the hooklauncher templates
+      # are copied to. Depending on where the submodule is added, the
+      # copy-templates-from properties need to be set.
+    - rule: hooklauncher-chart-fragments.hooklauncher
+      properties:
+        - copy-templates-from: ${env.PWD}/smart-helm-hooks/delivery/hooklauncher
+        - copy-templates-to: ${chart-tmp-dir}/${common.service-name}/templates/common
+        - image-name: ${common.service-name}-hooklauncher
+        - image-registry: armdocker.rnd.ericsson.se
+        - image-repo-path: ${var.IMAGE_REPOPATH_INTERNAL}
+        - image-tag: "${var.version}-SNAPSHOT"
+        - parent-helm-chart-name: ${common.service-name}
+        - parent-helm-chart-product-info-path: ${chart-tmp-dir}/${common.service-name}/eric-product-info.yaml
+        - product-name: ${common.service-name} hooklauncher
+        - product-number: CXU 101 1837
+
+      # The hooklauncher rules need to be run before the package task or rule.
+      # The --folder needs to point to where the modified chart is.
+      # In this case, it is ./bob/helm
+    - task: helm-package
+      docker-image: adp-release-auto
+      cmd: helm-package
+        --folder ${chart-tmp-dir}/${common.service-name}
+        --workdir .bob --output .bob/${common.service-name}-internal
+        --version ${var.version}
+        --replace RSTATE=${var.rstate}
+        --replace VERSION=${var.version}-SNAPSHOT
+        --replace REPO_PATH=${var.IMAGE_REPOPATH_INTERNAL}
+        --replace eric-product-info.yaml:VERSION=${var.version}-SNAPSHOT
+        --replace eric-product-info.yaml:REPO_PATH=${var.IMAGE_REPOPATH_INTERNAL}
+        --helm-user ${env.CI_USER}
+        --arm-api-token ${env.API_TOKEN}
+
+  image-dr-checker:
+    - task: Run Image DR Checker
+      docker-image: image-dr-check
+      docker-in-docker: socket
+      cmd: "image-dr-check -p true
+        --image ${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${common.service-name}:${var.version}-SNAPSHOT
+        --output .bob/"
+
+  check-helm-dr:
+    - task: helm-chart-check
+      docker-image: adp-helm-dr-check
+      cmd:
+        - java -jar /helm-dr-check.jar --fail-on-yamllint --helm-chart .bob/${common.service-name}-internal/${common.service-name}-${var.version}.tgz --output .bob/DR-Checks/Base
+        - java -DhelmDesignRule.setValue.eric-ctrl-bro=osmn.enabled=true -DhelmDesignRule.config.eric-ctrl-bro.DR-D1120-067=skip -jar /helm-dr-check.jar --fail-on-yamllint --helm-chart .bob/${common.service-name}-internal/${common.service-name}-${var.version}.tgz --output .bob/DR-Checks/OSMN
+
+  validate-pm-metrics:
+    - task: validate-pm-metrics
+      docker-image: adp-release-auto
+      cmd: pm-metrics validate -f service/Documentation/eric-ctrl-bro_pm_metrics.json
+
+  pm-metrics-checker:
+    - task: pm-metrics-checker
+      docker-image: bob-adp-checker
+      cmd: pm-metrics-check
+           --file service/Documentation/${pm-metrics-file-name}
+           --api-token ${env.API_TOKEN}
+           --report-format html
+           --service-name ${common.service-name}
+           --version ${var.version}
+           --debug
+
+  security-attribute-fragment:
+    - task: output-dir
+      cmd:
+        - mkdir -p build
+    - task: generate-security-attributes-json-for-test
+      docker-image: adp-release-auto
+      docker-envs:
+        - GERRIT_USERNAME=${env.HUB_USR}
+        - GERRIT_PASSWORD=${env.HUB_PSW}
+      cmd: security-attributes generate
+           --service-name ${common.service-name}
+           --service-version ${var.version}
+           --unapproved-fragment ${common.security-attributes-src-file-path}
+           --security-repo ${env.PWD}
+           --output build/${common.security-attributes-dest-file-name}
+    - task: validate-security-attributes-json
+      docker-image: adp-release-auto
+      docker-envs:
+        - GERRIT_USERNAME=${env.HUB_USR}
+        - GERRIT_PASSWORD=${env.HUB_PSW}
+      cmd: security-attributes validate
+        --fragment ${env.PWD}/build/${common.security-attributes-dest-file-name}
+        --type complete
+        --security-repo ${env.PWD}
+    - task: helm-template
+      docker-image: py3-kube-helm-builder
+      cmd: helm template ${env.PWD}/.bob/helm/${common.service-name} --output-dir build/template/${common.helm-chart-name}
+    - task: test-security-attributes-json
+      docker-image: admission-control
+      cmd:
+        - admission-control gatekeeper generate-manifests
+          --fragment build/${common.security-attributes-dest-file-name}
+          --output ${env.PWD}/build/admission-control
+        - admission-control gatekeeper test-chart
+          --chart-filepath=build/template/${common.helm-chart-name}
+          --manifests-filepath=${env.PWD}/build/admission-control
+
+  generate-security-attributes-json:
+    - task: remove-build-number
+      cmd: echo ${var.version} | cut -d '-' -f 1 > .bob/var.released-version-without-build-number   
+    - task: generate-security-attributes-json
+      docker-image: adp-release-auto
+      docker-envs:
+        - GERRIT_USERNAME=${env.HUB_USR}
+        - GERRIT_PASSWORD=${env.HUB_PSW}
+      cmd: security-attributes generate
+        --service-name ${common.service-name}
+        --service-version ${var.released-version-without-build-number}
+        --output build/${common.security-attributes-dest-file-name}
+
+  upload-security-attribute-fragment:  
+    - task: upload-security-attributes-json
+      docker-image: adp-release-auto
+      cmd: upload_file.sh
+        -f build/${common.security-attributes-dest-file-name}
+        -r ${doc-arm-released-path}/documents/${var.released-version-without-build-number} /
+        -t ${env.API_TOKEN}
+
+  # Generate sdif documents from adoc files
+  generate-docs:
+    - task: convert-python-api
+      docker-image: asciidoc-builder
+      cmd: /adp_build_doc.sh --project-dir=${env.PWD} --build-dir=${env.PWD}/build --asciidoc-subdir=bro-agent-api/Documentation
+    - task: asciidoc-to-sdif
+      docker-image: asciidoc-builder
+      cmd: /adp_build_doc.sh --project-dir=${env.PWD} --build-dir=${env.PWD}/build --asciidoc-subdir=service/Documentation
+    - task: generate-service-ports-md-fragment
+      docker-image: adp-release-auto
+      cmd:
+        - mkdir -p ${generated-ug-fragments-dir}
+        - service-ports generate-markdown
+          --json ${service-ports-file-path}
+          --output ${generated-ug-fragments-dir}/service_ports.md
+    - task: generate-pm-metrics-md-fragment
+      docker-image: adp-release-auto
+      cmd:
+        - pm-metrics generate-markdown
+          --json ${pm-metrics-file-path}
+          --output ${generated-ug-fragments-dir}/pm_metrics.md
+    - task: pull
+      docker-image: adp-release-auto
+      cmd: curl
+        -vvv
+        -H "X-JFrog-Art-Api:${env.API_TOKEN}"
+        "${dev-arm-documents}/documents/characteristics-report.json"
+        -o characteristics-report.json
+    - task: generate-other-formats
+      docker-image: adp-release-auto
+      cmd: characteristics-report generate
+        -f characteristics-report.json
+    - task: markdown-to-pdf
+      docker-image: adp-release-auto
+      cmd:
+        "doc-handler generate --config service/Documentation/handler-pdf-config.yaml
+        --output ./build/service/Documentation/markdown
+        --stylesheet /usr/share/marketplace/resources/pdf_style.css
+        --format pdf"
+
+  eridoc:
+    # Check if eridoc_config.yaml is OK
+    - task: dryrun
+      docker-image: adp-release-auto
+      docker-flags:
+        - --env ERIDOC_USERNAME=${env.ERIDOC_USERNAME}
+        - --env ERIDOC_PASSWORD=${env.ERIDOC_PASSWORD}
+      cmd: eridoc upload --config ./service/Documentation/eridoc.config.yaml --debug --no-validate-certificates --set semver=${var.semver} --dry-run >> .bob/eridoc-upload-report.log 2>&1
+    # Upload documents to eridoc
+    - task: upload
+      docker-image: adp-release-auto
+      docker-flags:
+        - --env ERIDOC_USERNAME=${env.ERIDOC_USERNAME}
+        - --env ERIDOC_PASSWORD=${env.ERIDOC_PASSWORD}
+      cmd: eridoc upload --config ./service/Documentation/eridoc.config.yaml --debug --no-validate-certificates --set semver=${var.semver} >> .bob/eridoc-upload-report.log 2>&1
+
+  push:
+    - task: image-push-snapshot
+      cmd: docker push ${image-registry}/${var.IMAGE_REPOPATH_INTERNAL}/${common.service-name}:${var.version}-SNAPSHOT
+    - task: helm-upload-snapshot
+      docker-image: adp-release-auto
+      cmd:
+        - upload_file.sh --filename=.bob/${common.service-name}-internal/${common.service-name}-${var.version}.tgz --repository=${helm-chart-repo}${var.CHART_REPO_SUFFIX}/${common.service-name} --api-token=${env.API_TOKEN}
+
+  # Create product versions from product structure and FOSS dependencies
+  munin-update-version:
+    - task: create-products
+      docker-image: adp-release-auto
+      cmd: munin create-versions -t ${env.MUNIN_TOKEN} -c service/fossa/product_structure.yaml -v ${env.SEMANTIC_VERSION}
+
+  get-xray-report:
+    - task: update-scanpath
+      cmd:
+        - sed -i 's|REPO|${var.XRAY_REPORT_REPO}/${var.IMAGE_REPOPATH_INTERNAL}|' ci_config/Branch_Vulnerability_Report.config
+        - sed -i 's|SERVICE|${common.service-name}|' ci_config/Branch_Vulnerability_Report.config
+        - sed -i 's|VERSION|${var.version}-SNAPSHOT|' ci_config/Branch_Vulnerability_Report.config
+    - task: get-xray-report-bob
+      docker-image: adp-release-auto
+      cmd:
+        - fetch-xray --user eadphub --apikey ${env.XRAY_TOKEN} --config ./ci_config/Branch_Vulnerability_Report.config --output xray_report.json
+        - va-report --md --xray xray_report.json --config ./ci_config/Branch_Vulnerability_Report.config --output .bob/XRAY-report.md
+
+  deploy-to-k8s:
+    - task: verify-snapshot-on-k8s
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+        - "--volume ${env.DOCKER_CONFIG}:${env.DOCKER_CONFIG}"
+      cmd:
+        - kubectl -n ${env.NAMESPACE} delete --ignore-not-found secret pm-bro-test-sftp-users-secret
+        - kubectl -n ${env.NAMESPACE} delete --ignore-not-found secret armdocker
+        - kubectl create secret generic pm-bro-test-sftp-users-secret --from-file=${env.USERS_YAML} --namespace ${env.NAMESPACE}
+        - kubectl create secret generic armdocker --from-file=.dockerconfigjson=${env.DOCKER_CONFIG} --type=kubernetes.io/dockerconfigjson --namespace ${env.NAMESPACE}
+        - python testframework/bootstrap.py --kubernetes-admin-conf="${env.KUBECONFIG}"
+          --kubernetes-namespace="${env.NAMESPACE}"
+          --chart-archive="/tmp/${common.service-name}-${var.version}".tgz
+          --helm-repo="${var.CHART_REPO}"
+          --test-helm-repo="${var.TEST_CHART_REPO}"
+          --baseline_chart_version="${var.version}"
+          --baseline_deployment_type="deployment"
+          --baseline_chart_name="${common.service-name}"
+          --copy-all-pod-logs=True
+          --copy-directories test/utils test/resources/schema test/resources/keys test/resources/config
+          --archive-files-to-copy=True
+          --test-params unused1=1
+          --armuser="${env.CI_USER}"
+          --armpswd="${env.API_TOKEN}"
+          --fail-first=True
+          -s ${env.PYTHON_FILE}

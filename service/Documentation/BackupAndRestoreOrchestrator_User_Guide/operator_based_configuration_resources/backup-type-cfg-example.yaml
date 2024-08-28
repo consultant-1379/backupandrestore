@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-backup-types-cfg
+  labels:
+    ericsson.com/backup-types-config = adp
+data:
+  backup-types-cfg: |
+    version: 1.0.0
+    backupTypes:
+    - name: myApplicationConfigurationBackup
+      dataSets:
+      - name: CMM
+      - name: FM
+      - name: applicationCustomData
+    - name: myApplicationAlarmData
+      dataSets:
+      - name: AH
+    - name: myFeatureBackup
+      dataSets:
+      - name: fullPGClusterBackup

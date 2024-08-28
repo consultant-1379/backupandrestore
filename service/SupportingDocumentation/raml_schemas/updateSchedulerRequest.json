@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "UpdateSchedulerRequest",
+  "title": "UpdateSchedulerRequest",
+  "description": "Updates a scheduler",
+  "type": "object",
+  "properties": {
+    "adminState": {
+      "type": "string",
+      "description": "Administrative state of the scheduler. _LOCKED_ means no scheduled backups are performed."
+    },
+    "scheduledBackupName": {
+      "type": "string",
+      "description": "The configurable portion of the scheduled backup name. The scheduled backups are named <scheduled-backup-name>-<creation date and time>"
+    },
+    "autoExport": {
+      "type": "string",
+      "description": "This may be set to \"ENABLED\" or \"DISABLED"
+    },
+    "autoExportPassword": {
+      "type": "string",
+      "description": "If using a secure export protocol (SFTP), this is the password used to authenticate the username provided in the export URI. Note this password is stored in an encrypted format and not returned as part of the scheduler configuration in response to a GET request."
+    },
+    "autoExportUri": {
+      "type": "string",
+      "description": "This is the URI specifying the export location to export any successful scheduled backup to."
+    }
+  }
+}

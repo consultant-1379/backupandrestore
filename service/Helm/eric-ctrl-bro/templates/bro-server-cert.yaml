@@ -1,0 +1,25 @@
+{{- if (eq (include "eric-ctrl-bro.globalSecurity" .) "true") }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}-server-cert
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+spec:
+  kubernetes:
+    generatedSecretName: {{ template "eric-ctrl-bro.name" . }}-server-cert
+    certificateName: srvcert.pem
+    privateKeyName: srvprivkey.pem
+  certificate:
+    subject:
+      cn: {{ template "eric-ctrl-bro.name" . }}
+    validity:
+      overrideTtl: {{ .Values.service.endpoints.server.ttl }}
+    subjectAlternativeName:
+      dns:
+        - localhost
+        - certified-scrape-target
+    extendedKeyUsage:
+      tlsClientAuth: false
+      tlsServerAuth: true
+{{- end -}}

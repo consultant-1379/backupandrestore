@@ -1,0 +1,67 @@
+def bob = './bob/bob'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    environment {
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+    }
+    stages {
+        stage('Preparation') {
+            parallel {
+                stage('Prepare submodules') {
+                    steps {
+                        sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                        sh 'git submodule sync'
+                        sh 'git submodule update --init --recursive'
+                    }
+                }
+            }
+        }
+        stage('OSMN Performance Test') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'hall060', variable: 'KUBECONFIG'),
+                    file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                    file(credentialsId: 'hub-armdocker-config-json', variable: 'DOCKER_CONFIG')
+                ]) {
+                        sh "${bob} -r service/ruleset.osmn.performance.yaml characteristics:assert-ready"
+                        sh "${bob} -r service/ruleset.osmn.performance.yaml run-performance-tests"
+                        sh "${bob} -r service/ruleset.osmn.performance.yaml characteristics:generate-report-input"
+                        sh "${bob} -r service/ruleset.osmn.performance.yaml characteristics:daily-performance-history"
+                }
+            }
+        }
+        stage('Plot Graphs') {
+            steps {
+                // 5x1gb
+                plot group: '5 x 1GB Agents RESULTS', style: 'line', csvFileName: '5x1gb-create-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-CREATE_BACKUP.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-CREATE_BACKUP.csv', label: '']], title: 'AVERAGE CREATE_BACKUP TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-CREATE_BACKUP.csv', xpath: 'pod_logs/5x1GB-Agents-RESULTS-CREATE_BACKUP.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+                plot group: '5 x 1GB Agents RESULTS', style: 'line', csvFileName: '5x1gb-restore-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-RESTORE.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-RESTORE.csv', label: '']], title: 'AVERAGE RESTORE TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-RESTORE.csv', xpath: 'pod_logs/5x1GB-Agents-RESULTS-RESTORE.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+                plot group: '5 x 1GB Agents RESULTS', style: 'line', csvFileName: '5x1gb-export-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-EXPORT.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-EXPORT.csv', label: '']], title: 'AVERAGE EXPORT TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-EXPORT.csv', xpath: 'pod_logs/5x1GB-Agents-RESULTS-EXPORT.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+                plot group: '5 x 1GB Agents RESULTS', style: 'line', csvFileName: '5x1gb-import-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-IMPORT.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-IMPORT.csv', label: '']], title: 'AVERAGE IMPORT TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/5x1GB-Agents-RESULTS-IMPORT.csv', xpath: 'pod_logs/5x1GB-Agents-RESULTS-IMPORT.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+
+                // 1x1gb
+                plot group: '1 x 1GB Agents RESULTS', style: 'line', csvFileName: '1x1gb-create-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-CREATE_BACKUP.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-CREATE_BACKUP.csv', label: '']], title: 'AVERAGE CREATE_BACKUP TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-CREATE_BACKUP.csv', xpath: 'pod_logs/1x1GB-Agents-RESULTS-CREATE_BACKUP.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+                plot group: '1 x 1GB Agents RESULTS', style: 'line', csvFileName: '1x1gb-restore-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-RESTORE.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-RESTORE.csv', label: '']], title: 'AVERAGE RESTORE TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-RESTORE.csv', xpath: 'pod_logs/1x1GB-Agents-RESULTS-RESTORE.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+                plot group: '1 x 1GB Agents RESULTS', style: 'line', csvFileName: '1x1gb-export-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-EXPORT.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-EXPORT.csv', label: '']], title: 'AVERAGE EXPORT TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-EXPORT.csv', xpath: 'pod_logs/1x1GB-Agents-RESULTS-EXPORT.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+                plot group: '1 x 1GB Agents RESULTS', style: 'line', csvFileName: '1x1gb-import-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-IMPORT.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-IMPORT.csv', label: '']], title: 'AVERAGE IMPORT TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/1x1GB-Agents-RESULTS-IMPORT.csv', xpath: 'pod_logs/1x1GB-Agents-RESULTS-IMPORT.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+
+                // 1x1000f
+                plot group: '1 x 1000 fragments results', style: 'line', csvFileName: '1x1000fragments-create-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/1x1000-fragments-results-CREATE_BACKUP.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/1x1000-fragments-results-CREATE_BACKUP.csv', label: '']], title: 'AVERAGE CREATE_BACKUP TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/1x1000-fragments-results-CREATE_BACKUP.csv', xpath: 'pod_logs/1x1000-fragments-results-CREATE_BACKUP.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+                plot group: '1 x 1000 fragments results', style: 'line', csvFileName: '1x1000fragments-restore-persistent-osmn.csv', csvSeries: [[file: 'pod_logs/1x1000-fragments-results-RESTORE.csv', url: '', inclusionFlag: 'OFF', exclusionValues: '', displayTableFlag: false]], exclZero: false, keepRecords: false, logarithmic: false, numBuilds: '50', propertiesSeries: [[file: 'pod_logs/1x1000-fragments-results-RESTORE.csv', label: '']], title: 'AVERAGE RESTORE TIME', useDescr: false, xmlSeries: [[file: 'pod_logs/1x1000-fragments-results-RESTORE.csv', xpath: 'pod_logs/1x1000-fragments-results-RESTORE.csv', nodeType: 'NODESET', url: '']], yaxis: 'duration (sec)', yaxisMaximum: '', yaxisMinimum: ''
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'output.html, pod_logs/*.*, updated_adp_char_report.json', allowEmptyArchive: true
+        }
+    }
+}

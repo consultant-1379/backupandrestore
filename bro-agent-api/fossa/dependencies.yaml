@@ -1,0 +1,1626 @@
+modelVersion: '3.0'
+dependencies:
+  - ID: com.android+26.0.1
+    additional_info:
+      fossa-attribution:
+        Description: The Android Software Development Kit
+        Package: com.android
+        Source: mvn
+        Version: 26.0.1
+        Hash: ''
+        licenses:
+          - Android-Sdk
+        Title: Android SDK
+    bazaar:
+      register: 'no'
+      prim: 3/CTX1027562
+      community_link: https://developer.android.com/studio/releases/platform-tools
+      community_name: https://developer.android.com/studio/releases/platform-tools
+      community_url: https://developer.android.com/studio/releases/platform-tools
+      component_comment: ''
+      component_highlevel_description: Android SDK Platform-Tools is a component for the Android SDK. It includes tools that interface with the Android platform, such as adb, fastboot, and systrace. These tools are required for Android app development. They're also needed if you want to unlock your device bootloader and flash it with a new system image.
+      component_name: Android SDK Platform-Tools
+      component_platform: linux
+      component_programing_language: C++
+      component_version: 26.0.1
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://dl.google.com/android/repository/platform-tools_r26.0.1-linux.zip
+      stako_decision_reason: automatic
+      stako: ESW4
+      stako_comment: Product version is older than 54 months
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=946425&id-filter=equals&rowDisplay=Card-Simple
+      recode: RE1
+      retext: PRODUCT VERSION IS OLDER THAN 54 MONTHS
+      country: United States
+      crypto: No Encryption
+      programming_language: C++
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.android
+      target_sw: linux
+      vendor: mvn
+      version: 26.0.1
+      web_url: https://www.android.com/
+    licenses:
+      - Android-Sdk
+    name: Android SDK
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - 26.0.1
+    mimer:
+      linking: Classpath
+      product_number: CTX1027562
+      product_version_label: 26.0.1
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: com.google.api.grpc:proto-google-common-protos+2.17.0
+    additional_info:
+      fossa-attribution:
+        Description: PROTO library for proto-google-common-protos
+        Package: com.google.api.grpc:proto-google-common-protos
+        Source: mvn
+        Version: 2.17.0
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: proto-google-common-protos
+        DownloadURL: https://repo1.maven.org/maven2/com/google/api/grpc/proto-google-common-protos/2.17.0/proto-google-common-protos-2.17.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 11/CTX1021898
+      community_link: https://github.com/googleapis/sdk-platform-java
+      community_name: https://github.com/googleapis/sdk-platform-java
+      community_url: https://github.com/googleapis/sdk-platform-java
+      component_comment: ''
+      component_highlevel_description: PROTO library for proto-google-common-protos
+      component_name: GRPC Google Common Protos
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 2.17.0
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://repo1.maven.org/maven2/com/google/api/grpc/proto-google-common-protos/2.17.0/proto-google-common-protos-2.17.0-sources.jar
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1053329&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.api.grpc_proto-google-common-protos
+      target_sw: linux
+      vendor: mvn
+      version: 2.17.0
+      web_url: https://github.com/googleapis/sdk-platform-java
+    licenses:
+      - Apache-2.0
+    name: proto-google-common-protos
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - 2.17.0
+    mimer:
+      linking: Classpath
+      product_number: CTX1021898
+      product_version_label: 2.17.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: com.google.code.findbugs:jsr305+3.0.2
+    additional_info:
+      fossa-attribution:
+        Description: JSR305 Annotations for Findbugs
+        Package: com.google.code.findbugs:jsr305
+        Source: mvn
+        Version: 3.0.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+          - BSD-2-Clause
+          - CC-BY-2.5
+        Title: FindBugs-jsr305
+        DownloadURL: https://repo1.maven.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 6/CAX1056649
+      community_link: https://jcp.org/en/jsr/detail?id=305
+      community_name: https://jcp.org/en/jsr/detail?id=305
+      community_url: https://jcp.org/en/jsr/detail?id=305
+      component_comment: ''
+      component_highlevel_description: jsr-305 will work to develop standard annotations (such as @NonNull) that can be applied to Java programs to assist tools that detect software defects.
+      component_name: jsr305
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 3.0.2
+      licenses:
+        - FAL1159003/1 (BSD 2-Clause "Simplified" License (BSD-2-Clause))
+      src_download_link: http://central.maven.org/maven2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2-sources.jar
+      stako_decision_reason: automatic
+      stako: ESW4
+      stako_comment: Product version is older than 54 months
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=33486&id-filter=equals&rowDisplay=Card-Simple
+      recode: RE1
+      retext: PRODUCT VERSION IS OLDER THAN 54 MONTHS
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.code.findbugs_jsr305
+      target_sw: linux
+      vendor: mvn
+      version: 3.0.2
+      web_url: http://findbugs.sourceforge.net/
+    licenses:
+      - Apache-2.0
+      - BSD-2-Clause
+      - CC-BY-2.5
+    name: FindBugs-jsr305
+    primary:
+      - 'false'
+    selected_licenses:
+      - BSD-2-Clause
+    subcomponent: false
+    type: FOSS
+    versions:
+      - 3.0.2
+    mimer:
+      product_number: CAX1056649
+      product_version_label: 3.0.2
+      linking: Classpath
+      selected_licenses:
+        - BSD-2-Clause
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+    alerts:
+      - Stako is 'ESW4', BAZAAR component is not recommended to be used
+  - ID: com.google.code.gson:gson+2.10.1
+    additional_info:
+      fossa-attribution:
+        Description: Google Gson library
+        Package: com.google.code.gson:gson
+        Source: mvn
+        Version: 2.10.1
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: Gson
+        DownloadURL: https://repo1.maven.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 34/CAX1053893
+      community_link: https://github.com/google/gson
+      community_name: https://github.com/google/gson
+      community_url: https://github.com/google/gson
+      component_comment: ''
+      component_highlevel_description: A Java serialization/deserialization library to convert Java Objects into JSON and back
+      component_name: Google-gson
+      component_platform: linux
+      component_programing_language: Java
+      component_version: GSON-PARENT-2.10.1
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/google/gson/archive/gson-parent-2.10.1.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1035871&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.code.gson_gson
+      target_sw: linux
+      vendor: mvn
+      version: 2.10.1
+      web_url: https://repo1.maven.org/maven2/com/google/code/gson/gson
+    licenses:
+      - Apache-2.0
+    name: Gson
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - gson-parent-2.10.1
+      - 2.10.1
+    mimer:
+      linking: Classpath
+      product_number: CAX1053893
+      product_version_label: 2.10.1
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: com.google.errorprone:error_prone_annotations+2.18.0
+    additional_info:
+      fossa-attribution:
+        Description: The fossa information is fetched from  FOSSA service. Don't Edit!
+        Package: com.google.errorprone:error_prone_annotations
+        Source: mvn
+        Version: 2.18.0
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: error-prone annotations
+        DownloadURL: https://repo1.maven.org/maven2/com/google/errorprone/error_prone_annotations/2.18.0/error_prone_annotations-2.18.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 22/CTX1020689
+      community_link: https://github.com/google/error-prone
+      community_name: https://github.com/google/error-prone
+      community_url: https://github.com/google/error-prone
+      component_comment: ''
+      component_highlevel_description: Error Prone is a static analysis tool for Java that catches common programming mistakes at compile-time.
+      component_name: Error Prone
+      component_platform: linux
+      component_programing_language: Java
+      component_version: V2.18.0
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/google/error-prone/archive/v2.18.0.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW3
+      stako_comment: Newer versions exists
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1037185&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.errorprone_error_prone_annotations
+      target_sw: linux
+      vendor: mvn
+      version: 2.18.0
+      web_url: https://repo1.maven.org/maven2/com/google/errorprone/error_prone_annotations
+    licenses:
+      - Apache-2.0
+    name: error-prone annotations
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - v2.18.0
+      - 2.18.0
+    mimer:
+      linking: Classpath
+      product_number: CTX1020689
+      product_version_label: 2.18.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: com.google.guava:failureaccess+1.0.1
+    additional_info:
+      fossa-attribution:
+        Description: Contains    com.google.common.util.concurrent.internal.InternalFutureFailureAccess and    InternalFutures. Most users will never need to use this artifact. Its    classes is conceptually a part of Guava, but they're in this separate    artifact so that Android libraries can use them without pulling in all of    Guava (just as they can use ListenableFuture by depending on the    listenablefuture artifact).
+        Package: com.google.guava:failureaccess
+        Source: mvn
+        Version: 1.0.1
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: Guava InternalFutureFailureAccess and InternalFutures
+        DownloadURL: https://repo1.maven.org/maven2/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 35/CAX1054600
+      community_link: https://github.com/google/guava
+      community_name: https://github.com/google/guava
+      community_url: https://github.com/google/guava
+      component_comment: ''
+      component_highlevel_description: 'The Guava project contains several of Google''s core libraries that we rely on in our Java-based projects: collections, caching, primitives support, concurrency libraries, common annotations, string processing, I/O, and so forth.'
+      component_name: Guava, Google
+      component_platform: linux
+      component_programing_language: Java
+      component_version: FAILUREACCESS-V1.0.1
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/google/guava/archive/failureaccess-v1.0.1.zip
+      stako_decision_reason: dep of dep
+      stako: ESW4
+      stako_comment: Product version is older than 18 months. Newer versions exists
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=916785&id-filter=equals&rowDisplay=Card-Simple
+      recode: REL
+      retext: PRODUCT VERSION IS OLDER THAN 18 MONTHS. NEWER VERSIONS EXISTS
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.guava_failureaccess
+      target_sw: linux
+      vendor: mvn
+      version: 1.0.1
+      web_url: https://repo1.maven.org/maven2/com/google/guava/failureaccess
+    licenses:
+      - Apache-2.0
+    name: Guava InternalFutureFailureAccess and InternalFutures
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - failureaccess-v1.0.1
+      - 1.0.1
+    mimer:
+      product_number: CAX1054600
+      product_version_label: failureaccess-v1.0.1
+      linking: Classpath
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+    alerts:
+      - '''Guava, Google'': Manual set stako_decision_reason: ''dep of dep'' for stako: ''ESW4'', team takes the risk!'
+  - ID: com.google.guava:guava+32.0.1-JRE
+    additional_info:
+      fossa-attribution:
+        Description: Guava is a suite of core and expanded libraries that include    utility classes, Google's collections, I/O classes, and    much more.
+        Package: com.google.guava:guava
+        Source: mvn
+        Version: 32.0.1-JRE
+        Hash: ''
+        licenses:
+          - Apache-2.0
+          - CC0-1.0
+        Title: 'Guava: Google Core Libraries for Java'
+        DownloadURL: https://repo1.maven.org/maven2/com/google/guava/guava/32.0.1-android/guava-32.0.1-android-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 81/CAX1054600
+      community_link: https://mvnrepository.com/artifact/com.google.guava/guava/
+      community_name: https://mvnrepository.com/artifact/com.google.guava/guava/
+      community_url: https://mvnrepository.com/artifact/com.google.guava/guava/
+      component_comment: ''
+      component_highlevel_description: 'The Guava project contains several of Google''s core libraries that we rely on in our Java-based projects: collections, caching, primitives support, concurrency libraries, common annotations, string processing, I/O, and so forth.'
+      component_name: Guava, Google
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 32.0.1-JRE
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://repo1.maven.org/maven2/com/google/guava/guava/32.0.1-jre/guava-32.0.1-jre-sources.jar
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1052472&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.guava_guava
+      target_sw: linux
+      vendor: mvn
+      version: 32.0.1-android
+      web_url: https://github.com/google/guava
+    licenses:
+      - Apache-2.0
+      - CC0-1.0
+    name: 'Guava: Google Core Libraries for Java'
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 32.0.1-JRE
+    mimer:
+      linking: Classpath
+      product_number: CAX1054600
+      product_version_label: 32.0.1-JRE
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: com.google.guava:listenablefuture+9999.0-empty-to-avoid-conflict-with-guava
+    additional_info:
+      fossa-attribution:
+        Description: 'An empty artifact that Guava depends on to signal that it is providing    ListenableFuture -- but is also available in a second "version" that    contains com.google.common.util.concurrent.ListenableFuture class, without    any other Guava classes. The idea is:    - If users want only ListenableFuture, they depend on listenablefuture-1.0.    - If users want all of Guava, they depend on guava, which, as of Guava    27.0, depends on    listenablefuture-9999.0-empty-to-avoid-conflict-with-guava. The 9999.0-...    version number is enough for some build systems (notably, Gradle) to select    that empty artifact over the "real" listenablefuture-1.0 -- avoiding a    conflict with the copy of ListenableFuture in guava itself. If users are    using an older version of Guava or a build system other than Gradle, they    may see class conflicts. If so, they can solve them by manually excluding    the listenablefuture artifact or manually forcing their build systems to    use 9999.0-....'
+        Package: com.google.guava:listenablefuture
+        Source: mvn
+        Version: 9999.0-empty-to-avoid-conflict-with-guava
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: Guava ListenableFuture only
+        DownloadURL: https://repo1.maven.org/maven2/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+    bazaar:
+      register: 'no'
+      prim: 67/CAX1054600
+      community_link: https://github.com/google/guava
+      community_name: https://github.com/google/guava
+      community_url: https://github.com/google/guava
+      component_comment: ''
+      component_highlevel_description: 'The Guava project contains several of Google''s core libraries that we rely on in our Java-based projects: collections, caching, primitives support, concurrency libraries, common annotations, string processing, I/O, and so forth.'
+      component_name: Guava, Google
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 30.1-ANDROID
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://repo1.maven.org/maven2/com/google/guava/guava/30.1-android/guava-30.1-android-sources.jar
+      stako_decision_reason: automatic
+      stako: ESW4
+      stako_comment: Product version is older than 18 months. Newer versions exists
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=988357&id-filter=equals&rowDisplay=Card-Simple
+      recode: REL
+      retext: PRODUCT VERSION IS OLDER THAN 18 MONTHS. NEWER VERSIONS EXISTS
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.guava_listenablefuture
+      target_sw: linux
+      vendor: mvn
+      version: 9999.0-empty-to-avoid-conflict-with-guava
+      web_url: https://repo1.maven.org/maven2/com/google/guava/listenablefuture
+    licenses:
+      - Apache-2.0
+    name: Guava ListenableFuture only
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 30.1-ANDROID
+      - 9999.0-empty-to-avoid-conflict-with-guava
+    mimer:
+      product_number: CAX1054600
+      product_version_label: 30.1-ANDROID
+      linking: Classpath
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+    alerts:
+      - Stako is 'ESW4', BAZAAR component is not recommended to be used
+  - ID: com.google.j2objc:j2objc-annotations+2.8
+    additional_info:
+      fossa-attribution:
+        Description: A set of annotations that provide additional information to the J2ObjC    translator to modify the result of translation.
+        Package: com.google.j2objc:j2objc-annotations
+        Source: mvn
+        Version: '2.8'
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: J2ObjC Annotations
+        DownloadURL: https://repo1.maven.org/maven2/com/google/j2objc/j2objc-annotations/2.8/j2objc-annotations-2.8-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 6/CTX1020693
+      community_link: https://github.com/google/j2objc
+      community_name: https://github.com/google/j2objc
+      community_url: https://github.com/google/j2objc
+      component_comment: ''
+      component_highlevel_description: A Java to iOS Objective-C translation tool and runtime.
+      component_name: J2ObjC, Google
+      component_platform: linux
+      component_programing_language: Java
+      component_version: '2.8'
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/google/j2objc/archive/2.8.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW3
+      stako_comment: Copyleft license found.
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1019408&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.j2objc_j2objc-annotations
+      target_sw: linux
+      vendor: mvn
+      version: '2.8'
+      web_url: https://github.com/google/j2objc/
+    licenses:
+      - Apache-2.0
+    name: J2ObjC Annotations
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - 2.8
+      - 2.8
+    mimer:
+      linking: Classpath
+      product_number: CTX1020693
+      product_version_label: '2.8'
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: com.google.protobuf:protobuf-java+3.22.3
+    additional_info:
+      fossa-attribution:
+        Description: Core Protocol Buffers library. Protocol Buffers are a way of encoding structured data in an    efficient yet extensible format.
+        Package: com.google.protobuf:protobuf-java
+        Source: mvn
+        Version: 3.22.3
+        Hash: ''
+        licenses:
+          - BSD-3-Clause
+        Title: Protocol Buffers [Core]
+        DownloadURL: https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.22.3/protobuf-java-3.22.3-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 89/CAX1054389
+      community_link: https://github.com/protocolbuffers/protobuf
+      community_name: https://github.com/protocolbuffers/protobuf
+      community_url: https://github.com/protocolbuffers/protobuf
+      component_comment: ''
+      component_highlevel_description: Protocol buffers are Google's language-neutral, platform-neutral, extensible mechanism for serializing structured data - think XML, but smaller, faster, and simpler. Google uses Protocol Buffers for almost all of its internal RPC protocols and file formats.
+      component_name: Protocol Buffers (protobuf)
+      component_platform: linux
+      component_programing_language: C++
+      component_version: V3.22.3
+      licenses:
+        - FAL1159003/2 (BSD 3-Clause (BSD-3-Clause))
+      src_download_link: https://github.com/protocolbuffers/protobuf/archive/v3.22.3.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW3
+      stako_comment: Newer versions exists
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1044606&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: 'NO'
+      programming_language: C++
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: com.google.protobuf_protobuf-java
+      target_sw: linux
+      vendor: mvn
+      version: 3.22.3
+      web_url: https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java
+    licenses:
+      - BSD-3-Clause
+    name: Protocol Buffers [Core]
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - v3.22.3
+      - 3.22.3
+    mimer:
+      linking: Classpath
+      product_number: CAX1054389
+      product_version_label: 3.22.3
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: io.grpc:grpc-api+1.57.2
+    additional_info:
+      fossa-attribution:
+        Description: 'gRPC: API'
+        Package: io.grpc:grpc-api
+        Source: mvn
+        Version: 1.57.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: io.grpc:grpc-api
+        DownloadURL: https://repo1.maven.org/maven2/io/grpc/grpc-api/1.57.2/grpc-api-1.57.2-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 63/CTX1020513
+      community_link: https://github.com/grpc/grpc-java/
+      community_name: https://github.com/grpc/grpc-java/
+      community_url: https://github.com/grpc/grpc-java/
+      component_comment: ''
+      component_highlevel_description: The Java gRPC implementation. HTTP/2 based RPC
+      component_name: grpc-java
+      component_platform: linux
+      component_programing_language: Java
+      component_version: V1.57.2
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/grpc/grpc-java/archive/refs/tags/v1.57.2.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1066250&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.grpc_grpc-api
+      target_sw: linux
+      vendor: mvn
+      version: 1.57.2
+      web_url: https://github.com/grpc/grpc-java
+    licenses:
+      - Apache-2.0
+    name: io.grpc:grpc-api
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - v1.57.2
+      - 1.57.2
+    mimer:
+      linking: Classpath
+      product_number: CTX1020513
+      product_version_label: 1.57.2
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: io.grpc:grpc-context+1.57.2
+    additional_info:
+      fossa-attribution:
+        Description: 'gRPC: Context'
+        Package: io.grpc:grpc-context
+        Source: mvn
+        Version: 1.57.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: io.grpc:grpc-context
+        DownloadURL: https://repo1.maven.org/maven2/io/grpc/grpc-context/1.57.2/grpc-context-1.57.2-sources.jar
+    bazaar:
+      register: 'yes'
+      prim: 63/CTX1020513
+      community_link: https://github.com/grpc/grpc-java
+      community_name: https://github.com/grpc/grpc-java
+      community_url: https://github.com/grpc/grpc-java
+      component_comment: ''
+      component_highlevel_description: ''
+      component_name: grpc-java
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 1.57.2
+      licenses: []
+      src_download_link: https://repo1.maven.org/maven2/io/grpc/grpc-context/1.57.2/grpc-context-1.57.2-sources.jar
+      stako_decision_reason: automatic
+      stako: DO_NOT_EDIT_MANUALLY
+      stako_comment: ''
+      bazaarurl: ''
+      recode: ''
+      retext: ''
+      country: ''
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.grpc_grpc-context
+      target_sw: linux
+      vendor: mvn
+      version: 1.57.2
+      web_url: https://github.com/grpc/grpc-java
+    licenses:
+      - Apache-2.0
+    name: io.grpc:grpc-context
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - 1.57.2
+    mimer:
+      linking: Classpath
+      product_number: CTX1020513
+      product_version_label: 1.57.2
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: io.grpc:grpc-core+1.57.2
+    additional_info:
+      fossa-attribution:
+        Description: 'gRPC: Core'
+        Package: io.grpc:grpc-core
+        Source: mvn
+        Version: 1.57.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: io.grpc:grpc-core
+        DownloadURL: https://repo1.maven.org/maven2/io/grpc/grpc-core/1.57.2/grpc-core-1.57.2-sources.jar
+    bazaar:
+      register: 'yes'
+      prim: 63/CTX1020513
+      community_link: https://github.com/grpc/grpc-java
+      community_name: https://github.com/grpc/grpc-java
+      community_url: https://github.com/grpc/grpc-java
+      component_comment: ''
+      component_highlevel_description: ''
+      component_name: grpc-java
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 1.57.2
+      licenses: []
+      src_download_link: https://repo1.maven.org/maven2/io/grpc/grpc-core/1.57.2/grpc-core-1.57.2-sources.jar
+      stako_decision_reason: automatic
+      stako: DO_NOT_EDIT_MANUALLY
+      stako_comment: ''
+      bazaarurl: ''
+      recode: ''
+      retext: ''
+      country: ''
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.grpc_grpc-core
+      target_sw: linux
+      vendor: mvn
+      version: 1.57.2
+      web_url: https://github.com/grpc/grpc-java
+    licenses:
+      - Apache-2.0
+    name: io.grpc:grpc-core
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 1.57.2
+    mimer:
+      linking: Classpath
+      product_number: CTX1020513
+      product_version_label: 1.57.2
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: io.grpc:grpc-netty-shaded+1.57.2
+    additional_info:
+      fossa-attribution:
+        Description: 'gRPC: Netty Shaded'
+        Package: io.grpc:grpc-netty-shaded
+        Source: mvn
+        Version: 1.57.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: io.grpc:grpc-netty-shaded
+        DownloadURL: https://repo1.maven.org/maven2/io/grpc/grpc-netty-shaded/1.57.2/grpc-netty-shaded-1.57.2-sources.jar
+    bazaar:
+      register: 'yes'
+      prim: 63/CTX1020513
+      community_link: https://github.com/grpc/grpc-java
+      community_name: https://github.com/grpc/grpc-java
+      community_url: https://github.com/grpc/grpc-java
+      component_comment: ''
+      component_highlevel_description: ''
+      component_name: grpc-java
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 1.57.2
+      licenses: []
+      src_download_link: https://repo1.maven.org/maven2/io/grpc/grpc-netty-shaded/1.57.2/grpc-netty-shaded-1.57.2-sources.jar
+      stako_decision_reason: automatic
+      stako: DO_NOT_EDIT_MANUALLY
+      stako_comment: ''
+      bazaarurl: ''
+      recode: ''
+      retext: ''
+      country: ''
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.grpc_grpc-netty-shaded
+      target_sw: linux
+      vendor: mvn
+      version: 1.57.2
+      web_url: https://github.com/grpc/grpc-java
+    licenses:
+      - Apache-2.0
+    name: io.grpc:grpc-netty-shaded
+    primary:
+      - this
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 1.57.2
+    mimer:
+      linking: Classpath
+      product_number: CTX1020513
+      product_version_label: 1.57.2
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'True'
+  - ID: io.grpc:grpc-protobuf+1.57.2
+    additional_info:
+      fossa-attribution:
+        Description: 'gRPC: Protobuf'
+        Package: io.grpc:grpc-protobuf
+        Source: mvn
+        Version: 1.57.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: io.grpc:grpc-protobuf
+        DownloadURL: https://repo1.maven.org/maven2/io/grpc/grpc-protobuf/1.57.2/grpc-protobuf-1.57.2-sources.jar
+    bazaar:
+      register: 'yes'
+      prim: 63/CTX1020513
+      community_link: https://github.com/grpc/grpc-java
+      community_name: https://github.com/grpc/grpc-java
+      community_url: https://github.com/grpc/grpc-java
+      component_comment: ''
+      component_highlevel_description: ''
+      component_name: grpc-java
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 1.57.2
+      licenses: []
+      src_download_link: https://repo1.maven.org/maven2/io/grpc/grpc-protobuf/1.57.2/grpc-protobuf-1.57.2-sources.jar
+      stako_decision_reason: automatic
+      stako: DO_NOT_EDIT_MANUALLY
+      stako_comment: ''
+      bazaarurl: ''
+      recode: ''
+      retext: ''
+      country: ''
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.grpc_grpc-protobuf
+      target_sw: linux
+      vendor: mvn
+      version: 1.57.2
+      web_url: https://github.com/grpc/grpc-java
+    licenses:
+      - Apache-2.0
+    name: io.grpc:grpc-protobuf
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 1.57.2
+    mimer:
+      linking: Classpath
+      product_number: CTX1020513
+      product_version_label: 1.57.2
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: io.grpc:grpc-protobuf-lite+1.57.2
+    additional_info:
+      fossa-attribution:
+        Description: 'gRPC: Protobuf Lite'
+        Package: io.grpc:grpc-protobuf-lite
+        Source: mvn
+        Version: 1.57.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: io.grpc:grpc-protobuf-lite
+        DownloadURL: https://repo1.maven.org/maven2/io/grpc/grpc-protobuf-lite/1.57.2/grpc-protobuf-lite-1.57.2-sources.jar
+    bazaar:
+      register: 'yes'
+      prim: 63/CTX1020513
+      community_link: https://github.com/grpc/grpc-java
+      community_name: https://github.com/grpc/grpc-java
+      community_url: https://github.com/grpc/grpc-java
+      component_comment: ''
+      component_highlevel_description: ''
+      component_name: grpc-java
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 1.57.2
+      licenses: []
+      src_download_link: https://repo1.maven.org/maven2/io/grpc/grpc-protobuf-lite/1.57.2/grpc-protobuf-lite-1.57.2-sources.jar
+      stako_decision_reason: automatic
+      stako: DO_NOT_EDIT_MANUALLY
+      stako_comment: ''
+      bazaarurl: ''
+      recode: ''
+      retext: ''
+      country: ''
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.grpc_grpc-protobuf-lite
+      target_sw: linux
+      vendor: mvn
+      version: 1.57.2
+      web_url: https://github.com/grpc/grpc-java
+    licenses:
+      - Apache-2.0
+    name: io.grpc:grpc-protobuf-lite
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 1.57.2
+    mimer:
+      linking: Classpath
+      product_number: CTX1020513
+      product_version_label: 1.57.2
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: io.grpc:grpc-stub+1.57.2
+    additional_info:
+      fossa-attribution:
+        Description: 'gRPC: Stub'
+        Package: io.grpc:grpc-stub
+        Source: mvn
+        Version: 1.57.2
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: io.grpc:grpc-stub
+        DownloadURL: https://repo1.maven.org/maven2/io/grpc/grpc-stub/1.57.2/grpc-stub-1.57.2-sources.jar
+    bazaar:
+      register: 'yes'
+      prim: 63/CTX1020513
+      community_link: https://github.com/grpc/grpc-java
+      community_name: https://github.com/grpc/grpc-java
+      community_url: https://github.com/grpc/grpc-java
+      component_comment: ''
+      component_highlevel_description: ''
+      component_name: grpc-java
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 1.57.2
+      licenses: []
+      src_download_link: https://repo1.maven.org/maven2/io/grpc/grpc-stub/1.57.2/grpc-stub-1.57.2-sources.jar
+      stako_decision_reason: automatic
+      stako: DO_NOT_EDIT_MANUALLY
+      stako_comment: ''
+      bazaarurl: ''
+      recode: ''
+      retext: ''
+      country: ''
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.grpc_grpc-stub
+      target_sw: linux
+      vendor: mvn
+      version: 1.57.2
+      web_url: https://github.com/grpc/grpc-java
+    licenses:
+      - Apache-2.0
+    name: io.grpc:grpc-stub
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 1.57.2
+    mimer:
+      linking: Classpath
+      product_number: CTX1020513
+      product_version_label: 1.57.2
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: io.perfmark:perfmark-api+0.26.0
+    additional_info:
+      fossa-attribution:
+        Description: PerfMark API
+        Package: io.perfmark:perfmark-api
+        Source: mvn
+        Version: 0.26.0
+        Hash: ''
+        licenses:
+          - Apache-2.0
+        Title: perfmark:perfmark-api
+        DownloadURL: https://repo1.maven.org/maven2/io/perfmark/perfmark-api/0.26.0/perfmark-api-0.26.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 5/CTX1026505
+      community_link: https://github.com/perfmark/perfmark
+      community_name: https://github.com/perfmark/perfmark
+      community_url: https://github.com/perfmark/perfmark
+      component_comment: ''
+      component_highlevel_description: PerfMark is a low-overhead, manually-instrumented, tracing library for Java.
+      component_name: PerfMark
+      component_platform: linux
+      component_programing_language: Java
+      component_version: V0.26.0
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/perfmark/perfmark/archive/v0.26.0.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1044511&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: io.perfmark_perfmark-api
+      target_sw: linux
+      vendor: mvn
+      version: 0.26.0
+      web_url: https://github.com/perfmark/perfmark
+    licenses:
+      - Apache-2.0
+    name: perfmark:perfmark-api
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - v0.26.0
+      - 0.26.0
+    mimer:
+      linking: Classpath
+      product_number: CTX1026505
+      product_version_label: 0.26.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: jakarta.activation:jakarta.activation-api+2.1.0
+    additional_info:
+      fossa-attribution:
+        Description: ${project.name} 2.1 Specification
+        Package: jakarta.activation:jakarta.activation-api
+        Source: mvn
+        Version: 2.1.0
+        Hash: ''
+        licenses:
+          - BSD-3-Clause
+        Title: Jakarta Activation API
+        DownloadURL: https://repo1.maven.org/maven2/jakarta/activation/jakarta.activation-api/2.1.0/jakarta.activation-api-2.1.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 8/CAX1054051
+      community_link: https://github.com/eclipse-ee4j/jaf
+      community_name: https://github.com/eclipse-ee4j/jaf
+      community_url: https://github.com/eclipse-ee4j/jaf
+      component_comment: ''
+      component_highlevel_description: 'Jakarta Activation defines a set of standard services to: determine the MIME type of an arbitrary piece of data; encapsulate access to it; discover the operations available on it; and instantiate the appropriate bean to perform the operation(s).instantiate the appropriate bean to perform the operation(s).'
+      component_name: Jakarta Activation
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 2.1.0
+      licenses:
+        - FAL1159001/4 (GNU General Public License v2.0 w/Classpath exception ( GPL-2.0-with-classpath-exception))
+        - FAL1159003/2 (BSD 3-Clause (BSD-3-Clause))
+        - FAL1159007/11 (Common Development and Distribution License 1.1 (CDDL-1.1))
+        - FAL1159241/10 (Eclipse Distribution License 1.0 (EDL-1.0))
+      src_download_link: https://github.com/eclipse-ee4j/jaf/archive/refs/tags/2.1.0.zip
+      stako_decision_reason: automatic
+      stako: ESW4
+      stako_comment: Product version is older than 18 months. Newer versions exists
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1030139&id-filter=equals&rowDisplay=Card-Simple
+      recode: REL
+      retext: PRODUCT VERSION IS OLDER THAN 18 MONTHS. NEWER VERSIONS EXISTS
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: jakarta.activation_jakarta.activation-api
+      target_sw: linux
+      vendor: mvn
+      version: 2.1.0
+      web_url: https://github.com/jakartaee/jaf-api
+    licenses:
+      - BSD-3-Clause
+    name: Jakarta Activation API
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 2.1.0
+      - 2.1.0
+    mimer:
+      linking: Classpath
+      product_number: CAX1054051
+      product_version_label: 2.1.0
+      selected_licenses:
+        - BSD-3-Clause
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: jakarta.xml.bind:jakarta.xml.bind-api+4.0.0
+    additional_info:
+      fossa-attribution:
+        Description: The fossa information is fetched from  FOSSA service. Don't Edit!
+        Package: jakarta.xml.bind:jakarta.xml.bind-api
+        Source: mvn
+        Version: 4.0.0
+        Hash: ''
+        licenses:
+          - Apache-2.0
+          - BSD-3-Clause
+          - MIT
+        Title: Jakarta XML Binding API
+        DownloadURL: https://repo1.maven.org/maven2/jakarta/xml/bind/jakarta.xml.bind-api/4.0.0/jakarta.xml.bind-api-4.0.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 21/CAX1055785
+      community_link: https://github.com/eclipse-ee4j/jaxb-api
+      community_name: https://github.com/eclipse-ee4j/jaxb-api
+      community_url: https://github.com/eclipse-ee4j/jaxb-api
+      component_comment: ''
+      component_highlevel_description: 'The JAXB API, defined in the javax.xml.bind package, is a set of interfaces through which client applications communicate with code generated from a schema. The center of the JAXB API is JAXBContext, the client''s entry point. It provides an abstraction for managing the XML-Java binding information necessary to implement the JAXB binding framework operations: unmarshal, marshal and validate.'
+      component_name: jaxb-api
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 4.0.0
+      licenses:
+        - FAL1159003/2 (BSD 3-Clause (BSD-3-Clause))
+      src_download_link: https://github.com/eclipse-ee4j/jaxb-api/archive/4.0.0.zip
+      stako_decision_reason: automatic
+      stako: ESW3
+      stako_comment: Copyleft license found.
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1016803&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: jakarta.xml.bind_jakarta.xml.bind-api
+      target_sw: linux
+      vendor: mvn
+      version: 4.0.0
+      web_url: https://repo1.maven.org/maven2/jakarta/xml/bind/jakarta.xml.bind-api
+    licenses:
+      - Apache-2.0
+      - BSD-3-Clause
+      - MIT
+    name: Jakarta XML Binding API
+    primary:
+      - this
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 4.0.0
+      - 4.0.0
+    mimer:
+      linking: Classpath
+      product_number: CAX1055785
+      product_version_label: 4.0.0
+      selected_licenses:
+        - BSD-3-Clause
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'True'
+  - ID: javax.annotation:javax.annotation-api+1.3.2
+    additional_info:
+      fossa-attribution:
+        Description: Common Annotations for the JavaTM Platform API
+        Package: javax.annotation:javax.annotation-api
+        Source: mvn
+        Version: 1.3.2
+        Hash: ''
+        licenses:
+          - CDDL-1.1
+          - GPL-2.0-with-classpath-exception
+        Title: javax.annotation-api
+        DownloadURL: https://repo1.maven.org/maven2/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 4/CAX1056638
+      community_link: https://github.com/javaee/javax.annotation
+      community_name: https://github.com/javaee/javax.annotation
+      community_url: https://github.com/javaee/javax.annotation
+      component_comment: ''
+      component_highlevel_description: Common Annotations for the JavaTM Platform API
+      component_name: javax.annotation-api
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 1.3.2
+      licenses:
+        - FAL1159001/4 (GNU General Public License v2.0 w/Classpath exception ( GPL-2.0-with-classpath-exception))
+        - FAL1159007/11 (Common Development and Distribution License 1.1 (CDDL-1.1))
+        - FAL1159998 (Dual License)
+      src_download_link: https://github.com/javaee/javax.annotation/archive/1.3.2.tar.gz
+      stako_decision_reason: no impact
+      stako: ESW4
+      stako_comment: Product version is older than 54 months
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=902439&id-filter=equals&rowDisplay=Card-Simple
+      recode: RE1
+      retext: PRODUCT VERSION IS OLDER THAN 54 MONTHS
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: javax.annotation_javax.annotation-api
+      target_sw: linux
+      vendor: mvn
+      version: 1.3.2
+      web_url: http://jcp.org/en/jsr/detail?id=250
+    licenses:
+      - CDDL-1.1
+      - GPL-2.0-with-classpath-exception
+    name: javax.annotation-api
+    primary:
+      - this
+    selected_licenses:
+      - GPL-2.0-with-classpath-exception
+    subcomponent: false
+    type: FOSS
+    versions:
+      - 1.3.2
+      - 1.3.2
+    mimer:
+      product_number: CAX1056638
+      product_version_label: 1.3.2
+      linking: Classpath
+      selected_licenses:
+        - GPL-2.0-with-classpath-exception
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'True'
+    alerts:
+      - Stako is 'ESW4', BAZAAR component is not recommended to be used
+  - ID: org.apache.logging.log4j:log4j-api+2.20.0
+    additional_info:
+      fossa-attribution:
+        Description: The Apache Log4j API
+        Package: org.apache.logging.log4j:log4j-api
+        Source: mvn
+        Version: 2.20.0
+        Hash: ''
+        licenses:
+          - Apache-2.0
+          - MIT
+        Title: Apache Log4j API
+        DownloadURL: https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-api/2.20.0/log4j-api-2.20.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 51/CAX1053123
+      community_link: https://github.com/apache/logging-log4j2
+      community_name: https://github.com/apache/logging-log4j2
+      community_url: https://github.com/apache/logging-log4j2
+      component_comment: ''
+      component_highlevel_description: Apache Log4j 2 is a versatile, feature-rich, efficient logging API and backend for Java.
+      component_name: Apache Log4j
+      component_platform: linux
+      component_programing_language: Java
+      component_version: REL/2.20.0
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/apache/logging-log4j2/archive/rel/2.20.0.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1038767&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: org.apache.logging.log4j_log4j-api
+      target_sw: linux
+      vendor: mvn
+      version: 2.20.0
+      web_url: https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-api
+    licenses:
+      - Apache-2.0
+      - MIT
+    name: Apache Log4j API
+    primary:
+      - 'false'
+    selected_licenses:
+      - Apache-2.0
+    subcomponent: false
+    type: FOSS
+    versions:
+      - rel/2.20.0
+      - 2.20.0
+    mimer:
+      linking: Classpath
+      product_number: CAX1053123
+      product_version_label: rel/2.20.0
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: org.apache.logging.log4j:log4j-core+2.20.0
+    additional_info:
+      fossa-attribution:
+        Description: The Apache Log4j Implementation
+        Package: org.apache.logging.log4j:log4j-core
+        Source: mvn
+        Version: 2.20.0
+        Hash: ''
+        licenses:
+          - Apache-2.0
+          - BSD-2-Clause
+          - CDDL-1.0
+          - MIT
+          - mit-old-style-no-advert
+        Title: Apache Log4j Core
+        DownloadURL: https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.20.0/log4j-core-2.20.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 51/CAX1053123
+      community_link: https://github.com/apache/logging-log4j2
+      community_name: https://github.com/apache/logging-log4j2
+      community_url: https://github.com/apache/logging-log4j2
+      component_comment: ''
+      component_highlevel_description: Apache Log4j 2 is a versatile, feature-rich, efficient logging API and backend for Java.
+      component_name: Apache Log4j
+      component_platform: linux
+      component_programing_language: Java
+      component_version: REL/2.20.0
+      licenses:
+        - FAL1159004/20 (Apache License 2.0 (Apache-2.0))
+      src_download_link: https://github.com/apache/logging-log4j2/archive/rel/2.20.0.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1038767&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: org.apache.logging.log4j_log4j-core
+      target_sw: linux
+      vendor: mvn
+      version: 2.20.0
+      web_url: https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core
+    licenses:
+      - Apache-2.0
+      - BSD-2-Clause
+      - CDDL-1.0
+      - MIT
+      - mit-old-style-no-advert
+    name: Apache Log4j Core
+    primary:
+      - this
+    selected_licenses:
+      - Apache-2.0
+    subcomponent: false
+    type: FOSS
+    versions:
+      - rel/2.20.0
+      - 2.20.0
+    mimer:
+      linking: Classpath
+      product_number: CAX1053123
+      product_version_label: rel/2.20.0
+      selected_licenses:
+        - Apache-2.0
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'True'
+  - ID: org.checkerframework:checker-qual+3.33.0
+    additional_info:
+      fossa-attribution:
+        Description: 'Checker Qual is the set of annotations (qualifiers) and supporting classes        used by the Checker Framework to type check Java source code.  Please        see artifact:        org.checkerframework:checker'
+        Package: org.checkerframework:checker-qual
+        Source: mvn
+        Version: 3.33.0
+        Hash: ''
+        licenses:
+          - MIT
+          - SPL-1.0
+        Title: Checker Qual
+        DownloadURL: https://repo1.maven.org/maven2/org/checkerframework/checker-qual/3.33.0/checker-qual-3.33.0-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 6/CTX1034514
+      community_link: https://mvnrepository.com/artifact/org.checkerframework/checker-qual
+      community_name: https://mvnrepository.com/artifact/org.checkerframework/checker-qual
+      community_url: https://mvnrepository.com/artifact/org.checkerframework/checker-qual
+      component_comment: ''
+      component_highlevel_description: Checker Qual is the set of annotations (qualifiers) and supporting classes used by the Checker Framework to type check Java source code.
+      component_name: checker-qual
+      component_platform: linux
+      component_programing_language: Java
+      component_version: 3.33.0
+      licenses:
+        - FAL1159008 (MIT License (MIT))
+      src_download_link: https://repo1.maven.org/maven2/org/checkerframework/checker-qual/3.33.0/checker-qual-3.33.0-sources.jar
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1060293&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: United States
+      crypto: No Encryption
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: org.checkerframework_checker-qual
+      target_sw: linux
+      vendor: mvn
+      version: 3.33.0
+      web_url: https://checkerframework.org
+    licenses:
+      - MIT
+      - SPL-1.0
+    name: Checker Qual
+    primary:
+      - 'false'
+    subcomponent: true
+    type: FOSS
+    versions:
+      - 3.33.0
+    mimer:
+      linking: Classpath
+      product_number: CTX1034514
+      product_version_label: 3.33.0
+      selected_licenses:
+        - MIT
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'
+  - ID: org.codehaus.mojo:animal-sniffer-annotations+1.23
+    additional_info:
+      fossa-attribution:
+        Description: The fossa information is fetched from  FOSSA service. Don't Edit!
+        Package: org.codehaus.mojo:animal-sniffer-annotations
+        Source: mvn
+        Version: '1.23'
+        Hash: ''
+        licenses:
+          - Apache-2.0
+          - MIT
+        Title: Animal Sniffer Annotations
+        DownloadURL: https://repo1.maven.org/maven2/org/codehaus/mojo/animal-sniffer-annotations/1.23/animal-sniffer-annotations-1.23-sources.jar
+    bazaar:
+      register: 'no'
+      prim: 5/CTX1033348
+      community_link: https://github.com/mojohaus/animal-sniffer
+      community_name: https://github.com/mojohaus/animal-sniffer
+      community_url: https://github.com/mojohaus/animal-sniffer
+      component_comment: ''
+      component_highlevel_description: The Animal Sniffer Plugin is used to build signatures of APIs and to check your classes against previously generated signatures.
+      component_name: animal-sniffer
+      component_platform: linux
+      component_programing_language: Java
+      component_version: '1.23'
+      licenses:
+        - FAL1159008 (MIT License (MIT))
+      src_download_link: https://github.com/mojohaus/animal-sniffer/archive/1.23.tar.gz
+      stako_decision_reason: automatic
+      stako: ESW2
+      stako_comment: ''
+      bazaarurl: https://scas.internal.ericsson.com/search3pp?id=1052623&id-filter=equals&rowDisplay=Card-Simple
+      recode: ''
+      retext: ''
+      country: Ireland
+      crypto: ''
+      programming_language: Java
+    encryptions:
+      used:
+        - ''
+    evms:
+      register: 'yes'
+      product_name: org.codehaus.mojo_animal-sniffer-annotations
+      target_sw: linux
+      vendor: mvn
+      version: '1.23'
+      web_url: https://repo1.maven.org/maven2/org/codehaus/mojo/animal-sniffer-annotations
+    licenses:
+      - Apache-2.0
+      - MIT
+    name: Animal Sniffer Annotations
+    primary:
+      - 'false'
+    subcomponent: false
+    type: FOSS
+    versions:
+      - 1.23
+      - 1.23
+    mimer:
+      linking: Classpath
+      product_number: CTX1033348
+      product_version_label: '1.23'
+      selected_licenses:
+        - MIT
+      obligation: Including the full license text in a prominent place with the software when the FOSS is distributed
+      usage: Use as is
+      primary: 'False'

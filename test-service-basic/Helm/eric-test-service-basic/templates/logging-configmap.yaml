@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-test-service-basic.name" . }}-logging
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4 }}
+  annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+data:
+  {{ .Values.brAgent.logging.log4j2File }}: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Configuration status="{{ .Values.brAgent.logging.log4j2Level }}">
+      <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+          <PatternLayout pattern="%d{YYYY-MM-dd'T'HH:mm:ss.sssXXX} %p %c{1}: %m%n"/>
+        </Console>
+      </Appenders>
+      <Loggers>
+        <Logger name="com.ericsson.adp.mgmt.brotestagent" level="{{ .Values.brAgent.logging.level }}" additivity="false">
+          <AppenderRef ref="Console"/>
+        </Logger>
+        <Root level="{{ .Values.brAgent.logging.rootLevel }}">
+          <AppenderRef ref="Console"/>
+        </Root>
+      </Loggers>
+    </Configuration>

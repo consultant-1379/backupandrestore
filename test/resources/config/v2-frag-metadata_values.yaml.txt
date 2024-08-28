@@ -1,0 +1,39 @@
+# setting this so that we can always test with a v2 agent
+images:
+  testservicebasic:
+    name: bro-test-service-basic
+    tag: 2.2.0-61-SNAPSHOT
+  testagent:
+    name: bro-test-agent-basic
+    tag: 2.2.0-61-SNAPSHOT
+
+imageCredentials:
+  repoPath: proj-adp-eric-ctrl-bro-test-internal
+
+brAgent:
+  commandArgs: "cp /servicedata/data.txt backupdata/v2-frag-metadata_1_data.txt; cp /servicedata/CustomMetadata.txt backupdata/v2-frag-metadata_1_CustomMetadata.txt; cp /servicedata/data.txt backupdata/v2-frag-metadata_2_data.txt; cp /servicedata/CustomMetadata.txt backupdata/v2-frag-metadata_2_CustomMetadata.txt;cp /servicedata/data.txt backupdata/v2-frag-metadata_3_data.txt; cp /servicedata/CustomMetadata.txt backupdata/v2-frag-metadata_3_CustomMetadata.txt; cp /servicedata/data.txt backupdata/v2-frag-metadata_4_data.txt; cp /servicedata/CustomMetadata.txt backupdata/v2-frag-metadata_4_CustomMetadata.txt; cp /servicedata/data.txt backupdata/v2-frag-metadata_5_data.txt; cp /servicedata/CustomMetadata.txt backupdata/v2-frag-metadata_5_CustomMetadata.txt; rm -rf /servicedata; /usr/bin/java -Dlog4j.configurationFile=/var/log/ericsson/log4j2.xml -jar /testagent/brotestagent.jar /testagent/application.properties"
+  brLabelValue: "v2-frag-metadata"
+  backupTypeList:
+  properties:
+    fileName: "application.properties"
+    applicationProperties:
+      #this value will be taken from the values global.adpBR.broServiceName
+      orchestrator.host: eric-ctrl-bro
+      #this value will be taken from the values global.adpBR.broGrpcServicePort
+      orchestrator.port: 3000
+      #this value will be taken from the values brAgent.brLabelValue
+      test.agent.id: ""
+      #this value will be taken from the first brAgent.backupTypeList.backupType
+      test.agent.scope: ""
+      test.agent.softwareVersion.description: test agent v2-frag-metadata
+      test.agent.softwareVersion.productionDate: 2019-01-01
+      test.agent.softwareVersion.productName: v2-frag-metadata
+      test.agent.softwareVersion.productNumber: CXC 111 11/1
+      test.agent.softwareVersion.type: data
+      test.agent.softwareVersion.revision: R1
+      test.agent.fragment.backup.data.path: /backupdata/v2-frag-metadata_1_data.txt,/backupdata/v2-frag-metadata_2_data.txt,/backupdata/v2-frag-metadata_3_data.txt,/backupdata/v2-frag-metadata_4_data.txt,/backupdata/v2-frag-metadata_5_data.txt
+      test.agent.fragment.custom.backup.data.path: /backupdata/v2-frag-metadata_1_CustomMetadata.txt,/backupdata/v2-frag-metadata_2_CustomMetadata.txt,/backupdata/v2-frag-metadata_3_CustomMetadata.txt,/backupdata/v2-frag-metadata_4_CustomMetadata.txt,/backupdata/v2-frag-metadata_5_CustomMetadata.txt
+      test.agent.download.location: /restoredata
+      # test.agent.agentBehavior is used for BRO Orchestrator test purposes ONLY. This must be left empty otherwise.
+      test.agent.agentBehavior:
+      flag.grpc.siptls.security.enabled: false

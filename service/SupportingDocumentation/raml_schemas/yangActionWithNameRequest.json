@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "context": {
+      "type": "string",
+      "description": "Where the action was called"
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "ericsson-brm:name": {
+          "type": "string",
+          "description": "Name of backup"
+        }
+      }
+    }
+  },
+  "required": [
+    "context",
+    "input"
+  ]
+}

@@ -1,0 +1,263 @@
+{
+  "metadata" : {
+    "serviceHelmChartName" : "eric-ctrl-bro",
+    "usedSchemaVersion" : "3.1",
+    "fileVersion" : "1.5.0",
+    "dateEdited" : "2022-06-29"
+  },
+  "metrics" :
+  [
+    {
+      "pmMetric": "bro_stored_backups",
+      "metricDescription" : "Number of backups stored in BRO",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "Red",
+      "metricLabel": [
+        {"label" : "backup_type", "labelDescription":"backup manager that the backup(s) is stored in"}
+      ]
+    },
+    {
+      "pmMetric": "bro_operations_total",
+      "metricDescription" : "Number of executed operations",
+      "metricType": "Counter",
+      "metricStatus": "stable",
+      "metricCategory": "Red",
+      "metricLabel": [
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "status", "labelDescription":"The status of the action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"}
+      ]
+    },
+    {
+      "pmMetric": "bro_disk_usage_bytes",
+      "metricDescription" : "Total size of the backup files on disk (Unavailable in BRO with OSMN)",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "Use",
+      "metricLabel": [
+        {"label" : "backup_type", "labelDescription":"backup manager that the backup(s) is stored in"}
+      ]
+    },
+    {
+      "pmMetric": "bro_registered_agents",
+      "metricDescription" : "Number of agents registered with BRO",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "Red",
+      "metricLabel": [
+        {"label" : "agent", "labelDescription":"The agent ID"},
+        {"label" : "backup_type_list", "labelDescription":"The list of backup managers the agent belongs to"}
+      ]
+    },
+    {
+      "pmMetric": "bro_operation_info",
+      "metricDescription" : "Outcome of last operation",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "Red",
+      "metricLabel": [
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "action_id", "labelDescription":"The unique ID of the action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"},
+        {"label" : "backup_name", "labelDescription":"The name of the backup that the action was acting on"},
+        {"label" : "status", "labelDescription":"The status of the action that was run"},
+        {"label" : "additional_info", "labelDescription":"Details of the outcome of the action run"}
+      ]
+    },
+    {
+      "pmMetric": "bro_operation_end_time",
+      "metricDescription" : "End time of last operation",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "reD",
+      "metricLabel": [
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "action_id", "labelDescription":"The unique ID of the action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"},
+        {"label" : "status", "labelDescription":"The status of the action that was run"}
+      ]
+    },
+    {
+      "pmMetric": "bro_operation_stage_duration_seconds",
+      "metricDescription" : "Stage duration in seconds",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "reD",
+      "metricLabel": [
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "action_id", "labelDescription":"The unique ID of the action that was run"},
+        {"label" : "status", "labelDescription":"The status of the action that was run"},
+        {"label" : "stage", "labelDescription":"The stage of the action that the duration is in relation to"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"}
+      ]
+    },
+    {
+      "pmMetric": "bro_granular_stage_info",
+      "metricDescription" : "Information about last stages",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "Red",
+      "metricLabel": [
+        {"label" : "agent", "labelDescription":"The agent ID"},
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "action_id", "labelDescription":"The unique ID of the action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"},
+        {"label" : "status", "labelDescription":"The status of the action that was run"},
+        {"label" : "stage", "labelDescription":"The stage of the action that the information is in relation to"}
+      ]
+    },
+    {
+      "pmMetric": "bro_granular_operations_total",
+      "metricDescription" : "Number of executed operations per agent",
+      "metricType": "Counter",
+      "metricStatus": "stable",
+      "metricCategory": "Red",
+      "metricLabel": [
+        {"label" : "agent", "labelDescription":"The agent ID"},
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"},
+        {"label" : "status", "labelDescription":"The status of the action that was run"}
+      ]
+    },
+    {
+      "pmMetric": "bro_granular_stage_durations_seconds",
+      "metricDescription" : "Duration of stage per agent in seconds",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "reD",
+      "metricLabel": [
+        {"label" : "agent", "labelDescription":"The agent ID"},
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "action_id", "labelDescription":"The unique ID of the action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"},
+        {"label" : "stage", "labelDescription":"The stage of the action that the duration is in relation to"}
+      ]
+    },
+    {
+      "pmMetric": "bro_granular_end_time",
+      "metricDescription" : "End time of stage per agent",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "reD",
+      "metricLabel": [
+        {"label" : "agent", "labelDescription":"The agent ID"},
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "action_id", "labelDescription":"The unique ID of the action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"},
+        {"label" : "stage", "labelDescription":"The stage of the action that the end time is in relation to"},
+        {"label" : "status", "labelDescription":"The status of the action that was run"}
+      ]
+    },
+    {
+      "pmMetric": "bro_volume_stats_capacity_bytes",
+      "metricDescription" : "Total size of the PVC capacity (Unavailable in BRO with OSMN)",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "USe",
+      "metricLabel": [
+        {"label" : "persistentvolumeclaim", "labelDescription":"name of the pvc"}
+      ]
+    },
+    {
+      "pmMetric": "bro_volume_stats_used_bytes",
+      "metricDescription" : "Total size of the used space on PVC (Unavailable in BRO with OSMN)",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "USe",
+      "metricLabel": [
+        {"label" : "persistentvolumeclaim", "labelDescription":"name of the pvc"}
+      ]
+    },
+    {
+      "pmMetric": "bro_volume_stats_available_bytes",
+      "metricDescription" : "Total size of the free space on PVC (Unavailable in BRO with OSMN)",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "Use",
+      "metricLabel": [
+        {"label" : "persistentvolumeclaim", "labelDescription":"name of the pvc"}
+      ]
+    },
+    {
+      "pmMetric": "bro_operation_transferred_bytes",
+      "metricDescription" : "Number of bytes transferred by last backup/restore operation",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "Use",
+      "metricLabel": [
+        {"label" : "agent", "labelDescription":"The agent ID"},
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "action_id", "labelDescription":"The unique ID of the action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"},
+        {"label" : "backup_name", "labelDescription":"The name of the backup that the action was acting on"}
+      ]
+    },
+    {
+      "pmMetric": "bro_scheduled_operation_error",
+      "metricDescription" : "Success(0) / failure(1) status of a scheduled backup and auto-export operation that was run by the orchestrator.",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "rEd",
+      "metricLabel": [
+        {"label" : "action", "labelDescription":"The type of action that was run"},
+        {"label" : "backup_type", "labelDescription":"The backup manager that the action was run against"}
+      ]
+    },
+    {
+      "pmMetric": "bro_scheduled_backup_missed",
+      "metricDescription" : "Failure to initiate a scheduled create_backup action when the scheduler is unlocked.",
+      "metricType": "Counter",
+      "metricStatus": "stable",
+      "metricCategory": "rEd",
+      "metricLabel": [
+        {"label" : "event_id", "labelDescription":"The id of the schedule"},
+        {"label" : "backup_name", "labelDescription":"The name of the backup that was scheduled"},
+        {"label" : "backup_type", "labelDescription":"The name of the backup manager containing the schedule"},
+        {"label" : "cause", "labelDescription":"The outcome of the schedule, if failure the exception is included here"}
+      ]
+    },
+    {
+      "pmMetric": "bro_http_server_requests_seconds_count",
+      "metricDescription" : "Total number of requests BRO service received at this endpoint",
+      "metricType": "Counter",
+      "metricStatus": "stable",
+      "metricCategory": "REd",
+      "metricLabel": [
+        {"label" : "exception", "labelDescription":"The class name of any exception that was thrown"},
+        {"label" : "method", "labelDescription":"The HTTP request method"},
+        {"label" : "outcome", "labelDescription":"A String description of the HTTP response status"},
+        {"label" : "status", "labelDescription":"The HTTP response status code"},
+        {"label" : "uri", "labelDescription":"The request URI"}
+      ]
+    },
+    {
+      "pmMetric": "bro_http_server_requests_seconds_max",
+      "metricDescription" : "Maximum request duration during a time window",
+      "metricType": "Gauge",
+      "metricStatus": "stable",
+      "metricCategory": "rED",
+      "metricLabel": [
+        {"label" : "exception", "labelDescription":"The class name of any exception that was thrown"},
+        {"label" : "method", "labelDescription":"The HTTP request method"},
+        {"label" : "outcome", "labelDescription":"A String description of the HTTP response status"},
+        {"label" : "status", "labelDescription":"The HTTP response status code"},
+        {"label" : "uri", "labelDescription":"The request URI"}
+      ]
+    },
+    {
+      "pmMetric": "bro_http_server_requests_seconds_sum",
+      "metricDescription" : "Sum of the the duration of every request BRO service received at this endpoint",
+      "metricType": "Counter",
+      "metricStatus": "stable",
+      "metricCategory": "rED",
+      "metricLabel": [
+        {"label" : "exception", "labelDescription":"The class name of any exception that was thrown"},
+        {"label" : "method", "labelDescription":"The HTTP request method"},
+        {"label" : "outcome", "labelDescription":"A String description of the HTTP response status"},
+        {"label" : "status", "labelDescription":"The HTTP response status code"},
+        {"label" : "uri", "labelDescription":"The request URI"}
+      ]
+    }
+  ]
+}

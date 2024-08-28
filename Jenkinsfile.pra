@@ -1,0 +1,245 @@
+def bob = './bob/bob -r service/ruleset2_0_pra.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    environment {
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+        GERRIT = credentials('eadphub-psw')
+        EVMS = credentials('eadphub-psw')
+        HELM = credentials('eadphub-psw')
+        JIRA = credentials('eadphub-psw')
+        ERIDOC = credentials('eadphub-psw')
+        ACA = credentials('eadphub-psw')
+        MUNIN_TOKEN = credentials('munin_token')
+        RELEASE = "${params.RELEASE}"
+        OLD_VERSION = "${sh(script:'head -n 1 VERSION_PREFIX', returnStdout: true)}"
+        ARM_SERO_IDENTITY_TOKEN = credentials('hub-arm-sero-api-token')
+    }
+    options {
+        timestamps()
+        timeout(time: 5, unit: 'DAYS')
+    }
+    stages {
+        stage('Check parameters'){
+            steps {
+                script {
+                    if (params.RELEASE_CANDIDATE == null) {
+                        error("RELEASE_CANDIDATE is mandatory")
+                    }
+                    if (params.RELEASE_VERSION_AGENT_API == null) {
+                        error("RELEASE_VERSION_AGENT_API is mandatory")
+                    }
+                    if (params.BRO_INCREMENTED_VERSION == null) {
+                        error("BRO_INCREMENTED_VERSION is mandatory")
+                    }
+                }
+            }
+        }
+        stage('Prepare bob') {
+            steps {
+                sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                sh 'git submodule sync'
+                sh 'git submodule update --init --recursive'
+            }
+        }
+        stage('Initialize') {
+           steps {
+               sh "${bob} init"
+           }
+        }
+        stage('Store Release Artifacts') {
+           when { expression { (params.STORE_RELEASE_ARTIFACTS) } }
+           steps {
+               withCredentials([string(credentialsId: 'hub-arm-seli-api-token', variable: 'RELEASED_ARTIFACTS_REPO_API_TOKEN')]) {
+                   sh "${bob} store-release-artifacts"
+               }
+           }
+        }
+        stage('Image') {
+           when { expression { (params.IMAGE) } }
+           steps {
+               sh "${bob} image"
+           }
+        }
+        stage('Approve sdif files in Eridoc') {
+            when { expression { (params.APPROVE_SDIF_ERIDOC) } }
+            steps {
+                sh "${bob} eridoc:approve"
+                archiveArtifacts artifacts: '.bob/eridoc-approve-report.log', allowEmptyArchive: true
+            }
+        }
+        stage('Get the latest versions from Eridoc') {
+            steps {
+                sh "${bob} document-scan"
+            }
+        }
+        stage('Upload CPI fragment') {
+            when { expression { (params.UPLOAD_CPI_FRAGMENT) } }
+            steps {
+                    sh "${bob} merge-fragment-files"
+                    sh "${bob} upload-cpi-fragment"
+            }
+        }
+        stage('Generate characteristics report formats') {
+            when { expression { (params.CHAR_REPORT_GENERATE)}}
+            steps {
+                withCredentials([string(credentialsId: 'hub-arm-seli-api-token', variable: 'RELEASED_ARTIFACTS_REPO_API_TOKEN')]) {
+                    sh "${bob} characteristics:pull"
+                    sh "${bob} characteristics:generate-other-formats"
+                }
+                archiveArtifacts artifacts: 'characteristics_report.html, characteristics_report.pdf, characteristics_report.md', allowEmptyArchive: true
+            }
+        }
+        stage('Publish characteristics report json fragment') {
+            when { expression { (params.CHAR_REPORT_GENERATE) && (params.CHAR_REPORT_PUBLISH)}}
+            steps {
+                sh "${bob} characteristics:publish-to-arm"
+            }
+        }
+        stage('Publish interfaces json fragment') {
+            steps {
+                sh "${bob} interfaces:convert-to-zip"
+                sh "${bob} interfaces:publish-to-arm"
+            }
+        }
+        stage('Publish Yang AC XML fragment') {
+            when { expression { (params.YANG_AC_PUBLISH) }}
+            steps {
+                withCredentials([string(credentialsId: 'hub-arm-seli-api-token', variable: 'RELEASED_ARTIFACTS_REPO_API_TOKEN')]) {
+                    sh "${bob} yang-ac:generate"
+                    sh "${bob} yang-ac:publish-to-arm"
+                }
+                archiveArtifacts artifacts: 'Output/adp-rulelist2nacm-instance/eric-ctrl-bro_yang_ac.xml', allowEmptyArchive: true
+            }
+        }
+        stage('Generate structured data') {
+            when { expression { (params.STRUCTURED_DATA_GENERATE) && (params.CHAR_REPORT_GENERATE) && (params.CHAR_REPORT_PUBLISH) && (params.YANG_AC_PUBLISH)} }
+            steps {
+                sh "${bob} structured-data:generate"
+                sh "${bob} structured-data:validate"
+            }
+        }
+        stage('Upload structured data') {
+            when { expression { (params.STRUCTURED_DATA_GENERATE) && (params.STRUCTURED_DATA_UPLOAD) } }
+            steps {
+                sh "${bob} structured-data:upload"
+            }
+        }
+        stage('Publish PRA helm chart') {
+            when { expression { (params.PUBLISH_PRA_HELM) } }
+            steps {
+                withCredentials([string(credentialsId: 'hub-arm-rnd-ki-api-token', variable: 'API_TOKEN')]) {
+                    sh "${bob} helm-publish-PRA"
+                }
+            }
+        }
+        stage('Check Fragment Design Rules') {
+            when { expression { (params.CHECK_FRAGMENT_DR) } }
+            steps {
+                sh "${bob} fragment-dr-check"
+            }
+        }
+        stage('pm metrics dr checker structure data file') {
+            when { expression { (params.METRIC_DR_CHECKER) } }
+            steps {
+                sh "${bob} pm-metrics-checker"
+            }
+        }
+        stage('EVMS registration BRO') {
+           when { expression { (params.EVMS_BRO) } }
+           steps {
+             sh "${bob} evms-registration-bro"
+           }
+        }
+        stage('Munin Update') {
+            when { expression { (params.MUNIN_UPDATE_VERSION) } }
+                steps {
+                    sh "${bob} munin-update-version"
+                }
+        }
+        stage('Set GitCA Artifacts in Munin') {
+            when { expression { (params.SET_GITCA_ARTIFACTS_IN_MUNIN) } }
+                steps {
+                    sh "${bob} munin-connect-ca-artifact"
+                }
+        }
+        stage('Upload to ACA and set info in Munin') {
+            when { expression { (params.UPLOAD_TO_ACA_AND_SET_IN_MUNIN) } }
+                steps {
+                    sh "${bob} upload-and-register-artifacts-in-aca"
+                }
+        }
+        stage('Release version in Munin') {
+            when { expression { (params.MUNIN_RELEASE_VERSION) } }
+                steps {
+                    sh "${bob} munin-release-version"
+                }
+        }
+        stage('Check PLM') {
+            when { expression { (params.CHECK_PLM) } }
+                steps {
+                    sh "${bob} plm-checker"
+                }
+        }
+        stage('[Release] Generate input for ADP staging') {
+            when { expression { (params.ADP_STAGING_INPUT) } }
+            steps {
+                sh "${bob} generate-input-for-adp-staging"
+                archiveArtifacts "artifact.properties"
+            }
+        }
+        stage('[Release] Apply release tag to git repo') {
+            when { expression { (params.TAG_REPO) } }
+            steps {
+                sh "${bob} create-pra-git-tag"
+            }
+        }
+        stage('Package Marketplace Docs/Upload to ARM') {
+            when { expression { (params.PUSH_MARKETPLACE_DOCS) } }
+            steps {
+               withCredentials([
+                   string(credentialsId: 'bro-marketplace-token', variable: 'MARKETPLACE_TOKEN'),
+                   string(credentialsId: 'hub-arm-rnd-ki-api-token', variable: 'API_TOKEN')
+               ]){
+                     sh './bob/bob -r eric-log4j2-socket-appender/ruleset.yaml generate-docs'
+                     sh "./bob/bob -r service/ruleset.yaml generate-docs"
+                     sh "${bob} characteristics:generate-other-formats"
+                     sh 'sed -i "s|AGENT_API_VA_DOC_LINK|${AGENT_API_VA_DOC_LINK}|" ci_config/marketplace/marketplace_release_upload_config.yaml'
+                     sh "${bob} update-marketplace-release-upload-config-yaml-file"
+                     script {
+                        try {
+                            sh "${bob} marketplace-upload"
+                        } catch (err) {
+                            echo err.getMessage()
+                        }
+                     }
+               }
+            }
+        }
+        stage('[Release] Increment Version Prefix') {
+            when { expression { (params.INCREMENT_VERSION_PREFIX) } }
+            steps {
+                sh "${bob} increment-version-prefix"
+            }
+        }
+        stage('Trigger BRO_VERSION_UPDATE job') {
+            when { expression { (params.BRO_VERSION_UPDATE) } }
+            steps {
+                build job: 'BRO_VERSION_UPDATE', parameters: [
+                string(name: 'BRO_INCREMENTED_VERSION', value: "${params.BRO_INCREMENTED_VERSION}"),
+                string(name: 'BRO_OLD_VERSION', value: "${OLD_VERSION}"),
+                string(name: 'BRO_INCREMENT_VERSION_JIRA', value: "${params.BRO_INCREMENT_VERSION_JIRA}"),
+                ], wait: false
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: ".bob/*.log, build/artifact-dr-check/artifact_dr_check_report.html, build/plm-check/plm_check_report.html, pm_metric_check_report.html", allowEmptyArchive: true
+        }
+    }
+}

@@ -1,0 +1,42 @@
+documents:
+  - name : service-user-guide
+    files:
+      - ../../service/Documentation/BackupAndRestoreOrchestrator_User_Guide/user_guide.md
+      - ../../service/Documentation/BackupAndRestoreOrchestrator_User_Guide/architecture.png
+  - name: characteristics-report
+    files:
+      - ../../characteristics_report.html
+  - name: readme
+    files:
+      - ../../service/README.md
+  - name: contributing-guideline
+    files:
+      - ../../service/CONTRIBUTING.md
+  - name: operations-guide-cmyp
+    files:
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Operations_Guide_CMYP/html/BackupAndRestoreOrchestrator_Operations_Guide_CMYP.html
+  - name: grpc-api-specification
+    files:
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_Specification/html/BackupAndRestoreOrchestrator_Grpc_Specification.html
+  - name: grpc-api-user-guide
+    files:
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_API_User_Guide/html/BackupAndRestoreOrchestrator_Grpc_API_User_Guide.html
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_API_User_Guide/html/INT_BR_ORCH_CTRL_Backup.png
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_API_User_Guide/html/INT_BR_ORCH_CTRL_Cancel.png
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_API_User_Guide/html/INT_BR_ORCH_CTRL_Register.png
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_API_User_Guide/html/INT_BR_ORCH_CTRL_Restore.png
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_API_User_Guide/html/INT_BR_ORCH_DATA_Backup.png
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Grpc_API_User_Guide/html/INT_BR_ORCH_DATA_Restore.png
+  - name: rest-api-user-guide
+    files:
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Rest_API_User_Guide/html/BackupAndRestoreOrchestrator_Rest_API_User_Guide.html
+  - name: operations-guide
+    files:
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Operations_Guide/html/BackupAndRestoreOrchestrator_Operations_Guide.html
+  - name: agent-implementation-guide
+    files:
+      - ../../build/service/Documentation/BackupAndRestoreOrchestrator_Agent_Implementation_Guide/html/BackupAndRestoreOrchestrator_Agent_Implementation_Guide.html
+  - name: appender-installation-guide
+    files:
+      - ../../build/eric-log4j2-socket-appender/Documentation/Log4j_Socket_Appender_Installation_Guide/html/Log4j_Socket_Appender_Installation_Guide.html
+      - ../../build/eric-log4j2-socket-appender/Documentation/Log4j_Socket_Appender_Installation_Guide/html/Appender.png

@@ -1,0 +1,2180 @@
+openapi: 3.0.0
+info:
+  title: Backup and Restore Rest Specification
+  version: v4
+  description: >
+    This is the specification for the fourth version of the backup and restore HTTP REST API. The primary goal of the Backup and Restore service is to provide a solution for backup and restore operations orchestration across multiple services within an application. Users are expected to be familiar with the Backup and Restore Orchestrator service user guide before consuming this API. The Backup and Restore Orchestrator is the canonical implementation of this API. Please file an ADP support ticket (GSSUPP) with any questions or comments. 
+
+
+    This backup and restore API speaks in terms of 4 main resources: Backups, imports, restores and exports. All except the first of these resources are transient, that is, the service implementation may delete a declared instance of one of these resources at will (e.g. an import resource may be removed after the associated backup has been created, or a restore may be deleted after the system has been restored with the associated backup). These resources are managed in a declarative manner, with users expected to declare the desired state of the service, with the service implementation taking action in the background to realize this declared state. These resources are grouped under backup and restore managers, or "BRMs", and associated with some set of "agents". Please see the BRO service user guide for more information on these.
+
+
+    As these 4 resources are "heavy" (expensive to create or modify), the implemention will run some set of asynchronous "tasks" in the background, in order to bring the actual state of the backup and restore system into alignment with the declared state. These tasks are things like taking a backup, packaging a backup into a tarball and sending it to an external SFTP server etc. These tasks will generally be returned as a component of the associated resource on GET requests, e.g. GETing a backup may also include information about a task associated with that backup. As with imports, restores and exports, these "tasks" are transient (generally being cleaned up fairly frequently by the implemention), however, they are guarenteed to be present so long as the state of the task is not "FINISHED" or "CANCELLED" (see the task component schema for all possible states). Users may reliably determine if a resource has an associated unfinished task by observing whether a task is present or not, as well as the state of the task if one is present. Imports, restores and exports with an associated task that is guarenteed to be available through the API are transitively also guaranteed to be available (that is to say, an import with an associated ongoing task will not be cleaned up by the implementation).
+
+
+    Every backup manager of the backup and restore system is naturally only able to run a very limited number of these tasks at a time, and as such, the backup manager's endpoint provides information about the on-going and available tasks to give users a view of its state.
+
+    Further, under each BRM, there are tasks endpoints exposing the recently completed and on-going tasks for that BRM, to allow users to quickly get an idea of the state of the system, and to expose information about tasks whose associated resource is naturally no longer available (for example, deletion of a backup resource causes a deletion task to run, whose progress it is not possible to report under the now-deleted associated backup, and as such a user must query the BRM-level task endpoint for that information).
+
+    Beyond the 4 core resources, a set of automation related resources exist to support configuration of automatic backup or export creation, or automated cleanup of old backups before the creation of a new one. These resources and endpoints are documented below, and are relatively straightforward. Please see the BRO service user guide for further information.
+
+servers:
+  - url: 'http://eric-ctrl-bro:7001/'
+paths:
+  /backup-restore/v4/health:
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/healthResponse'
+      description: Gets orchestrator's health.
+      operationId: GET_backup-restore-orchestrator-v4-health
+  /backup-restore/v4/backup-managers:
+    get:
+      responses:
+        '200':
+          description: 'Gets the backup managers'
+          content:
+            application/json:
+              example:
+                backupManagers:
+                  - id: alpha
+                    backupType: System Data
+                    backupDomain: System
+                    ongoingTasks: []
+                    availableTasks:
+                      - create:
+                          href: "/backup-restore/v4/backup-managers/alpha/backups"
+                          method: POST
+                      - import:
+                          href: "/backup-restore/v4/backup-managers/alpha/imports"
+                          method: POST
+                  - id: alpha-bro
+                    backupType: System Data
+                    backupDomain: System
+                    ongoingTasks: []
+                    availableTasks: []
+                  - id: beta
+                    backupType: User Data
+                    backupDomain: System
+                    ongoingTasks: []
+                    availableTasks:
+                      - create:
+                          href: "/backup-restore/v4/backup-managers/beta/backups"
+                          method: POST
+                      - import:
+                          href: "/backup-restore/v4/backup-managers/beta/imports"
+                          method: POST
+                      - delete:
+                          href: "/backup-restore/v4/backup-managers/beta/backups/bu1"
+                          method: DELETE
+                      - delete:
+                          href: "/backup-restore/v4/backup-managers/beta/backups/bu2"
+                          method: DELETE
+                      - restore:
+                          href: "/backup-restore/v4/backup-managers/beta/backups/bu1/restores"
+                          method: POST
+                      - restore:
+                          href: "/backup-restore/v4/backup-managers/beta/backups/bu2/restores"
+                          method: POST
+                      - export:
+                          href: "/backup-restore/v4/backup-managers/beta/backups/bu2/exports"
+                          method: POST
+                      - export:
+                          href: "/backup-restore/v4/backup-managers/beta/backups/bu1/exports"
+                          method: POST
+                  - id: beta-bro
+                    backupType: System Data
+                    backupDomain: System
+                    ongoingTasks: []
+                    availableTasks:
+                      - restore:
+                          href: "/backup-restore/v4/backup-managers/beta-bro/backups/bu1/restores"
+                          method: POST
+                      - restore:
+                          href: "/backup-restore/v4/backup-managers/beta-bro/backups/bu2/restores"
+                          method: POST
+              schema:
+                $ref: '#/components/schemas/backupManagersResponse'
+      description: Gets all backupManagers.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers
+  '/backup-restore/v4/backup-managers/{brm-id}':
+    get:
+      responses:
+        '200':
+          description: 'Get a specific backup manager'
+          content:
+            application/json:
+              example:
+                id: alpha
+                backupType: System Data
+                backupDomain: System
+                ongoingTasks:
+                  - export:
+                      href: /backup-restore/v4/backup-managers/alpha/backups/bu1/exports/12345
+                      method: GET
+                availableTasks:
+                  - create:
+                      href: /backup-restore/v4/backup-managers/alpha/backups
+                      method: POST
+              schema:
+                $ref: '#/components/schemas/backupManagerResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+      description: Gets one backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/agents':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+      description: Retrieve the list of agents registered to this backup manager.
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/tasks':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+    get:
+      description: 'Gets all the tasks of a backup manager'
+      responses:
+        '200':
+          description: 'The list of all tasks of a backup manager'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/task-simplified'
+                    description: The list of all tasks of a backup manager
+  '/backup-restore/v4/backup-managers/{brm-id}/tasks/{task-id}':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: task-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Identifier of the task
+    get:
+      description: 'Retrieve an ongoing or completed task for this BRM, for any resource, if it exists'
+      responses:
+        '200':
+          description: 'An ongoing or completed task of the backup manager'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/task'
+                  - type: object
+                    properties:
+                      resource:
+                        type: string
+                        description: The path of the resource this task is associated with
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/last-task':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+    get:
+      description: 'Retrieve the last completed task under this BRMs scope, for any resource, if it exists'
+      responses:
+        '200':
+          description: 'Last completed task for the given backupManager'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/completed-task'
+                  - type: object
+                    properties:
+                      resource:
+                        type: string
+                        description: The path of the resource this task is associated with
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/imports':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+    get:
+      responses:
+        '200':
+          description: 'The list of recent imports carried out by the backup manager, if there are any'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                    $ref: '#/components/schemas/importWithId'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+    post:
+      description: 'Creates an import'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/import"
+      responses:
+        '200':
+          description: 'Import created'
+          content:
+            application/json:
+              schema:
+                type: string
+                title: "Import ID"
+                description: "ID of newly created import"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '409':
+          $ref: "#/components/responses/trait_conflict_409"
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/imports/{import-id}':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: import-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The task id of a particular import.
+    get:
+      responses:
+        '200':
+          description: 'Retrieves an import'
+          content:
+            application/json:
+              schema:
+                  allOf:
+                    - $ref: '#/components/schemas/importWithId'
+                    - type: object
+                      properties:
+                        task:
+                          allOf:
+                           - $ref: '#/components/schemas/task'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/imports/{import-id}/task/state':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: import-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The task id of a particular import.
+    put:
+      description: "Modify the state of a running asynchronous task associated with this import"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              enum:
+                - CANCELLED
+      responses:
+        202:
+          description: "State transition accepted"
+        409:
+          description: "Import task could not be transitioned to cancelling state, e.g. if import was already finished at time of request"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/backups':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/backups'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+      description: Gets all backups of a backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-backups
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of backup to create
+      responses:
+        '202':
+          description: ''
+          content:
+            application/json:
+              example:
+                id: '56324'
+              schema:
+                $ref: '#/components/schemas/backup'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '422':
+          $ref: '#/components/responses/trait_unprocessableEntity_422'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '409':
+          $ref: "#/components/responses/trait_conflict_409"
+      description: Creates a new backup
+      operationId: POST_backup-restore-orchestrator-v4-backup-managers-brm-id-backups
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/backup'
+                  - type: object
+                    properties:
+                      task:
+                        allOf:
+                         - $ref: '#/components/schemas/task'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+      description: Gets one backup.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-backups-backup-name
+    delete:
+      description: Delete the backup associated with this ID
+      responses:
+        204:
+          description: "Backup deletion started"
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '422':
+          $ref: '#/components/responses/trait_unprocessableEntity_422'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '409':
+          $ref: "#/components/responses/trait_conflict_409"
+      operationId: DELETE_backup-restore-orchestrator-v4-backup-managers-brm-id-backups-backup-name
+    parameters:
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}/task/state':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+    put:
+      description: "Cancel an ongoing task associated with of this backup, if there is one, by requesting a transition of it's state"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              enum:
+                - CANCELLED
+      responses:
+        202:
+          description: "State transition accepted"
+        409:
+          description: "Backup task could not be transitioned to cancelling state, e.g. if task was complete at time of request"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}/exports':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+    get:
+      description: "Show the recent exports of this backup"
+      responses:
+        200:
+          description: Recent exports of this backup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/exports"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+    post:
+      description: Start an export of this backup to an external storage provider
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                uri:
+                  description: Location to export backup to, in URI format
+                  type: string
+                password:
+                  description: Password used to authenticate with external storage provider
+                  type: string
+      responses:
+        200:
+          description: Export started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/export"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '409':
+          $ref: "#/components/responses/trait_conflict_409"
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}/exports/{export-id}':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+      - name: export-id
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The task id of a particular export
+    get:
+      description: Retrieve the information about a particular export
+      responses:
+        200:
+          description: Information about this export
+          content:
+            application/json:
+              schema:
+                allOf:
+                - type: object
+                  properties:
+                    task:
+                      allOf:
+                        - $ref: '#/components/schemas/task'
+                - type: object
+                  properties:
+                    URI:
+                      type: string
+                      description: "Location associated backup was exported to"
+        404:
+          description: This export wasn't found
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}/exports/{export-id}/task/state':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+      - name: export-id
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The task id of a particular export
+    put:
+      description: "Cancel the task associated with this export, if it one is ongoing, by requesting a transition of it's state to cancelled"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              enum:
+                - CANCELLED
+      responses:
+        202:
+          description: "State transition accepted"
+        409:
+          description: "Export task could not be transitioned to cancelling state, e.g. if export was complete at time of request"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}/restores':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+    get:
+      description: "Show the recent restores of this backup"
+      responses:
+        200:
+          description: Recent restores of this backup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restores"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+    post:
+      description: Start a restore of this backup
+      responses:
+        200:
+          description: Restore started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/restore"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '409':
+          $ref: "#/components/responses/trait_conflict_409"
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}/restores/{restore-id}':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+      - name: restore-id
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The task id of a particular restore
+    get:
+      description: Retrieve information about a particular restore
+      responses:
+        200:
+          description: Restore and associated task information
+          content:
+            application/json:
+              schema:
+                allOf:
+                - type: object
+                  properties:
+                    task:
+                      allOf:
+                        - $ref: '#/components/schemas/task'
+        404:
+          description: This restore wasn't found
+  '/backup-restore/v4/backup-managers/{brm-id}/backups/{backup-id}/restores/{restore-id}/task/state':
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backup manager
+      - name: backup-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The backup name
+      - name: restore-id
+        required: true
+        in: path
+        schema:
+          type: string
+        description: The task id of a particular restore
+    put:
+      description: "Cancel the task associated with this restore, if it is incomplete, by requesting a state transitions to CANCELLED"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              enum:
+              - CANCELLED
+      responses:
+        202:
+          description: "State transition accepted"
+        409:
+          description: "Restore task could not be transitioned to cancelling state, e.g. if restore was complete at time of request"
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+
+  '/backup-restore/v4/backup-managers/{brm-id}/configuration/housekeeping':
+    put:
+      responses:
+        '204':
+          description: ''
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '422':
+          $ref: '#/components/responses/trait_unprocessableEntity_422'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '409':
+          $ref: "#/components/responses/trait_conflict_409"
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+      description: Replaces the houskeeping configuration for one backupManager.
+      operationId: PUT_backup-restore-orchestrator-v4-backup-managers-brm-id-configuration
+      requestBody:
+        content:
+          application/json:
+            example:
+              autoDelete: enabled
+              maxStoredBackups: 10
+            schema:
+              $ref: '#/components/schemas/updateHousekeepingRequest'
+        required: true
+    patch:
+      responses:
+        '204':
+          description: ''
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '422':
+          $ref: '#/components/responses/trait_unprocessableEntity_422'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '409':
+          $ref: "#/components/responses/trait_conflict_409"
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+      description: Patches the housekeeping configuration for one backupManager, allowing for partial updates.
+      operationId: PATCH_backup-restore-orchestrator-v4-backup-managers-brm-id-configuration
+      requestBody:
+        content:
+          application/merge-patch+json:
+            example:
+              autoDelete: enabled
+            schema:
+              $ref: '#/components/schemas/updateHousekeepingRequest'
+        required: true
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                autoDelete: enabled
+                maxStoredBackups: 10
+              schema:
+                $ref: '#/components/schemas/housekeepingResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+      description: Gets configuration for one backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-configuration
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/configuration/scheduling':
+    put:
+      responses:
+        '204':
+          description: ''
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Replaces the scheduling configuration for one backupManager.
+      operationId: PUT_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-configuration
+      requestBody:
+        content:
+          application/json:
+            example:
+              {
+                "adminState" : "UNLOCKED",
+                "scheduledBackupNamePrefix": "my-scheduled-backup-name",
+                "autoExport" : "DISABLED",
+                "autoExportPassword" : "",
+                "autoExportUri" : None
+              }
+            schema:
+              $ref: '#/components/schemas/updateSchedulerRequest'
+        required: true
+    patch:
+      responses:
+        '204':
+          description: ''
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Patches the scheduling configuration for one backupManager, allowing for partial updates.
+      operationId: PATCH_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-configuration
+      requestBody:
+        content:
+          application/merge-patch+json:
+            example:
+              {
+                "adminState" : "UNLOCKED",
+              }
+            schema:
+              $ref: '#/components/schemas/updateSchedulerRequest'
+        required: true
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                    "adminState" : "UNLOCKED",
+                    "mostRecentlyCreatedAutoBackup": "some-backup",
+                    "scheduledBackupNamePrefix": "my-scheduled-backup-name",
+                    "nextScheduledTime": "2008-09-15T15:54:00.123456Z",
+                    "autoExport" : "DISABLED",
+                    "autoExportPassword" : "",
+                    "autoExportUri" : None
+                }
+              schema:
+                $ref: '#/components/schemas/schedulerResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Gets scheduler information for one backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-configuration
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/periodic-schedules':
+    post:
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              example:
+                id: 12
+              schema:
+                $ref: '#/components/schemas/createScheduleResponse'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '400(1)':
+          description: "Specifying a schedule with a period of 0 is not a valid request"
+          content:
+            application/json:
+              example:
+                {
+                  "startTime": "2008-09-15T15:54:00Z"
+                }
+              schema:
+                $ref: '#/components/responses/specifying_with_period_0'
+        '400(2)':
+          description: "Empty body is not a valid request"
+          content:
+            application/json:
+              example:
+                {
+                }
+              schema:
+                $ref: '#/components/responses/empty_body'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Creates a periodic schedule.
+      operationId: POST_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-periodic
+      requestBody:
+        content:
+          application/json:
+            example:
+              weeks: 1
+              hours: 10
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "schedules": [{
+                    "id": "1",
+                    "days" : 1,
+                    "hours" : 1,
+                    "minutes" : 1,
+                    "weeks" : 1,
+                    "startTime" : "2008-09-15T15:54:00Z",
+                    "stopTime" : "2008-09-18T15:54:00Z",
+                  },
+                  {
+                    "id": "2",
+                    "days" : 3,
+                    "hours" : 4,
+                    "minutes" : 5,
+                    "weeks" : 6,
+                    "startTime" : "2008-09-15T15:54:00Z",
+                    "stopTime" : "2008-09-18T15:54:00Z",
+                  }]
+                }
+              schema:
+                $ref: '#/components/schemas/schedulesResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Gets all periodic schedules of a backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-periodic
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/periodic-schedules/{schedule-id}':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "id": "2",
+                  "days" : 3,
+                  "hours" : 4,
+                  "minutes" : 5,
+                  "weeks" : 6,
+                  "startTime" : "2008-09-15T15:54:00Z",
+                  "stopTime" : "2008-09-18T15:54:00Z",
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Gets one periodic schedule of a backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-periodic-schedule-id
+    delete:
+      responses:
+        '204':
+          description: ''
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Deletes one periodic schedule of a backupManager.
+      operationId: DELETE_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-periodic-schedule-id
+    put:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "id": "2",
+                  "days" : 3,
+                  "hours" : 10,
+                  "minutes" : 5,
+                  "weeks" : 1,
+                  "startTime" : "2008-09-15T15:54:00Z",
+                  "stopTime" : "2008-09-18T15:54:00Z",
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '400(1)':
+          description: "Specifying a schedule with a period of 0 is not a valid request"
+          content:
+            application/json:
+              example:
+                {
+                  "startTime": "2008-09-15T15:54:00Z"
+                }
+              schema:
+                $ref: '#/components/responses/specifying_with_period_0'
+        '400(2)':
+          description: "Empty body is not a valid request"
+          content:
+            application/json:
+              example:
+                {
+                }
+              schema:
+                $ref: '#/components/responses/empty_body'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Replaces the given periodic schedule.
+      operationId: PUT_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-periodic-schedule-id
+      requestBody:
+        content:
+          application/json:
+            example:
+              {
+                "days" : 3,
+                "hours" : 10,
+                "minutes" : 5,
+                "weeks" : 1,
+                "startTime" : "2008-09-15T15:54:00Z",
+                "stopTime" : "2008-09-18T15:54:00Z",
+              }
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+    parameters:
+      - name: schedule-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Identifier of periodic schedule
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+    patch:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/merge-patch+json:
+              example:
+                {
+                  "id": "2",
+                  "days" : 3,
+                  "hours" : 10,
+                  "minutes" : 5,
+                  "weeks" : 1,
+                  "startTime" : "2008-09-15T15:54:00Z",
+                  "stopTime" : "2008-09-18T15:54:00Z",
+                }
+              schema:
+                $ref: '#/components/schemas/createScheduleRequest'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Patches the given periodic schedule, allowing for partial updates.
+      operationId: PATCH_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-periodic-schedule-id
+      requestBody:
+        content:
+          application/json:
+            example:
+              {
+                "days" : 3,
+                "hours" : 10,
+              }
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+  '/backup-restore/v4/backup-managers/{brm-id}/calendar-schedules':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "schedules" : [
+                    {
+                      "id": "...",
+                      "dayOfMonth": 0..31,
+                      "dayOfWeek": "SUNDAY",
+                      "dayOfWeekOccurrence": 0..5,
+                      "month": 0..12,
+                      "startTime": dateTime,
+                      "stopTime": dateTime,
+                      "time": time, the time of day the scheduled event should trigger
+                    },
+                    {
+                      "id": "...",
+                      "dayOfMonth": 0..31,
+                      "dayOfWeek": "SUNDAY",
+                      "dayOfWeekOccurrence": 0..5,
+                      "month": 0..12,
+                      "startTime": dateTime,
+                      "stopTime": dateTime,
+                      "time": time, the time of day the scheduled event should trigger
+                    }
+                  ]
+                }
+              schema:
+                $ref: '#/components/schemas/schedulesResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Gets all calendar schedules of a backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-calendar
+    post:
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              example:
+                id: 12
+              schema:
+                $ref: '#/components/schemas/createScheduleResponse'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Creates a calendar based schedule.
+      operationId: POST_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-calendar
+      requestBody:
+        content:
+          application/json:
+            example:
+              {
+                "dayOfMonth": 0..31,
+                "dayOfWeek": "SUNDAY",
+                "dayOfWeekOccurrence": 0..5,
+                "month": 0..12,
+                "startTime": dateTime,
+                "stopTime": dateTime,
+                "time": time, the time of day the scheduled event should trigger
+              }
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/calendar-schedules/{schedule-id}':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "id": "...",
+                  "dayOfMonth": 0..31,
+                  "dayOfWeek": "SUNDAY",
+                  "dayOfWeekOccurrence": 0..5,
+                  "month": 0..12,
+                  "startTime": dateTime,
+                  "stopTime": dateTime,
+                  "time": time, the time of day the scheduled event should trigger
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Gets one calendar schedule of a backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-calendar-schedule-id
+    delete:
+      responses:
+        '204':
+          description: ''
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Deletes the given calendar schedule of a backupManager.
+      operationId: DELETE_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-calendar-schedule-id
+    put:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "id": "...",
+                  "dayOfMonth": 16,
+                  "dayOfWeek": "SUNDAY",
+                  "dayOfWeekOccurrence": 0..5,
+                  "month": 0..12,
+                  "startTime": dateTime,
+                  "stopTime": dateTime,
+                  "time": time, the time of day the scheduled event should trigger
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Replaces the given calendar schedule.
+      operationId: PUT_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-calendar-schedule-id
+      requestBody:
+        content:
+          application/json:
+            example:
+              {
+                "dayOfMonth": 16,
+                "dayOfWeek": "SUNDAY",
+                "dayOfWeekOccurrence": 0..5,
+                "month": 0..12,
+                "startTime": dateTime,
+                "stopTime": dateTime,
+                "time": time, the time of day the scheduled event should trigger
+              }
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+    patch:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/merge-patch+json:
+              example:
+                {
+                  "id": "...",
+                  "dayOfMonth": 16,
+                  "dayOfWeek": "SUNDAY",
+                  "dayOfWeekOccurrence": 0..5,
+                  "month": 0..12,
+                  "startTime": dateTime,
+                  "stopTime": dateTime,
+                  "time": time, the time of day the scheduled event should trigger
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Patches the given calendar schedule, allowing for partial updates.
+      operationId: PATCH_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-calendar-schedule-id
+      requestBody:
+        content:
+          application/json:
+            example:
+              dayOfMonth: 16
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+    parameters:
+      - name: schedule-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Identifier of schedule
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/single-schedules':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "schedules" : [
+                    {
+                      "id": "...",
+                      "scheduledTime": dateTime
+                    },
+                    {
+                      "id": "...",
+                      "scheduledTime": dateTime
+                    }
+                  ]
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Gets all single Occurrence schedules of a backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-single
+    post:
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              example:
+                id: 12
+              schema:
+                $ref: '#/components/schemas/createScheduleResponse'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Creates a single Occurrence schedule.
+      operationId: POST_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-single
+      requestBody:
+        content:
+          application/json:
+            example:
+              {
+                "scheduledTime": dateTime
+              }
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+    parameters:
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+  '/backup-restore/v4/backup-managers/{brm-id}/single-schedules/{schedule-id}':
+    get:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "id": "...",
+                  "scheduledTime": dateTime
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Gets one single schedule of a backupManager.
+      operationId: GET_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-single-schedule-id
+    delete:
+      responses:
+        '204':
+          description: ''
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Deletes the given single schedule of a backupManager.
+      operationId: DELETE_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-single-schedule-id
+    put:
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              example:
+                {
+                  "id": "...",
+                  "scheduledTime": dateTime
+                }
+              schema:
+                $ref: '#/components/schemas/scheduleResponse'
+        '400':
+          $ref: '#/components/responses/trait_badRequest_400'
+        '404':
+          $ref: '#/components/responses/trait_notFound_404'
+        '500':
+          $ref: '#/components/responses/trait_internalServerError_500'
+        '501':
+          $ref: '#/components/responses/trait_notImplemented_501'
+      description: Updates the given single schedule. Note single events do not have a PATCH operation as a partial update and complete replacement are equivalent.
+      operationId: PUT_backup-restore-orchestrator-v4-backup-managers-brm-id-schedules-single-schedule-id
+      requestBody:
+        content:
+          application/json:
+            example:
+              {
+                "scheduledTime": dateTime
+              }
+            schema:
+              $ref: '#/components/schemas/createScheduleRequest'
+        required: true
+    parameters:
+      - name: schedule-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Identifier of schedule
+      - name: brm-id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The name of the backupManager
+components:
+  schemas:
+    backupManager:
+      description: A backupManager
+      type: object
+      properties:
+        id:
+          description: Identity of the backup-manager
+          type: string
+        backupType:
+          description: 'Type of backup, for example System Data or User Data'
+          type: string
+        backupDomain:
+          description: 'Backup domain, for example System'
+          type: string
+        ongoingTasks:
+          description: List of tasks currently being executed by the backup manager.
+          type: array
+          items:
+            description: An object holding the ongoing task
+            oneOf:
+              - $ref: '#/components/schemas/ongoingCreateTask'
+              - $ref: '#/components/schemas/ongoingRestoreTask'
+              - $ref: '#/components/schemas/ongoingImportTask'
+              - $ref: '#/components/schemas/ongoingExportTask'
+              - $ref: '#/components/schemas/ongoingDeleteTask'
+              - $ref: '#/components/schemas/ongoingDeleteTask'
+              - $ref: '#/components/schemas/ongoingHousekeepingTask'
+        availableTasks:
+          description: List of tasks that are currently available to run on the backup manager.
+          type: array
+          items:
+            description: An object holding the available task
+            oneOf:
+              - $ref: '#/components/schemas/availableCreateTask'
+              - $ref: '#/components/schemas/availableRestoreTask'
+              - $ref: '#/components/schemas/availableImportTask'
+              - $ref: '#/components/schemas/availableExportTask'
+    ongoingCreateTask:
+      description: An object holding the ongoing create backup task resource
+      type: object
+      properties:
+        create:
+          description: An attribute holding the path and method to a create backup task
+          properties:
+          $ref: '#/components/schemas/getHttpLink'
+    ongoingRestoreTask:
+      description: An object holding the ongoing restore backup task resource
+      type: object
+      properties:
+        restore:
+          description: An attribute holding the path and method to a restore backup task
+          $ref: '#/components/schemas/getHttpLink'
+    ongoingImportTask:
+      description: An object holding the ongoing import backup task resource
+      type: object
+      properties:
+        import:
+          description: An attribute holding the path and method to a import backup task
+          $ref: '#/components/schemas/getHttpLink'
+    ongoingExportTask:
+      description: An object holding the ongoing export backup task resource
+      type: object
+      properties:
+        export:
+          description: An attribute holding the path and method to a export a backup task
+          $ref: '#/components/schemas/getHttpLink'
+    ongoingDeleteTask:
+      description: An object holding the ongoing delete backup task resource
+      type: object
+      properties:
+        delete:
+          description: An attribute holding the path and method to a delete backup task
+          $ref: '#/components/schemas/getHttpLink'
+    ongoingHousekeepingTask:
+      description: An object holding the ongoing housekeeping task resource
+      type: object
+      properties:
+        housekeeping:
+          description: An attribute holding the path and method to a housekeeping task
+          $ref: '#/components/schemas/getHttpLink'
+    availableCreateTask:
+      description: An object holding the available create backup task resource
+      type: object
+      properties:
+        create:
+          description: An attribute holding the path and method to a create backup task
+          properties:
+          $ref: '#/components/schemas/postHttpLink'
+    availableRestoreTask:
+      description: An object holding the available restore backup task resource
+      type: object
+      properties:
+        restore:
+          description: An attribute holding the path and method to a restore backup task
+          $ref: '#/components/schemas/postHttpLink'
+    availableImportTask:
+      description: An object holding the available import backup task resource
+      type: object
+      properties:
+        import:
+          description: An attribute holding the path and method to a import backup task
+          $ref: '#/components/schemas/postHttpLink'
+    availableExportTask:
+      description: An object holding the available export backup task resource
+      type: object
+      properties:
+        export:
+          description: An attribute holding the path and method to a export a backup task
+          $ref: '#/components/schemas/postHttpLink'
+    availableDeleteTask:
+      description: An object holding the available delete backup task resource
+      type: object
+      properties:
+        delete:
+          description: An attribute holding the path and method to a delete backup task
+          $ref: '#/components/schemas/deleteHttpLink'
+    getHttpLink:
+      description: A base type of objects representing links to resources using GET method
+      type: object
+      properties:
+        href:
+          description: Path to the resource
+          type: string
+        method:
+          description: The HTTP method
+          type: string
+          enum: [GET]
+    postHttpLink:
+      description: A base type of objects representing links to resources using POST method
+      type: object
+      properties:
+        href:
+          description: Path to the resource
+          type: string
+        method:
+          description: The HTTP method
+          type: string
+          enum: [POST]
+    deleteHttpLink:
+      description: A base type of objects representing links to resources using DELETE method
+      type: object
+      properties:
+        href:
+          description: Path to the resource
+          type: string
+        method:
+          description: The HTTP method
+          type: string
+          enum: [DELETE]
+    backupManagersResponse:
+      title: BackupManagersResponse
+      required:
+        - backupManagers
+      description: Gets all backupManagers
+      type: object
+      properties:
+        backupManagers:
+          $ref: '#/components/schemas/backupManager'
+    backupManagerResponse:
+      title: BackupManagerResponse
+      required:
+        - id
+      $ref: '#/components/schemas/backupManager'
+    import:
+      title: Import
+      description: Represents an import. Transient object, only guarenteed to be present while associated task is not "FINISHED" or "CANCELLED"
+      type: object
+      properties:
+        uri:
+          type: string
+          description: URI of externally stored backup to import
+        password:
+          type: string
+          description: Password used by B&R implementation to authenticate with storage provider
+    importWithId:
+      title: Import
+      description: Represents an import with BRO assigned ID. Transient object, only guarenteed to be present while associated task is not "FINISHED" or "CANCELLED"
+      type: object
+      properties:
+        id:
+          description: Unique identifier of import
+          type: string
+        uri:
+          type: string
+          description: URI of externally stored backup to import
+        backup:
+          type: string
+          description: Path to backup resource associated with this import, if it exists. Not present otherwise
+    export:
+      title: Export
+      type: object
+      description: Represents an export of a backup. Transient object, only guarenteed to be present while associated task state is not "FINISHED" or "CANCELLED"
+      properties:
+        id:
+          type: string
+          description: ID of this particular export
+        uri:
+          type: string
+          description: URI representation of location backup was exported to
+    task:
+      description: Represents the status of an ongoing or finished asynchronous task on some resource. Transient object, only guarenteed to be present while state is not "FINISHED" or "CANCELLED"
+      title: Task
+      type: object
+      properties:
+        startTime:
+          description: Time task began, in yang date-time format
+          type: string
+        lastUpdateTime:
+          description: Last time progress changed, in yang date-time format
+          type: string
+        completionTime:
+          description: Time progress transitioned to "FINISHED" or "CANCELLED" state, in yang date-time format
+          type: string
+        resultInfo:
+          description: 'Textual description of the outcome/result of the operation containing useful information for the NMS. If the operation failed, it can contain an error message.'
+          type: string
+        additionalInfo:
+          description: Used for logging significant messages during execution of a task
+          type: string
+        progressInfo:
+          description: Textual information that describes the actual state of the task execution
+          type: string
+        progressPercentage:
+          description: Progress of the task. As the action progresses, the `progressPercentage` will increment from 0.0 to 1.0 indicating the completion of the action. The 0.0 progressPercentage indicates 0% completion and 1.0 indicates 100% completion. Intermediate values such as 0.33 indicate approximately 33% completion of an action.
+          type: number
+        result:
+          description: The result of the task
+          type: string
+          enum:
+           - NOT_AVAILABLE
+           - SUCCESS
+           - FAILURE
+        state:
+          description: The state of the task
+          type: string
+          enum:
+           - RUNNING
+           - FINISHED
+           - CANCELLING
+           - CANCELLED
+    task-simplified:
+      description: Represents the simplified view of the status of an ongoing or finished asynchronous task on some resource. Transient object, only guarenteed to be present while state is not "FINISHED" or "CANCELLED"
+      title: Task
+      type: object
+      properties:
+        id:
+          description: Uniquely identifies the task
+          type: string
+        name:
+          description: Name of the invoked asynchronous action
+          type: string
+        startTime:
+          description: Time task began, in yang date-time format
+          type: string
+        result:
+          description: The result of the task
+          type: string
+          enum:
+           - NOT_AVAILABLE
+           - SUCCESS
+           - FAILURE
+    completed-task:
+      description: Represents the status of a finished asynchronous task on some resource.
+      title: Task
+      type: object
+      properties:
+        startTime:
+          description: Time task began, in yang date-time format
+          type: string
+        lastUpdateTime:
+          description: Last time progress changed, in yang date-time format
+          type: string
+        completionTime:
+          description: Time progress transitioned to "FINISHED", in yang date-time format
+          type: string
+        resultInfo:
+          description: 'Textual description of the outcome/result of the operation containing useful information for the NMS. If the operation failed, it can contain an error message.'
+          type: string
+        additionalInfo:
+          description: Used for logging significant messages during execution of a task
+          type: string
+        progressInfo:
+          description: Textual information that describes the actual state of the task execution
+          type: string
+        progressPercentage:
+          description: Progress of the task. As the action progresses, the `progressPercentage` will increment from 0.0 to 1.0 indicating the completion of the action. The 0.0 progressPercentage indicates 0% completion and 1.0 indicates 100% completion. Intermediate values such as 0.33 indicate approximately 33% completion of an action.
+          type: number
+        result:
+          description: The result of the task
+          type: string
+          enum:
+            - SUCCESS
+            - FAILURE
+        state:
+          description: The state of the task
+          type: string
+          enum:
+            - FINISHED
+    exports:
+      title: Exports
+      type: array
+      description: List of recent exports
+      items:
+        $ref: "#/components/schemas/export"
+    restore:
+      title: Restore
+      type: object
+      description: Represents a restore of a particular backup to the cluster application. Transient object, only guarenteed to be present while associated task state is not "FINISHED" or "CANCELLED"
+      properties:
+        id:
+          type: string
+          description: Identifier of a particular restore
+    restores:
+      title: Restores
+      type: array
+      items:
+        $ref: "#/components/schemas/restore"
+    updateHousekeepingRequest:
+      title: UpdateHousekeepingRequest
+      description: Update housekeeping parameters
+      type: object
+      properties:
+        autoDelete:
+          description: 'Determines whether automated housekeeping of backups is enabled. If enabled and the number of backups already stored on the Orchestrator is equal to the value of max-stored-manual-backups, backups will be removed before creating or importing another backup. The backups will be eliminated in the following order: first those incomplete or corrupted , then oldest backup. If automated housekeeping is set to disabled, no backup is removed, instead, when action create-backup() is invoked it is rejected with a failure parameter.'
+          type: string
+        maxStoredBackups:
+          description: 'Maximum number of backups (scheduled or manual) to store in the orchestrator, per backup type. When this limit is reached, if auto delete is enabled backups will be removed before creating or importing another backup, if auto delete is disabled it is rejected with a failure parameter.'
+          type: integer
+          minimum: 0
+          maximum: 65535
+      required:
+        - autoDelete
+        - maxStoredBackups
+    housekeepingResponse:
+      title: housekeepingResponse
+      description: Housekeeping information
+      type: object
+      properties:
+        autoDelete:
+          description: 'Determines whether automated housekeeping of backups is enabled. If enabled and the number of backups already stored on the Orchestrator is equal to the value of maxStoredBackups, backups will be removed before creating or importing another backup. The backups will be eliminated in the following order: first those incomplete or corrupted , then oldest backup. If automated housekeeping is set to disabled, no backup is removed, instead, when action create-backup() is invoked it is rejected with a failure parameter.'
+          type: string
+        maxStoredBackups:
+          description: 'Maximum number of backups (scheduled or manual) to store in the orchestrator, per backup type. When this limit is reached, if auto delete is enabled backups will be removed before creating or importing another backup, if auto delete is disabled it is rejected with a failure parameter.'
+          type: integer
+      required:
+        - autoDelete
+        - maxStoredBackups
+    updateSchedulerRequest:
+      title: UpdateSchedulerRequest
+      description: Updates a scheduler configuration
+      type: object
+      properties:
+        scheduledBackupNamePrefix:
+          description: The configurable portion of the scheduled backup name. The scheduled backups are named <scheduled-backup-name>-<creation date and time>
+          type: string
+        adminState:
+          description: State of scheduler. See service user guide for more information
+          type: string
+          enum:
+           - LOCKED
+           - UNLOCKED
+        autoExport:
+          description: Enable or disable automatic exporting of scheduled backups
+          type: string
+          enum:
+           - ENABLED
+           - DISABLED
+        autoExportPassword:
+          description: Password used to authenticate BRO with server to export backups to. When returned by BRO, hidden to indicate password set, blank to indicate unset
+          type: string
+        autoExportUri:
+          description: URI to export automatically taken backups to
+          type: string
+          format: uri
+    schedulerResponse:
+      title: SchedulerResponse
+      description: Scheduler configuration of a backupManager
+      allOf:
+        - $ref: "#/components/schemas/updateSchedulerRequest"
+        - type: object
+          properties:
+            mostRecentlyCreatedAutoBackup:
+              description: The name of the scheduled backup created most recently by the backup scheduler
+              type: string
+            nextScheduledTime:
+              description: 'The date and time when the next scheduled event is triggered. This is the earliest scheduled event from the set of configured schedules, i.e. single, periodic, and calendar-based schedules'
+              type: string
+      required:
+        - adminState
+        - scheduledBackupNamePrefix
+        - mostRecentlyCreatedAutoBackup
+        - nextScheduledTime
+        - autoExport
+        - autoExportPassword
+        - autoExportUri
+    createScheduleRequest:
+      title: createScheduleRequest
+      description: Create event schedule. See service user guide for description of event types available
+      oneOf:
+        - type: object
+          title: Single schedule
+          properties:
+            scheduledTime:
+              description: 'When the backup is supposed to happen. Used to schedule a single backup. In format
+                            yyyy-mm-ddThh:mm:ss(.ssss)?(Z or [+\-]hh:mm)?'
+              type: string
+              pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[\+\-]\d{2}:\d{2})?$'
+        - type: object
+          title: Periodic schedule
+          properties:
+            startTime:
+              description: 'Start time. If not specified, the implementation uses the current system time as the default value. Used to schedule a periodic backup and a calendar-based periodic backup. In format
+                            yyyy-mm-ddThh:mm:ss(.ssss)?(Z or [+\-]hh:mm)?'
+              type: string
+              pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[\+\-]\d{2}:\d{2})?$'
+            stopTime:
+              description: 'Stop time. If no stop-time present the event continues indefinitely. Used to schedule a periodic backup and a calendar-based periodic backup. In format
+                            yyyy-mm-ddThh:mm:ss(.ssss)?(Z or [+\-]hh:mm)?'
+              type: string
+              pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[\+\-]\d{2}:\d{2})?$'
+            minutes:
+              description: Number of minutes in event period
+              type: integer
+            hours:
+              description: Number of hours in event period
+              type: integer
+            days:
+              description: Number of days in event period
+              type: integer
+            weeks:
+              description: Number of weeks in event period
+              type: integer
+        - type: object
+          title: Calender based schedule
+          required:
+            - time
+          properties:
+            startTime:
+              description: 'Start time. If not specified, the implementation uses the current system time as the default value. Used to schedule a periodic backup and a calendar-based periodic backup. In format
+                            yyyy-mm-ddThh:mm:ss(.ssss)?(Z or [+\-]hh:mm)?'
+              type: string
+              pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[\+\-]\d{2}:\d{2})?$'
+            stopTime:
+              description: 'Stop time. If no stop-time present the event continues indefinitely. Used to schedule a periodic backup and a calendar-based periodic backup. In format
+                            yyyy-mm-ddThh:mm:ss(.ssss)?(Z or [+\-]hh:mm)?'
+              type: string
+              pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[\+\-]\d{2}:\d{2})?$'
+            month:
+              description: Month. Defaults to every month. From 0 to 12. Used to schedule a calendar-based periodic backup
+              type: integer
+            dayOfWeek:
+              description: Day of week. Used to schedule a calendar-based periodic backup
+              enum:
+                - SUNDAY
+                - MONDAY
+                - TUESDAY
+                - WEDNESDAY
+                - THURSDAY
+                - FRIDAY
+                - SATURDAY
+                - ALL
+              type: string
+            dayOfMonth:
+              description: Day of month. From 0 to 31. Used to schedule a calendar-based periodic backup
+              type: integer
+            time:
+              description: 'This is the time when the scheduled event must occur.This parameter does not have a timezone. It will use local time. Used to schedule a calendar-based periodic backup. In format
+                            HH:MM:SS(.SSS)?'
+              type: string
+              pattern: '^(0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$'
+            dayOfWeekOccurrence:
+              description: The occurrence of the day of week specified by day-of-week leaf in the month. Used to schedule a calendar-based periodic backup
+              enum:
+                - FIRST
+                - SECOND
+                - THIRD
+                - FOURTH
+                - LAST
+                - ALL
+              type: string
+    createScheduleResponse:
+      title: Create Schedule Response
+      required:
+        - id
+      description: Result of creating a schedule
+      type: object
+      properties:
+        id:
+          description: Identifier of new schedule
+          type: string
+    schedulesResponse:
+      title: Schedules Response
+      required:
+        - events
+      description: All schedules under a backupManager
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/scheduleResponse'
+    scheduleResponse:
+      title: ScheduleResponse
+      description: One schedule
+      allOf:
+        - $ref: "#/components/schemas/createScheduleRequest"
+        - type: object
+          properties:
+            id:
+              description: Identifier of schedule
+              type: string
+    backups:
+      title: Backups
+      type: array
+      items:
+        $ref: "#/components/schemas/backup"
+    backup:
+      title: Backup
+      description: A particular backup resource
+      type: object
+      properties:
+        id:
+          description: Identifier of the backup
+          type: string
+        name:
+          description: User provided name of backup
+          type: string
+        creationTime:
+          description: Time backup was created at
+          type: string
+        status:
+          description: Status of the backup
+          enum:
+            - COMPLETE
+            - INCOMPLETE
+            - CORRUPTED
+          type: string
+        creationType:
+          description: Creation type; whether manually created or automatically via scheduler
+          type: string
+          enum:
+            - MANUAL
+            - SCHEDULED
+            - SYSTEM_CREATED
+        softwareVersion:
+          description: The administrative data portion of active software versions as specified in the software inventory management, when the backup is created
+          type: array
+          items:
+            type: object
+            description: One softwareVersion
+            properties:
+              productName:
+                description: Name of the product
+                type: string
+              productNumber:
+                description: Product number of the product
+                type: string
+              productRevision:
+                description: Revision state of the product
+                type: string
+              date:
+                description: Production date of the product
+                type: string
+              description:
+                description: Free text description of the product
+                type: string
+              type:
+                description: Free text description of the product type
+                type: string
+    healthResponse:
+      title: Health
+      description: Represents Health of Orchestrator.
+      type: object
+      properties:
+        status:
+          description: Is Healthy if orchestrator is healthy
+          enum:
+            - Healthy
+            - Unhealthy
+          type: string
+          example: "Healthy"
+    errorResponse:
+      title: ErrorResponse
+      required:
+        - statusCode
+        - message
+      description: Represents an error
+      type: object
+      properties:
+        statusCode:
+          description: Status code of the response
+          type: integer
+        message:
+          description: Description of cause of error
+          type: string
+  responses:
+    trait_badRequest_400:
+      description: Bad request.
+      content:
+        application/json:
+          example:
+            statusCode: 400
+            message: Missing required field XYZ
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    specifying_with_period_0:
+      description: Bad request.
+      content:
+        application/json:
+          example:
+            statusCode: 400
+            message: Specifying a schedule with a period of 0 is not a valid request
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    empty_body:
+      description: Bad request.
+      content:
+        application/json:
+          example:
+            statusCode: 400
+            message: Empty body is not a valid request
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    trait_notFound_404:
+      description: Not found.
+      content:
+        application/json:
+          example:
+            statusCode: 404
+            message: BackupManager 123 not found
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    trait_unprocessableEntity_422:
+      description: Unable to process the contained instructions.
+      content:
+        application/json:
+          example:
+            statusCode: 422
+            message: unprocessableEntity
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    trait_internalServerError_500:
+      description: Internal server error.
+      content:
+        application/json:
+          example:
+            statusCode: 500
+            message: NullPointerException
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    trait_notImplemented_501:
+      description: Not yet implemeted.
+      content:
+        application/json:
+          example:
+            statusCode: 501
+            message: Not implemented
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+    trait_conflict_409:
+      description: Service is busy
+      content:
+        application/json:
+          example:
+            statusCode: 501
+            message: Service busy
+          schema:
+            $ref: '#/components/schemas/errorResponse'
+  parameters: {}
+  examples: {}
+  requestBodies: {}
+  headers: {}
+  securitySchemes: {}
+  links: {}
+  callbacks: {}

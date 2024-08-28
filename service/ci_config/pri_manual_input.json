@@ -1,0 +1,55 @@
+[{
+    "Impact_on_Users_Deprecation": [
+         "There are no NBCs ending in this release"
+     ],
+     "Exemptions": [
+         "No specific exemption is created for this release."
+     ],
+     "New_and_Updated_2PP_3PP":[
+    ],
+    "Repository_helm_link": [
+        {
+            "Title": "Backup and Restore Orchestrator",
+            "Folder_Link": "https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-released-helm/",
+            "Chart_Name": "eric-ctrl-bro"
+        }
+    ],
+    "Upgrade_Information": [
+        ""
+    ],
+     "Marketplace":
+     {
+         "service_url": "https://adp.ericsson.se/marketplace/backup-and-restore-orchestrator"
+     },
+     "PRA_Checklist":[
+        {
+            "document_number": "15311-FCP1322463",
+            "revision": "A"
+        }
+     ],
+     "Release_criteria_unfulfillments": [
+     ],
+     "API": [
+        {
+            "Title": "Backup and Restore Orchestrator REST API Specification",
+            "Document_Number": "2/155 19-CAF 101 027/2",
+            "Document_Revision": "B",
+            "Support_Other":"EriDoc",
+            "Changes": [
+                "There are no changes to the API"
+            ]
+        },
+        {
+            "Title": "Backup and Restore Orchestrator REST API User Guide",
+            "Document_Number": "3/198 17-APR 201 40/2 ",
+            "Document_Revision": "C",
+            "Support_Other":"EriDoc",
+            "Changes": [
+                "There are no changes to the API"
+            ]
+         }
+     ],
+     "Eridoc_Info": {
+        "Folder_Id": "0b004cffc1b15332"
+     }
+}]

@@ -1,0 +1,126 @@
+def bob = './bob/bob -r service/ruleset.yaml'
+
+pipeline {
+    agent {
+        node {
+            label SLAVE
+        }
+    }
+    options {
+        timestamps()
+        timeout(time: 1, unit: 'HOURS')
+    }
+    environment {
+        BRANCH=params.GERRIT_BRANCH.substring(GERRIT_BRANCH.lastIndexOf("-") + 1)
+        API_TOKEN = credentials('hub-arm-rnd-ki-api-token')
+    }
+    stages {
+        stage('Preparation') {
+            parallel {
+                stage("Set BuildName") {
+                    steps {
+                        buildName "#" + currentBuild.number + " | " + params.GERRIT_CHANGE_SUBJECT.substring(0, GERRIT_CHANGE_SUBJECT.indexOf(" ")) + " | ${GERRIT_BRANCH} | ${GERRIT_PATCHSET_UPLOADER_NAME}"
+                    }
+                }
+                stage('Prepare submodules') {
+                    steps {
+                        sh 'git clean -xdff --exclude=.m2 --exclude=settings.xml'
+                        sh 'git submodule sync'
+                        sh 'git submodule update --init --recursive'
+                    }
+                }
+            }
+        }
+        stage('Pep8 + Pylint') {
+            when { expression { (params.RELEASE!="true") } }
+            steps {
+                sh "pep8 ./test/"
+                sh "python3 -m pylint --reports=n --rcfile=./testframework/.pylintrc ./test/*.py"
+            }
+        }
+        stage('OSMN Tests') {
+            environment {
+                TEST_CHART_VERSION = "${sh(script:'helm search devtest --versions | grep ${BRANCH} | awk \'{print $2}\' | head -n 1', returnStdout: true)}"
+                PYTHON_FILE = "nose_s3.py"
+            }
+            steps {
+                script {
+                    def namespaces = ["cicd-bro-osmn", "cicd-bro-osmn-two", "cicd-bro-osmn-three"]
+                    if (Jenkins.instance.getItem("${env.JOB_NAME}").builds[1..3].every { build-> build.result.toString() == 'FAILURE' || build.result.toString() == 'ABORTED'}) {
+                        manualChoiceRequired = true
+                    } else {
+                        try {
+                            for (int i = 6; i >= 1; i--) {
+                                copyArtifacts(filter: 'namespace-used.txt', projectName: currentBuild.projectName, optional: true,
+                                  selector: specific((currentBuild.number-i).toString()))
+                                if (fileExists('namespace-used.txt')) {
+                                    if (Jenkins.instance.getItem("${env.JOB_NAME}").getBuildByNumber(currentBuild.number-i).result != hudson.model.Result.SUCCESS) {
+                                        namespaces -= readFile(file: "namespace-used.txt")
+                                    } else {
+                                        namespaces += readFile(file: "namespace-used.txt")
+                                        namespaces.unique()
+                                    }
+                                }
+                            }
+                            if (namespaces) {
+                                writeFile file: "namespace-used.txt", text: namespaces[0]
+                                archiveArtifacts 'namespace-used.txt'
+                                env.NAMESPACE = readFile 'namespace-used.txt'
+                                buildName "#" + currentBuild.number + " | " + params.GERRIT_CHANGE_SUBJECT.substring(0, GERRIT_CHANGE_SUBJECT.indexOf(" ")) + " | ${GERRIT_BRANCH} | ${GERRIT_PATCHSET_UPLOADER_NAME} | ${NAMESPACE}"
+                                manualChoiceRequired = false
+                            } else {
+                                manualChoiceRequired = true
+                            }
+                        } catch(err) {
+                            error("Failed to get a namespace")
+                        }
+                    }
+                    if (manualChoiceRequired) {
+                        def jobName = currentBuild.fullDisplayName
+                        emailext body: '''${SCRIPT, template="groovy-html.template"}''',
+                        mimeType: 'text/html',
+                        subject: "${jobName} [PICK A NAMESPACE]",
+                        to: '$GERRIT_CHANGE_OWNER_EMAIL',
+                        replyTo: '$GERRIT_CHANGE_OWNER_EMAIL',
+                        recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+                        def getNamespaceChoice
+                        def userInput = input(
+                                id: 'userInput', message: 'Choose namespace:?',
+                                parameters: [
+                                        choice(choices: 'cicd-bro-osmn\ncicd-bro-osmn-two\ncicd-bro-osmn-three',
+                                                description: 'Choose a namespace',
+                                                name: 'Namespace')
+                                ])
+                        getNamespaceChoice = userInput?:''
+                        writeFile file: "namespace-used.txt", text: "${getNamespaceChoice}"
+                        env.NAMESPACE = readFile 'namespace-used.txt'
+                        buildName "#" + currentBuild.number + " | " + params.GERRIT_CHANGE_SUBJECT.substring(0, GERRIT_CHANGE_SUBJECT.indexOf(" ")) + " | ${GERRIT_BRANCH} | ${GERRIT_PATCHSET_UPLOADER_NAME} | ${NAMESPACE}"
+                        archiveArtifacts 'namespace-used.txt'
+                    }
+                }
+                withCredentials([
+                    file(credentialsId: 'hall060', variable: 'KUBECONFIG'),
+                    file(credentialsId: 'sftp-users-yaml', variable: 'USERS_YAML'),
+                    file(credentialsId: 'hub-armdocker-config-json', variable: 'DOCKER_CONFIG')
+                ]) {
+                    sh "${bob} init:version"
+                    script {
+                        if ( env.BRANCH == "master") {
+                            sh "${bob} setup-repo-paths:is-master"
+                        }
+                        else {
+                            sh "${bob} setup-repo-paths:is-dev"
+                        }
+                    }
+                    sh '[[ "${TEST_CHART_VERSION}" != "" ]] && ./bob/bob -r service/ruleset.yaml setup-repo-paths:set-dev-test-repo || ./bob/bob -r service/ruleset.yaml setup-repo-paths:set-test-repo'
+                    sh "${bob} deploy-to-k8s"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'output.html, pod_logs/*.*', allowEmptyArchive: true
+        }
+    }
+}

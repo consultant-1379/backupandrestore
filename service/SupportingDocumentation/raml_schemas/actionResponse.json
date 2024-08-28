@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "ActionResponse",
+  "title": "ActionResponse",
+  "description": "Action of a backupManager",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Uniquely identifies the invocation of an action"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name of the invoked asynchronous action"
+    },
+    "additionalInfo": {
+      "type": "string",
+      "description": "Used for logging significant messages during execution of an action"
+    },
+    "progressInfo": {
+      "type": "string",
+      "description": "Textual information that describes the actual state of the action execution"
+    },
+    "progressPercentage": {
+      "type": "number",
+      "description": "Progress of the action. As the action progresses, the `progressPercentage` will increment from 0.0 to 1.0 indicating the completion of the action. The 0.0 progressPercentage indicates 0% completion and 1.0 indicates 100% completion. Intermediate values such as 0.33 indicate approximately 33% completion of an action."
+    },
+    "result": {
+      "type": "string",
+      "description": "Result state of a completed action. This field has value NOT_AVAILABLE if the action is not finished",
+      "enum": ["SUCCESS", "FAILURE", "NOT_AVAILABLE"]
+    },
+    "resultInfo": {
+      "type": "string",
+      "description": "Textual description of the outcome/result of the action containing useful information for the NMS. If the action failed, it can contain an error message."
+    },
+    "state": {
+      "type": "string",
+      "description": "Current state of the action",
+      "enum": ["RUNNING", "FINISHED"]
+    },
+    "startTime": {
+      "type": "string",
+      "description": "Date and time when the current action was started"
+    },
+    "completionTime": {
+      "type": "string",
+      "description": "Date and time when the action was completed (successfully or unsuccessfully)"
+    },
+    "lastUpdateTime": {
+      "type": "string",
+      "description": "Date and time when the struct member state was last updated"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Input of action",
+      "properties": {
+        "backupName": {
+          "type": "string",
+          "description": "Name of backup to be used by action"
+        },
+        "uri": {
+          "type": "string",
+          "description": "URI to export/import backup to/from"
+        },
+        "password": {
+          "type": "string",
+          "description": "Password to be used when exporting/importing"
+        }
+      }
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "progressInfo",
+    "progressPercentage",
+    "result",
+    "state",
+    "startTime",
+    "lastUpdateTime",
+    "payload"
+  ]
+}

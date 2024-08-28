@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="info" monitorInterval="5">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <JsonTemplateLayout eventTemplateUri="classpath:JsonLogTemplate.json" locationInfoEnabled="true"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor|JSSE TLS 1.3|Encryptor config not found).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="com.ericsson.adp.mgmt.backupandrestore" level="info">
+        </Logger>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

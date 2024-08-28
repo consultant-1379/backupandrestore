@@ -1,0 +1,62 @@
+modelVersion: 2.0
+
+docker-images:
+  - asciidoc-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-asciidocbuilder:latest
+  - java11-mvn-builder: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-java11mvnbuilder.adp-base-os:1.2.1-0
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+
+
+env:
+  - ERIDOC_USERNAME
+  - ERIDOC_PASSWORD
+  - MUNIN_TOKEN
+  - PWD
+  - SEMANTIC_VERSION
+
+var:
+  - MVN_COMMAND
+
+rules:
+
+  license-agreement:
+    - task: validate-license-agreement
+      docker-image: adp-release-auto
+      cmd: license-agreement validate -l eric-log4j2-socket-appender/Documentation/license.agreement.json
+
+  mvn:
+    - task: install-test-sonar
+      docker-image: java11-mvn-builder
+      docker-flags:
+        - -v /home/lciadm100/.m2/repository/:/tmp/.m2/repository/
+        - -v /home/lciadm100/.m2/settings.xml:/tmp/.m2/settings.xml
+        - --env SONAR_AUTH_TOKEN=${env.SONAR_AUTH_TOKEN}
+        - --env SONARQUBE_SCANNER_PARAMS=$(echo '${env.SONARQUBE_SCANNER_PARAMS}' | tr -d ' ')
+        - --env SONAR_HOST_URL=${env.SONAR_HOST_URL}
+      cmd: mvn -f eric-log4j2-socket-appender/pom.xml -gs /tmp/.m2/settings.xml clean install -Dmaven.repo.local=/tmp/.m2/repository/ -Djava.security.egd=file:/dev/./urandom surefire-report:report-only sonar:sonar -Dsonar.analysis.mode=publish -Dsonar.branch.name=master
+
+  # Create product versions from product structure and FOSS dependencies
+  munin-update-version:
+    - task: create-products
+      docker-image: adp-release-auto
+      cmd: munin create-versions -t ${env.MUNIN_TOKEN} -c eric-log4j2-socket-appender/fossa/product_structure.yaml -v ${env.SEMANTIC_VERSION}
+
+  generate-docs:
+    - task: convert-appender-api
+      docker-image: asciidoc-builder
+      cmd: /adp_build_doc.sh --project-dir=${env.PWD} --build-dir=${env.PWD}/build --asciidoc-subdir=eric-log4j2-socket-appender/Documentation
+
+  eridoc:
+    # Check if eridoc_config.yaml is OK
+    - task: dryrun
+      docker-image: adp-release-auto
+      docker-flags:
+        - --env ERIDOC_USERNAME=${env.ERIDOC_USERNAME}
+        - --env ERIDOC_PASSWORD=${env.ERIDOC_PASSWORD}
+      cmd: eridoc upload --config ./eric-log4j2-socket-appender/Documentation/eridoc.config.yaml --debug --no-validate-certificates --dry-run >> .bob/appender-eridoc-upload-report.log 2>&1
+    # Upload documents to eridoc
+    - task: upload
+      docker-image: adp-release-auto
+      docker-flags:
+        - --env ERIDOC_USERNAME=${env.ERIDOC_USERNAME}
+        - --env ERIDOC_PASSWORD=${env.ERIDOC_PASSWORD}
+      cmd: eridoc upload --config ./eric-log4j2-socket-appender/Documentation/eridoc.config.yaml --debug --no-validate-certificates >> .bob/appender-eridoc-upload-report.log 2>&1

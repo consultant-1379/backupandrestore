@@ -1,0 +1,35 @@
+modelVersion: 2.0
+
+docker-images:
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+
+env:
+  - PWD
+  - KUBECONFIG
+  - API_TOKEN
+  - CI_USER
+  - ARMDOCKER_CONF
+  - USERS_YAML
+  - NAMESPACE
+  - RELEASE_NAME
+
+rules:
+
+  setup-env:
+    - task: setup-intchart
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--env HELM_VERSION='3.2.4'"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.ARMDOCKER_CONF}:${env.ARMDOCKER_CONF}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+      cmd:
+        - kubectl create secret generic eric-sec-access-mgmt-creds -n ${env.NAMESPACE} --from-literal=pguserid=pguserplanb --from-literal=pgpasswd=pgpwplanb --from-literal=kcadminid=adminplanb --from-literal=kcpasswd=kcpwb@Planb1
+        - kubectl create secret generic armdocker --from-file=.dockerconfigjson=${env.ARMDOCKER_CONF} --type=kubernetes.io/dockerconfigjson --namespace ${env.NAMESPACE}
+        - kubectl create secret generic docdb-secret --from-literal=custom-user=tester --from-literal=custom-pwd=testpsw --from-literal=super-pwd=supertestpsw --from-literal=metrics-pwd=metricspsw --from-literal=replica-user=replicauser --from-literal=replica-pwd=replicapwd --namespace ${env.NAMESPACE}
+        - kubectl create secret generic eric-data-distributed-coordinator-creds --namespace ${env.NAMESPACE} --from-literal=etcdpasswd=$(echo -n "testdcedpsw" | base64)
+        - kubectl create secret generic pm-bro-test-sftp-users-secret --from-file=${env.USERS_YAML} --namespace ${env.NAMESPACE}
+

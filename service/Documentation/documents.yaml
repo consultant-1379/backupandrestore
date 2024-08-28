@@ -1,0 +1,126 @@
+- doc_number: 109 21-APR 201 40/10-3
+  title: Backup and Restore Orchestrator 10.2.0 PRI
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd389af0d?docno=10921-APR20140/10-3Uen&format=msw12
+  object_id: 09004cffd389af0d
+  format: msw12
+- doc_number: 1/006 64-APR 201 40/10
+  title: RA and PIA Report Backup and Restore Orchestrator
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd319b607?docno=1/00664-APR20140/10Uen&format=msw12me
+  object_id: 09004cffd319b607
+  format: msw12me
+- doc_number: 1/1553-APR 201 40/10
+  title: Backup and Restore Orchestrator User Guide
+  revision: C
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd3828a92?docno=1/1553-APR20140/10Uen&format=pdf
+  object_id: 09004cffd3828a92
+  format: pdf
+- doc_number: 1/0360-APR 201 40/10
+  title: Secure Coding Report for Backup and Restore Orchestrator
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd319b609?docno=1/0360-APR20140/10Uen&format=msw12
+  object_id: 09004cffd319b609
+  format: msw12
+- doc_number: 1/198 17-APR 201 40/10
+  title: Backup and Restore Orchestrator Agent Implementation Guide
+  revision: B
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd377c45c?docno=1/19817-APR20140/10Uen&format=sdif
+  object_id: 09004cffd377c45c
+  format: sdif
+- doc_number: 2/198 17-APR 201 40/10
+  title: Backup and Restore Orchestrator Operations Guide
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd318daeb?docno=2/19817-APR20140/10Uen&format=sdif
+  object_id: 09004cffd318daeb
+  format: sdif
+- doc_number: 3/198 17-APR 201 40/10
+  title: Backup and Restore Orchestrator Rest API User Guide
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd318f51e?docno=3/19817-APR20140/10Uen&format=sdif
+  object_id: 09004cffd318f51e
+  format: sdif
+- doc_number: 4/198 17-APR 201 40/10
+  title: Backup and Restore Orchestrator - GRPC API User Guide
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd318d4a5?docno=4/19817-APR20140/10Uen&format=sdif
+  object_id: 09004cffd318d4a5
+  format: sdif
+- doc_number: 5/198 17-APR 201 40/10
+  title: Backup and Restore Orchestrator Operations Guide CMYP
+  revision: B
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd325799e?docno=5/19817-APR20140/10Uen&format=sdif
+  object_id: 09004cffd325799e
+  format: sdif
+- doc_number: 1/152 41-APR 201 40/10
+  title: Backup and Restore Orchestrator Test Specification
+  revision: B
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd34aa9dc?docno=1/15241-APR20140/10Uen&format=msw12
+  object_id: 09004cffd34aa9dc
+  format: msw12
+- doc_number: 1/152 83-APR 201 40/10-3
+  title: Backup and Restore Orchestrator Test Report 10.2.0
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd38b95fd?docno=1/15283-APR20140/10-3Uen&format=msw12
+  object_id: 09004cffd38b95fd
+  format: msw12
+- doc_number: 2/152 83-APR 201 40/10-3
+  title: Backup and Restore Orchestrator Characteristics Summary Report 10.2.0
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd3778ed5?docno=2/15283-APR20140/10-3Uen&format=pdf
+  object_id: 09004cffd3778ed5
+  format: pdf
+- doc_number: 1/1597-APR 201 40/10-3
+  title: VA Report for Backup and Restore Orchestrator 10.2.0
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd388e79e?docno=1/1597-APR20140/10-3Uen&format=md
+  object_id: 09004cffd388e79e
+  format: md
+- doc_number: 3/152 83-APR 201 40/10-3
+  title: Defensics scan report Backup and Restore Orchestrator 10.2.0
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd388cf90?docno=3/15283-APR20140/10-3Uen&format=zip
+  object_id: 09004cffd388cf90
+  format: zip
+- doc_number: 4/152 83-APR 201 40/10-3
+  title: CIS-CAT Scan Report for Backup and Restore Orchestrator 10.2.0
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd388cf8e?docno=4/15283-APR20140/10-3Uen&format=zip
+  object_id: 09004cffd388cf8e
+  format: zip
+- doc_number: 1/155 19-CAF 101 026/10
+  title: Backup and Restore Orchestrator - GRPC API Specification
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd318db0d?docno=1/15519-CAF101026/10Uen&format=sdif
+  object_id: 09004cffd318db0d
+  format: sdif
+- doc_number: 2/155 19-CAF 101 027/10
+  title: Backup and Restore Orchestrator Rest Specification
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd318e2b8?docno=2/15519-CAF101027/10Uen&format=html
+  object_id: 09004cffd318e2b8
+  format: html
+- doc_number: 3/155 19-CAF 101 027/10
+  title: Backup and Restore Orchestrator Rest Specification v4
+  revision: A
+  lang: Uen
+  url: https://erilink.internal.ericsson.com/eridoc/erl/objectId/09004cffd318e607?docno=3/15519-CAF101027/10Uen&format=html
+  object_id: 09004cffd318e607
+  format: html

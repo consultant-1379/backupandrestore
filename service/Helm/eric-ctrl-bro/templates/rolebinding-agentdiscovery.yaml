@@ -1,0 +1,35 @@
+{{- $matchTypes := list "EXACT_MATCH" "LIST" }}
+{{- if or (.Values.bro.enableAgentDiscovery) (has .Values.bro.productMatchType $matchTypes) -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+rules:
+  - apiGroups:
+    - ''
+    resources:
+    - services
+    - pods
+    - configmaps
+    verbs:
+    - get
+    - watch
+    - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ template "eric-ctrl-bro.name" . }}
+  labels: {{- include "eric-ctrl-bro.labels" . | nindent 4 }}
+  annotations: {{- include "eric-ctrl-bro.annotations" . | nindent 4 }}
+roleRef:
+  kind: Role
+  name: {{ template "eric-ctrl-bro.name" . }}
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: {{ template "eric-ctrl-bro.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

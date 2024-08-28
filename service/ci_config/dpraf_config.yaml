@@ -1,0 +1,230 @@
+modelVersion: "1.0"
+flavor: "ADP-1.3"
+
+# root element for an ADP Generic Service:
+service:
+  # name of the generic service:
+  name: "Backup and Restore Orchestrator"
+  # Artifact
+  archive: eridoc
+  # email that will be notified about the flow status:
+  notification_email: "PDLADPTEAM@pdl.internal.ericsson.com"
+  # Trade Compliance
+  ECCN:
+    EU: NA
+    US: EAR99
+    AEC: '0'
+  # Release responsible
+  release_responsible: BDGS
+  # Design responsible
+  design_responsible: BDGS
+  # Document responsible
+  document_responsible: BDGS
+  # Subject responsible
+  subject_responsible: BDGS
+  # Design Country
+  design_country: IE
+
+  apr_product:
+    # Note: all cxc_products automatically are added to APR product structure
+    # APR Product Number
+    number: {{apr_number}}
+    # Information Structure
+    information_structure:
+      1095-:
+        # Export Control
+        2400-{{bro_export_number}}:
+          step_strategy: highest revision letter
+        # PRI
+        109 21-{{apr_number}}:
+          step_strategy: highest ordinal number
+        # CalStore product
+        {{lzn_number}}:
+          step_strategy: highest R-State number
+        # Troubleshooting Guide sdif
+        1/154 51-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Service Overview sdif
+        1/1551-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Trademark Information sdif
+        1/006 51-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Risk Assessment doc
+        1/006 64-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Software Vendor List excel
+        1/240 50-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Encryption Usage
+        240 05-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Change record
+        240 07-{{apr_number}}:
+          step_strategy: highest revision letter
+        # User Guide
+        1/1553-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Deployment Guide
+        1/1531-{{apr_number}}:
+          step_strategy: highest revision letter
+        #secure coding report
+        1/0360-{{apr_number}}:
+          step_strategy: highest revision letter
+        #Agent implementation Guide
+        1/198 17-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Operations Guide (REST)
+        2/198 17-{{apr_number}}:
+          step_strategy: highest revision letter
+        # REST User Guide
+        3/198 17-{{apr_number}}:
+          step_strategy: highest revision letter
+        # GRPC USER Guide
+        4/198 17-{{apr_number}}:
+          step_strategy: highest revision letter
+        #Operations Guide CMYP
+        5/198 17-{{apr_number}}:
+          step_strategy: highest revision letter
+        #Data Migration Guide
+        6/198 17-{{apr_number}}:
+          step_strategy: highest revision letter
+      152 01-:
+        # Test Specification
+        1/152 41-{{apr_number}}:
+          step_strategy: highest revision letter
+        # Test Report
+        1/152 83-{{apr_number}}:
+          step_strategy: highest ordinal number
+  # Details of zero or more CAF product structures
+  caf_products:
+    # Single word describing the CAF product, must be uniq per list item
+    - label: "rest"
+      product_issue_text_prefix: "CM Service"
+      # specific CAF product number
+      number: {{bro_rest_caf_number}}
+      # Information Structure
+      information_structure:
+        1095-:
+          # Interface Description
+          1/155 19-{{bro_rest_caf_number}}:
+            step_strategy: highest revision letter
+          # Export Control
+          2400-{{bro_export_number}}:
+            step_strategy: highest revision letter
+    - label: "grpc"
+      product_issue_text_prefix: "CM Service"
+      # specific CAF product number
+      number: {{bro_grpc_caf_number}}
+      # Information Structure
+      information_structure:
+        1095-:
+          # Interface Description
+          1/155 19-{{bro_grpc_caf_number}}:
+            step_strategy: highest revision letter
+          # Export Control
+          2400-{{bro_export_number}}:
+            step_strategy: highest revision letter
+  # Details of the CAV product structure:
+  cav_product:
+    # CAV Product Number
+    number: {{bro_cav_number}}
+    information_structure:
+      1095-:
+        # Note: 190 10-CAV 000 000/0: Source Code is added automatically
+        # Export Control
+        2400-{{bro_export_number}}:
+          step_strategy: highest revision letter
+  # Details of zero or more CXA product structures
+  cxa_products:
+      # Single word describing the CXA product, must be uniq per list item
+    - label: "lib"
+      # specific CXA product number
+      number: "CXA 301 09/4"
+      # Information Structure
+      information_structure:
+        1095-:
+          # Export Control
+          2400-{{bro_export_number}}:
+            step_strategy: highest revision letter
+      product_structure:
+        - number: "5/CTC 101 6190"
+          label: "gRPC_Java"
+        - number: "5/CTC 101 6191"
+          label: "log4j2_core"
+        - number: "CTC 102 636"
+          label: "jaxb_api"
+        - number: "CTC 102 3390"
+          label: "javax_annotation_api"
+  # Details of zero or more CXC product structures
+  cxc_products:
+      # Single word describing the CXC product, must be unique per list item
+    - label: "helm"
+      product_issue_text_prefix: "Backup Restore Orchestrator HELM"
+      # specific CXC product number
+      number: {{bro_helm_number}}
+      # Information Structure
+      information_structure:
+        1095-:
+          # Note: 190 10-CXC 201 0000/0: Package is added automatically
+          # Export Control
+          2400-{{bro_export_number}}:
+            step_strategy: highest revision letter
+      # Product Structure (Note: CAV product dependency will be added automatically)
+      #product_structure:
+        # List of dependencies
+        #  - number: "CXC 201 2032/2"
+        #  label: "commonbaseos-image"
+        #- number: "CXC 201 2031/2"
+        #  label: "commonbaseos-repo"
+    - label: "image"
+      product_issue_text_prefix: "Backup Restore Orchestrator Image"
+      # specific CXC product number
+      number: {{bro_cxc_number}}
+      # Information Structure
+      information_structure:
+        1095-:
+          # Note: 190 10-CXC 201 0000/0: Package is added automatically
+          # Export Control
+          2400-{{bro_export_number}}:
+            step_strategy: highest revision letter
+      # Product Structure (Note: CAV product dependency will be added automatically)
+      product_structure:
+        # List of dependencies
+        - number: "CXA 301 09/4"
+          label: "bro_agent_api"
+        - number: {{cbos_image_number}}
+          label: "image_commonbaseos_image"
+        - number: {{cbos_repo_number}}
+          label: "image_commonbaseos_repo"
+        - number: "6/CTC 101 4500"
+          label: "Apache_Kafka_Client"
+        - number: "5/CTC 101 6196"
+          label: "Spring_Kafka"
+        - number: "8/CTC 101 6193"
+          label: "Spring_Boot"
+        - number: "5/CTC 101 6195"
+          label: "Kubernetes_Java_Client"
+        - number: "6/CTC 101 6194"
+          label: "Jackson_Databind"
+        - number: "3/CTC 101 6197"
+          label: "Micrometer"
+        - number: "CTC 101 6198"
+          label: "ESAPI_2_2_0"
+        - number: "CTC 101 6794"
+          label: "jsch_jcraft"
+        - number: "CTC 102 0734"
+          label: "http_components_http_client"
+        - number: "CTC 101 8691"
+          label: "LZ4_compression_for_Java"
+        - number: "CTC 102 633"
+          label: "google_protocol_buffers"
+        - number: "1/CTC 102 0183"
+          label: "jasypt_spring_boot"
+        - number: "CTC 102 0276"
+          label: "okhttp"
+        - number: "3/CTC 101 2838"
+          label: "Spring_Framework"
+        - number: "CTC 102 3672"
+          label: "redisson"
+

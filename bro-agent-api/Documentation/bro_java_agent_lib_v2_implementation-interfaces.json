@@ -1,0 +1,38 @@
+{
+    "metadata" : {
+      "serviceHelmChartName" : "<serviceName>",
+      "usedSchemaVersion" : "1.1.0",
+      "fileVersion" : "<version>",
+      "dateEdited" : "<date>"
+    },
+    "interfaceImpls": [
+        {
+            "id": "IMPL.ADP.BRO.IF.BR.AGENT",
+            "pod":"<podName>",
+            "container": "<containerName>",
+            "provides": {},
+            "uses": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.BRO.CTRL.GRPC.V2",
+                        "description": "A GRPC interface for controlling the backup and restore process of services",
+                        "specUri": "",
+                        "specVer": "2.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    },
+                    {
+                        "id": "IF.ADP.BRO.DATA.GRPC.V2",
+                        "description": "A GRPC interface for controlling the backup and restore of services",
+                        "specUri": "",
+                        "specVer": "2.0.0",
+                        "type": "gRPC",
+                        "setup": "direct",
+                        "scope": "clusterInternal"
+                    }
+                ]
+            }
+        }
+    ]
+}

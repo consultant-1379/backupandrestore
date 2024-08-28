@@ -1,0 +1,46 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "HealthResponse",
+    "title": "HealthResponse",
+    "description": "Represents Health of Orchestrator",
+    "type": "object",
+    "properties": {
+        "status": {
+            "type": "string",
+            "description": "Is Healthy if orchestrator is healthy"
+        },
+        "availability": {
+            "type": "string",
+            "description": "Either \"Busy\" or \"Available\" depending on whether the orchestrator is running an Action."
+        },
+        "ongoingAction": {
+            "type": "object",
+            "required": false,
+            "description": "Information about the current Action running.",
+            "properties": {
+               "actionId" : {
+                   "type": "string",
+                   "description": "The identifier of the currently running Action."
+               },
+                "backupManagerId": {
+                    "type": "string",
+                    "description": "The identifier of the BackupManager that owns the currently running Action."
+                }
+            }
+        },
+        "registeredAgents": {
+            "type": "array",
+            "description": "IDs of registered agents",
+            "items": [{
+                "type": "String",
+                "description": "ID of registered agents"
+            }]
+        }
+    },
+    "required": [
+        "status",
+        "availability",
+        "ongoingAction",
+        "registeredAgents"
+    ]
+}

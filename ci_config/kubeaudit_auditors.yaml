@@ -1,0 +1,6 @@
+enabledAuditors:
+  # Auditors are enabled by default if they are not explicitly set to "false"
+  # supress seccom errors in kubeaudit report
+  seccomp: false
+  # supress apparmor errors in kubeaudit report
+  apparmor: false

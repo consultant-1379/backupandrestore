@@ -1,0 +1,6 @@
+nmapConfig:
+  services:
+    - name: "eric-ctrl-bro"
+      protocol:
+        - "tcp"
+  reportDir : "nmap_reports"

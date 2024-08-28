@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "UpdateBackupManagerRequest",
+  "title": "UpdateBackupManagerRequest",
+  "description": "Updates one backupManager",
+  "type": "object",
+  "properties": {
+    "backupType": {
+      "type": "string",
+      "description": "Type of backup, for example System Data or User Data"
+    },
+    "backupDomain": {
+      "type": "string",
+      "description": "Backup domain, for example System"
+    }
+  }
+}

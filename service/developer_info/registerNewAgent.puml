@@ -1,0 +1,53 @@
+@startuml
+title CreateAgent from Agent
+Actor Agent
+control UnrecognizedState as US
+control AgentRepository as AR
+control BackupManagerRepository as BMR
+control IdValidator 
+Agent -> US : processMessage
+activate US
+US -> US:validateRegistrationMessage
+US -> AR:addAgent
+activate AR
+AR->AR: validateAgent
+alt vbrmAutoCreate == VBRMAutoCreate.DEFAULT || vbrmAutoCreate == VBRMAutoCreate.ALL
+AR -> BMR: createBackupManager
+activate BMR
+BMR -> IdValidator : validateId (backupmanager)
+BMR -[#Red]-> BMR: LOCK
+note left
+On startup, the execution is waiting until
+the CMM server is up and running and the configuration
+and schema are posted. 
+Once it's posted, it continue the execution 
+end Note
+alt NOT isBackupManagerInMemory
+BMR -> BMR: initializeBackupManager
+note left 
+if the backup manager
+is not in memory
+end Note
+activate BMR
+BMR ->o Housekeeping**:Create
+BMR ->o BackupManager**:Create
+BMR -> BMR
+note left 
+        backupManagerfileService.writeToFile(backupManager);
+        virtualInformationFileService.writeToFile(backupManager);
+        housekeepingFileService.writeToFile(housekeeping);
+        periodicEventFileService.createPeriodicEventsDirectory(backupManager);
+        calendarEventFileService.createCalendarEventsDirectory(backupManager);
+end Note
+BMR -[#Red]-> CMMediatorService: addBackupManager
+note left: Patch Configuration on CMM Server
+deactivate BMR
+end
+BMR -> BMR: updateOperationsTotalMetric
+BMR -[#Red]-> BMR: UNLOCK
+deactivate BMR
+end
+deactivate AR
+deactivate US
+
+@enduml

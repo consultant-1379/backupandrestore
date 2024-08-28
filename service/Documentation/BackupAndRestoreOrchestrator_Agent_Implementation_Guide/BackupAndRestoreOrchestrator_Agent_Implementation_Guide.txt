@@ -1,0 +1,666 @@
+= Backup and Restore Orchestrator - Agent Implementation Guide
+:author: Michael Lawless
+:doc-name: Agent Implementation Guide
+:doc-no: 1/19817-APR 201 40/6
+:revnumber: PA1
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Introduction
+
+This guide is intended for engineers who want to use Java to build their own Agents in order to backup and restore their services.
+
+This guide provides examples for creating a project, developing the Agent and packaging it. 
+
+== Glossary
+
+|=======================================================================
+|Term |Description
+
+| Agent | A component of a service which terminates requests from the Orchestrator and sends and receives backups.
+| Orchestrator | The service which provides centralized control of all Agents and handles storage of backups.
+| Backup | A collection of fragments which can be used to restore/recover a service or group of services to a previous state.
+| Fragment | An individual part of a backup. A single service backup can have multiple fragments.
+| Scope | A defined set of one or many services that will be included in the same backup. Scope should be configurable at deployment time.
+
+|=======================================================================
+
+== BRO Agent API
+
+The bro-agent-api is a library that aids in the creation of backup and restore agents. This library takes care of the communication with the Orchestrator.
+The end user achieves this by implementing methods for registration, backup and restore. This allows each Agent to have its own service specific behavior for these actions. The bro-agent-api is built using Java 11 from version 4.0.0. Previous versions were built using Java 8
+
+The bro-agent-api releases can be viewed https://arm1s11-eiffel004.eiffel.gic.ericsson.se:8443/nexus/content/repositories/aia-releases/com/ericsson/adp/mgmt/eric-ctrl-bro-lib-agent-api-cxa30109/[here].
+
+The bro-agent-api is a 2PP SW Library and can be reflected in the users SVL, EVMS etc. in this way.
+
+The ADP governance on the use of 2PP SW Libraries can be viewed https://eteamspace.internal.ericsson.com/pages/viewpage.action?pageId=1161855883[here].
+
+* EVMS Product Name: Backup and Restore Agent API Java Library
+* Licence Agreement File: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-cpi-input-released-generic-local/cxa30109/
+
+=== Project
+
+To start using the bro-agent-api it is necessary to include the bro-agent-api in a project.
+
+To do this - copy https://gerrit-gamma.gic.ericsson.se/gitweb?p=AIA/microservices/backupandrestore.git;a=blob_plain;f=service/SupportingDocumentation/resources/settings.xml;hb=refs/heads/master[settings.xml] to  ${user.home}/.m2, This is needed to pull down the relevant dependencies.
+
+Create a Maven project for the Agent and include the dependencies bro-agent-api and log4j-core libraries. The bro-agent-api implementation includes log4j-core as logging mechanism, hence the Agent implementation project can make use of the log4j-core library as dependency to log messages.
+
+    <properties>
+        <bro.agent.api.version>4.0.11</bro.agent.api.version>
+        <log4j.version>2.18.0</log4j.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.ericsson.adp.mgmt</groupId>
+            <artifactId>eric-ctrl-bro-lib-agent-api-cxa30109</artifactId>
+            <version>${bro.agent.api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+                   .
+                   .
+                   .
+
+=== Test Agent
+
+By reading through the full https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/pom.xml[pom.xml] used to develop a test Agent, an understanding of the test service project which is used in the development of the Backup and Restore Orchestrator can be gained.
+
+The test service contains a single Agent connected to a PVC (Persistent Volume Claim) which has a small data set built into it.
+This test service represents a dummy service that the Orchestrator uses during its deployment testing.
+
+The pom file for this project also contains a number of Maven plugins to aid in the compilation, analysis and packaging of the test service.
+
+* maven-compiler-plugin - used for compilation.
+* maven-shade-plugin - used to produce the final artifact an executable jar containing all required libraries.
+* maven-checkstyle-plugin - used to ensure the codebase is consistently formatted.
+* maven-pmd-plugin - used to ensure a set of coding practices are followed.
+* jacoco-maven-plugin - used to analyze the code coverage provided by unit tests.
+* org.sonarsource.scanner.maven - used to integrate the build with SonarQube for static code analysis.
+* maven-resources-plugin - used to place the required files from the project build into a directory accessible by the Docker build.
+
+== bro-agent-api Javadoc
+
+bro-agent-api javadoc can either be downloaded from Gerrit or generated from source code.
+
+* To download from Gerrit:
+
+1. Click on
+https://gerrit-gamma.gic.ericsson.se/gitweb?p=AIA/microservices/backupandrestore.git;a=blob_plain;f=service/SupportingDocumentation/attachments/bro-agent-api.zip;hb=refs/heads/master[bro-agent-api.zip] to download compressed javadoc file.
+
+2. Unzip and change directory to "service_Documentation_attachments_bro-agent-api" folder.
+
+3. Open "index.html" in browser to launch javadoc for bro-agent-api.
+
+* To generate the javadoc api for bro-agent-api:
+
+1. Clone backupandrestore gerrit repository locally.
+
+   git clone ssh://yoursid@gerrit-gamma.gic.ericsson.se:29418/AIA/microservices/backupandrestore
+
+2. Change directory to bro-agent-api folder.
+
+3. Run maven command, to generate javadoc html files.
+
+   mvn javadoc:javadoc
+
+4. Generated javadoc html files are available in bro-agent-api\target\site\apidocs location. Open "index.html" in browser to launch javadoc for bro-agent-api.
+
+== Agent Implementation
+
+The Agent implementation consists of two main parts, the creation of an Agent and the implementation of the required behavior for backup and restore for a specific service.
+
+=== Creating an Agent
+
+Once a Maven project is setup the Agent can be created. There is a factory available for this in the bro-agent-api.
+Import the Agent Factory into a class and call the following method.
+
+    AgentFactory.createAgent(final OrchestratorConnectionInformation orchestratorConnectionInformation, final AgentBehavior agentBehavior)
+
+==== Agent without TLS
+
+The OrchestratorConnectionInformation should contain the host and port, for example:
+
+    OrchestratorConnectionInformation orchestratorConnectionInformation = new OrchestratorConnectionInformation("127.0.0.1", 3000);
+
+The host and port are provided to the test Agent via the application.properties file, allowing for updates to these values as required during deployment.
+
+==== Agent with TLS
+
+The OrchestratorConnectionInformation should contain the host, port, Certificate Common Name and the path to the Certificate Authority file. For example:
+
+    OrchestratorConnectionInformation orchestratorConnectionInformation = new OrchestratorConnectionInformation("127.0.0.1", 3000, "eric-ctrl-bro", "/run/secrets/cas/siptlsca/cacertbundle.pem");
+
+The AgentBehavior should also be passed, creating specific behavior is discussed in a later section.
+
+Certificate Common Name should match .Values.global.adpBR.broServiceName.
+Certificate Authority file path should be /run/secrets/cas/siptlsca/cacertbundle.pem.
+A secret, called eric-sec-sip-tls-trusted-root-cert, is created for this file and the secret should be mounted into the pod at the Certificate Authority file path location specified.
+
+Note: If "global.security.tls.enabled=true" all agents are expected to have at least TLS
+
+==== Agent with mTLS
+
+mTLS is available in API version 3.0.2 and Backup and Restore Orchestrator version 2.5.0-32
+
+The OrchestratorConnectionInformation should contain the host, port, Certificate Common Name, path to the Certificate Authority file, path to the client certificate file and the path to the client private key. For example:
+
+    OrchestratorConnectionInformation orchestratorConnectionInformation = new OrchestratorConnectionInformation("127.0.0.1", 3000, "eric-ctrl-bro", "/run/secrets/cas/siptlsca/cacertbundle.pem", "/run/secrets/certs/client/clientcert.pem", "/run/secrets/certs/client/clientprivkey.pem");
+
+The AgentBehavior should also be passed, creating specific behavior is discussed in a later section.
+
+Certificate Common Name should match .Values.global.adpBR.broServiceName.
+Certificate Authority file path should be /run/secrets/cas/siptlsca/cacertbundle.pem.
+Client Certificate file path should be /run/secrets/certs/client/clientcert.pem.
+Client private key file path should be /run/secrets/certs/client/clientprivkey.pem.
+The three properties above should be defined in the agent properties configMap, an example of this can be seen at the link below.
+
+A secret, called eric-sec-sip-tls-trusted-root-cert, is created for the certificate authority file and the secret should be mounted into the pod at the Certificate Authority file path location specified.
+An InternalCertificate needs to be created to allow SIP TLS to create the client certificate and private key.
+The InternalCertificate must have Backup and Restore as the issuer reference by specifying eric-ctrl-bro-ca in the InternalCertificate definition file. This allows the Backup and Restore Orchestrator to verify the client.
+When the InternalCertificate is created, a secret will be created for the client certificate and private key, this secret should be mounted into the pod at the Client Certificate file path location specified.
+
+An example of creating an Agent, with sample mTLS certs/keys, can be viewed in the test service project https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/src/main/java/com/ericsson/adp/mgmt/brotestagent/agent/TestAgentFactory.java[here].
+
+==== Keeping the Agent Alive
+
+After an Agent is created, that instance of the Agent needs to be kept alive, since it will be responsible for listening to messages from the Orchestrator and replying, as well as triggering the service's backup and restore.
+
+How to keep that instance and the Agent application itself alive is up to the engineer. If, for example, Spring is being used, the Agent can be a Bean.
+
+A basic example of how to keep an Agent alive can be viewed in the test service project https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/src/main/java/com/ericsson/adp/mgmt/brotestagent/BackupAndRestoreAgent.java[here].
+
+In this example an executor service is started and holds the active thread. If the Agent is allowed to exit, then the container it is running within will also exit. This will lead to Kubernetes attempting to continuously restart the container.
+
+==== Behavior on loss of connectivity to Orchestrator
+
+If the Agent loses its connection to the Orchestrator, the Agent will automatically attempt to reestablish the connection.
+A v4.0 Agent will continuously retry to register with the Orchestrator every 10s until it establishes a connection and receives a registration acknowledgement message from the orchestrator. This behavior is handled within the bro-agent-api.
+A v3.0 Agent will only attempt to send the registration message once if the orchestrator becomes unavailable. The Orchestrator should receive the registration message once it becomes available again unless the message is lost due to network issues. If the Orchestrator becomes available and does not receive the message the agent will have to be restarted to trigger sending the registration message.
+
+* If the v4.0 agent attempts to register with an orchestrator that only supports apiVersion 3.0 or older, the registration will be rejected initially and then the Agent will immediately retry the registration using apiVersion 3.0.
+
+* If the Agent attempts to register and an agent with the same ID is present the agent will make 20 retry attempts, spaced at 30-second intervals. This is to allow the Orchestrator a period of time to check if an agents connection needs to be removed.
+
+* If the Orchestrator rejects the Agent's connection due to invalid registration information the Agent will not attempt to retry the registration.
+
+* If the Orchestrator rejects the Agent's connection due to other reasons the Agent will immediately retry the registration.
+
+
+See the troubleshooting section of the <<ServiceUserGuide, Service User Guide>> for failure causes for registration.
+
+==== Behavior on loss of connectivity to Orchestrator during an action
+
+In the event an agent disconnects from the orchestrator during a backup/restore, the agent will not receive a cancel message from the orchestrator.
+
+==== Behavior on waiting for a v4.0 Agent Registration Acknowledgment
+
+After sending the registration message, the Agent will wait for 10s for an acknowledgment from the orchestrator.
+The duration of this waiting period can be defined by providing the numberSecondsWaitForACK argument to the OrchestratorConnectionInformation constructor.
+If a timeout value of 0 is set, the Agent will not wait for an acknowledgment message from the orchestrator.
+
+In case the acknowledgment is not received within the specified timeout period, the Agent will automatically re-send
+the registration message at each subsequent timeout, until it receives the acknowledgment from the orchestrator.
+
+In the event that the Agent does not receive an acknowledgment from the orchestrator, but instead, receives a PREPARATION message,
+it will stop re-sending the registration message. The Agent will assume that is has been successfully registered by the orchestrator
+upon receiving the PREPARATION message.
+
+==== Agent Configuration Considerations for Operator Based Services
+
+When an agent is part of a service which provides an operator, the operator should be designed such that it can collect the relevant custom objects and configmaps from the kubernetes API (Custom Resource Definition, configMap).
+The operator based service will need to define and document the custom object it expects to be defined.
+If the agent supports selective backup then it shall describe a configMap where the service consumer can define what Data Set (tables, keys) will be included in a backup for that service consumer.
+The Config map defining the datasets is expected to be delivered by a service consumer once only, applications including this service consumer will not need to deliver a new configuration containing the dataset.
+It will be necessary for the application to define the dataset as part of a backup type configuration. 
+
+These configuration items will be combined by the agent to create the needed configuration for that agent to participate in a backup.
+
+The agent shall support a Custom Resource Definition which allows for allocating a data set to a Service Instance as well as providing a name (reference) to allow this configuration be included in a BackupType.
+
+The backupType configuration will allow for these references to be grouped for configuration of this see the <<ServiceUserGuide, Service User Guide>>.
+
+As this is an E2E configuration generic service and reusable service agent implementers should update the configuration details in the E2E Backup And Restore Guide.
+
+===== Migration Behavior
+
+In the event the new expected configuration for the operator based service is not provided and the operator is adopting an existing deployment the old helm release configuration is to be supported.
+
+In the event the new expected configuration for the operator based service is detected it should be given priority for all agent(s) configuration.
+
+For additional details on this please review the Backup & Restore chapter of the https://eteamspace.internal.ericsson.com/display/AA/Operator%2Benabled%2BADP%2Bservices%2B-%2Bhigh-level%2Bprinciples%2Band%2Brecommendations[Operator enabled ADP services - high-level principles and recommendations] as well as the https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/adp-doc-backup-and-restore/+/refs/heads/master/backup_and_restore.md[E2E guide].
+
+==== GRPC Configuration
+
+The following environment variables can be configured to control backup operations.
+
+AGENT_DATA_CHANNEL_TIMEOUT_SECS - Time, in seconds, to wait for the data channel to be ready before aborting the backup.
+
+When executing a backup the agent monitors the time between messages sent to BRO. If for some reason (e.g. high latency storage, lack of resources, network issues, ...) this time exceeds a configurable number of seconds the operation is aborted.
+
+This configuration environment variable should only be changed when it is not possible to resolve the issue that is causing the timeout by other means. The default value is 30 seconds.
+
+AGENT_FRAGMENT_CHUNK_SIZE - Maximum size, in KiB, of fragment chunk to send with each backup data message.
+
+The agent can define the size of the fragment chunk sent to BRO when executing a backup operation.
+
+The default value of 512 provides a balance between CPU/network overhead and memory usage.
+
+The resource impacts on both BRO and the agent should be considered when changing this configuration.
+
+Note: The gRPC configurations do not affect restore operations. To configure gRPC for restore operations please refer to BRO Deployment Guide.
+
+== Defining Agent Specific Behavior
+
+To create an Agent the expected Agent behavior must be supplied. To do so, create a concrete class that implements the interface AgentBehavior.
+
+    public interface AgentBehavior {
+        RegistrationInformation getRegistrationInformation();
+        void executeBackup(BackupExecutionActions backupExecutionActions);
+        void executeRestore(RestoreExecutionActions restoreExecutionActions);
+
+        default void prepareForRestore(final RestorePreparationActions restorePreparationActions) {
+            restorePreparationActions.sendStageComplete(true, "Preparation for restore is successful");
+        }
+
+        default void postRestore(final PostRestoreActions postRestoreActions) {
+            postRestoreActions.sendStageComplete(true, "Post Actions completed");
+        }
+    }
+
+=== Agents Which Send a Large Number of Fragments
+
+The commmunication channel between BRO and any BRA imposes a maximum amount of data BRO can send any BRA in a single message. By default this is 4MB, however, for agents that send a very large number of fragments, this maximum message size limit can be exhausted during a restore, as BRO sends the agent a list of every fragment associated with the agent in the backup being restored - in a single message. For most agents, this is not a problem, however, if your agent sends a very large number of fragments (on the order of a thousand or more), each with a large amount of custom metadata (as this information is sent along with the list of fragments), you may need to increase this limit. The exact number of fragments at which this limit is hit will vary based on the amount of metadata associated with each fragment - more metadata means fewer fragments before this is hit.
+
+If this limit is reached, during restores, you will see the following error message in your agent logs:
+
+    io.grpc.StatusRuntimeException: RESOURCE_EXHAUSTED: gRPC message exceeds maximum size 4194304
+
+To modify this, when constructing an agent (with plaintext, TLS or mTLS), provide an additional argument to the OrchestratorConnectionInformation constructor. This argument is the maxmimum message size the BRA will accept from BRO, in bytes. For example, here is an plaintext agent being configured with double the default maximum message size (8MB):
+
+    OrchestratorConnectionInformation orchestratorConnectionInformation = new OrchestratorConnectionInformation("127.0.0.1", 3000, 8 * 1024 * 1024);
+
+We do not recommend configuring agents to have a smaller maximum message size than the default 4MB.
+
+Agents should note that each fragment sent does come with some resource overhead - both in terms of network and storage - and should choose their data fragmenting strategy (many small fragments vs. a few large fragments) based on their service performance needs. All else being equal, agents should prefer to send fewer, larger fragments during backup, as a single large fragment will be sent faster and use less storage than the same data sent as a number of small fragments.
+
+=== Agent Specific Behavior - getRegistrationInformation()
+
+Implementation of the method _getRegistrationInformation()_, allows the Agent to provide information specific to the Agent to the Orchestrator.
+
+It needs to have a unique _agentId_, as well as product information related to the service to be backed up.
+
+The Agent Id is used by the Orchestrator to identify Agents and in the event of a duplicate Id being observed, that Agent will not be registered. To aid in creating a unique Agent Id it is recommended that the service name is reflected in the Agent Id.
+
+The Agent Id must not be empty, equal to "..", "." or contain any of the characters "/", "\" and "~".
+
+The Agent will always participate in operations that involve all Agents. In addition to that, by setting a value to the optional field "scope", the Agent can be backed up separately or as part of a sub set of all available Agents in a deployment.
+
+A scope is not unique and can be used to indicate a group of services. For example, if the Agent's scope is "alpha", the Agent will participate in actions involving all Agents and actions involving only Agents of scope "alpha".
+
+The scope field also supports multiple scopes. Multiple scopes can be defined using a semi-colon separated string. For example, to include the Agent in both "alpha" and "beta" scopes, the scope field should be set to "alpha;beta". The scope must not be equal to "..", "." or contain any of the characters "/", "\" and "~".
+
+In addition, the scope cannot end with the suffix "-bro" as it is reserved for backup manager configuration reload procedure purposes. See the Configuration of BRO Features section of the <<ServiceUserGuide, Service User Guide>> for more info on "Reloading the previous state of the backup manager configuration".
+
+To comply with the Backup and Restore Agent Design Rules, this field must be retrieved from values.yaml to allow applications to set it as required. The brAgent.backupTypeList field in values.yaml must be used to obtain the value of scope.
+
+The apiVersion is to aid in handling older api versions.
+
+The productionDate inside softwareVersion should follow the format "yyyy-MM-ddThh:mm:ssZ".
+
+An example of _RegistrationInformation_, in json format just for clarity, could be:
+
+    {
+        "agentId": "myAgent",
+        "scope": "alpha",
+        "apiVersion": "2.0",
+        "softwareVersion": {
+            "productName": "productABC",
+            "productNumber": "APR XXX XX",
+            "revision": "R1A",
+            "productionDate": "1984-01-02T03:04:06Z",
+            "description": "ABC used by XYZ",
+            "type": "Database"
+        }
+    }
+
+=== Agent Specific Behavior for v4 Agent - getRegistrationInformation()
+
+The v4 Agent includes the below updates to the registration message.
+
+* "commercialVersion" - Added to "softwareVersion". This represents the commercial version of the data management service e.g. "5.X.X". This is an optional field. If not provided by the agent, a value of 0.0.0 will be supplied.
+
+* "semanticVersion" - Added to "softwareVersion". This represents the semantic version of the data management service e.g. "5.X.X". This is an optional field. If not provided by the agent, a value of 0.0.0 will be supplied.
+
+* "agentFeature" - Indicates the list of available features on the agent. This currently is not used by BRO but agents should state what features they support.
+
+A registration message, in json format for clarity, would be:
+
+    {
+        "action": "REGISTER",
+        "agentMessageType": "REGISTER",
+        "register": {
+            "agentId": "myAgent",
+            "scope": "alpha",
+            "apiVersion": "4.0",
+            "softwareVersion": {
+                "productName": "productABC",
+                "productNumber": "APR XXX XX",
+                "revision": "R1A",
+                "productionDate": "2019-04-17",
+                "description": "ABC used by XYZ",
+                "type": "Database",
+                "commercialVersion" : "5.X.X",
+                "semanticVersion" : "5.X.X"
+            }
+            agentFeature: PLAINTEXT
+            agentFeature: TLS
+            agentFeature: MTLS
+            agentFeature: PREPARE_STAGE
+            agentFeature: POST_STAGE
+            agentFeature: MULTIPLE_BACKUP_TYPES
+            agentFeature: SELECTIVE_BACKUP
+        }
+    }
+
+Once the registration message is successfully sent and the Agent receives a RegistrationAcknowledge Message from BRO, the Agent will be
+available for the Orchestrator to trigger a backup/restore on.
+
+The RegistrationAcknowledge message will include a list of features BRO supports but the agent will not do anything with this information.
+A RegistrationAcknowledge message, in json format for clarity, would be:
+
+....
+registerAcknowledge {
+  acknowledgeMessage: "Registered Agent"
+  broSupportedAgentFeature: PLAINTEXT
+  broSupportedAgentFeature: TLS
+  broSupportedAgentFeature: MTLS
+  broSupportedAgentFeature: PREPARE_STAGE
+  broSupportedAgentFeature: POST_STAGE
+  broSupportedAgentFeature: MULTIPLE_BACKUP_TYPES
+  broSupportedAgentFeature: SELECTIVE_BACKUP
+}
+....
+
+=== Agent Specific Behavior - prepareForBackup()
+
+Implementation of the method
+_prepareForBackup(final BackupPreparationAction backupPreparationActions)_
+allows the agent to run the specified _BackupPreparationAction_ prior to
+executing a backup operation. The _prepareForBackup_ method has a default
+implementation which sends the stage complete message. If this is overridden
+in a custom implementation use
+_BackupAction.sendStageComplete(success, message)_
+to send a completion message after all the backup preparation actions are executed.
+
+The backup _BackupPreparationAction_ class provides methods to access the
+backup name and backup type.
+
+The name of the backup can be retrieved by calling the method _BackupAction.getBackupName()_.
+
+The type of the backup can be retrieved by calling the method _BackupAction.getBackupType()_.
+
+=== Agent Specific Behavior - executeBackup()
+
+Implementation of the method _executeBackup(BackupExecutionActions backupExecutionActions)_, allows the Agent to perform the specified backup
+procedure when called by the Orchestrator. The _executeBackup_ should perform three main actions:
+
+* Create the backup.
+* Send the backup.
+* Indicate the state of the backup (successful/not successful).
+
+To facilitate the sending of the data and the completion message, use _backupExecutionActions_. This provides methods to perform the actions of sending the backup data and the completion message. If the backup contains multiple files they can be sent by calling
+the relevant method _backupExecutionActions.sendBackup(fragmentInformation)_ as many times as required.
+
+The name that was supplied to the Orchestrator upon request of a backup can be accessed by using _backupExecutionActions.getBackupName()_. This can be used in creating the backup file.
+
+To facilitate the case when an Agent may want to include its own metadata, the optional parameter _customMetadataFilePath_ of the _FragmentInformation_ may be used.
+
+If there is an issue in the transfer of the backup to the Orchestrator a _FailedToTransferBackupException_ can be thrown. If this is seen, then the decision can be made to take some corrective actions and retry the transfer.
+
+An example of performing a backup can be seen below, in this example the service specific logic would be implemented in the function doSomethingToCreateBackup()_
+
+        @Override
+        public void executeBackup(final BackupExecutionActions backupExecutionActions) {
+            boolean success = false;
+            String message;
+            try {
+                for (final BackupFragmentInformation fragment : doSomethingToCreateBackup()) {
+                    backupExecutionActions.sendBackup(fragment);
+                }
+                success = true;
+                message = "The test service has completed a backup for " + backupExecutionActions.getBackupName()
+                        + " and the data has been sent to the Orchestrator";
+            } catch (Exception e) {
+                message = "The test service failed to complete a backup " + backupExecutionActions.getBackupName() + "Cause:" + e.getMessage()
+                        + " The test service will not retry to send the backup";
+            }
+            backupExecutionActions.backupComplete(success, message);
+        }
+
+        private List<BackupFragmentInformation> doSomethingToCreateBackup() {
+            //Perform backup actions
+        }
+
+It may also be required that an agent can support different types of backups. This is optional logic and will depend on the requirements on a data management service.
+If an agent is to support different backupTypes the type of backup can be accessed by calling:
+
+        String backupType = backupExecutionActions.getBackupType();
+
+As can be seen above _sendBackup_ is used to transfer the backup to the Orchestrator, and it takes in _BackupFragmentInformation_. An example of _BackupFragmentInformation_, in json format just for clarity, could be:
+
+    {
+        "backupFile": "/var/opt/ericsson/<application>/backup/backup.txt",
+        "customMetadataFilePath": "/var/opt/ericsson/<application>/backup/CustomMetadata.txt",
+        "fragmentId": "123",
+        "version": "0.0.0",
+        "sizeInBytes": "12345",
+        "customInformation": {
+            "name": "My Fragment",
+            "description": "anything"
+        }
+    }
+
+As with Agent Id, the fragment Id should be unique. It is recommended to include the host name of the pod the fragment originated from to the fragment Id, for example "eric-db-0". The fragmentId must not be empty, equal to "..", "." or contain any of the characters "/", "\" and "~".
+
+The _customInformation_ field is a map of strings which can be used to store any information to better identify a fragment.
+All charts should enforce that pods should have an index or unique identifier after the name. This should aid in deciding the distribution of fragments in a restore scenario.
+
+=== Agent Specific Behavior - postBackup()
+Implementation of the method
+_postBackup(final PostBackupAction postBackupActions)_ allows the agent
+ to run the specified _PostBackupAction_ after executing a backup operation.
+ The _postBackup_ method has a default implementation which sends the stage
+ complete message. If this is overridden in a custom implementation use
+ _BackupAction.sendStageComplete(success, message)_ to send a completion
+ message after all the post backup actions are executed.
+
+The _PostBackupActions_ class provides the same methods as _BackupPreparationAction_.
+
+=== Agent Specific Behavior - prepareForRestore()
+
+Implementation of the method _prepareForRestore(final RestorePreparationActions restorePreparationActions)_, allows the Agent to perform the specified preparation actions when called by the Orchestrator prior to the restore execution.
+The _prepareForRestore()_ function has a default implementation which sends the stage complete message. If this is overridden to provide implementation use _restorePreparationActions.sendStageComplete(success, message)_
+to send completion message after all the preparation actions are executed.
+
+The _restorePreparationActions_ provides functions to access backup name, software version information and fragment list.
+
+The name of the backup that is being restored can be accessed by using _restorePreparationActions.getBackupName()_.
+
+The list of fragments available in the backup can be accessed using _restorePreparationActions.getFragmentList()_.
+
+The software version information can be accessed using _restorePreparationActions.getSoftwareVersion()_.
+
+_restorePreparationActions_ has an optional _restorePreparationActions.downloadFragment(fragment, restoreLocation)_ function which can be called to download the fragments.
+The fragments can either be downloaded in this stage or in execution stage below.
+
+All data taken in a backup will be available in a restore. However to facilitate the restoration of different backup types the type of backup to be used in a restore can be accessed
+using the optional function _restorePreparationActions.getBackupType()_. This function is also available in the execution stage.
+
+=== Agent Specific Behavior - executeRestore()
+
+Implementation of the method _executeRestore(RestoreExecutionActions restoreExecutionActions)_, allows the Agent to perform the specified restore procedure when called by the Orchestrator.
+The _executeRestore_ can perform the three main actions:
+
+* Request the fragments to be downloaded from the supplied list (If not done in prepare stage).
+* Perform restore.
+* Indicate the state of the restore (successful/not successful).
+
+To download the fragments and to send the completion message use _restoreExecutionActions_. This provides methods to perform the actions of downloading the fragments and sending the completion message.
+
+Before restoring data or downloading the fragments the Agent should check the compatibility of the data by validating the software version information of the backup to be restored.
+To access this information use _restoreExecutionActions.getSoftwareVersion()_.
+
+The list of fragments available in the backup can be accessed using _restoreExecutionActions.getFragmentList()_.
+This list contains fragment information that can be used to call _restoreExecutionActions.downloadFragment(fragment, restoreLocation)_ function. This will store the requested fragment in the location provided.
+
+If the backup contains multiple fragments they can be downloaded by calling the relevant function _restoreExecutionActions.downloadFragment(fragment, restoreLocation)_ as many times as required.
+
+The name of the backup that is being restored can be accessed by using _restoreExecutionActions.getBackupName()_ function.
+
+All data taken in a backup will be available in a restore. However to facilitate the restoration of different backup types the type of backup to be used in a restore can be accessed
+using the optional function _restorePreparationActions.getBackupType()_.
+
+If there is an issue in the download process _FailedToDownloadException_ is thrown. If this is seen, then the decision can be made to take some corrective actions and continue the restore process.
+
+Use _restoreExecutionActions.sendStageComplete(success, message)_ to send the completion message.
+
+An example of performing a restore can be seen below, in this example the service specific logic would be implemented in the function performCustomRestoreLogic()_
+
+    @Override
+    public void executeRestore(final RestoreExecutionActions restoreExecutionActions) {
+        if (!SoftwareVersionInformationUtils.isCompatibleSoftwareVersion(restoreExecutionActions.getSoftwareVersion())) {
+            restoreExecutionActions.sendStageComplete(false, "Incompatible software version");
+            log.error("Restore of backup {} failed due to incompatible software version", restoreExecutionActions.getBackupName());
+        } else {
+            try {
+                for (final FragmentInformation fragmentInformation : restoreExecutionActions.getFragmentList()) {
+                    restoreExecutionActions.downloadFragment(fragmentInformation, getDownloadLocation());
+                }
+                performCustomRestoreLogic();
+                restoreExecutionActions.sendStageComplete(true,
+                        "The test service has completed restore of backup: " + restoreExecutionActions.getBackupName());
+                log.info("Restore of backup {} finished, for backup type {}", restoreExecutionActions.getBackupName(),
+                        restoreExecutionActions.getBackupType());
+            } catch (final Exception e) {
+                log.error("Restore of backup {} failed due to exception ", restoreExecutionActions.getBackupName(), e);
+                restoreExecutionActions.sendStageComplete(false, "Restore failed due to <" + e.getMessage() + ">");
+            }
+        }
+    }
+
+    private void performCustomRestoreLogic() {
+        // Perform restore actions.
+    }
+
+
+As can be seen above _downloadFragment_ is used to download the fragment from the Orchestrator, and it takes in _FragmentInformation_. An example of _FragmentInformation_, in json format just for clarity, could be:
+
+    {
+        "fragmentId": "123",
+        "version": "0.0.0",
+        "sizeInBytes": "12345",
+        "customInformation": {}
+    }
+
+The above code samples can be found in the test agent https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/src/main/java/com/ericsson/adp/mgmt/brotestagent/agent/behavior/TestAgentBehavior.java[here].
+
+=== Agent Specific Behavior - postRestore()
+
+Implementation of the method _postRestore(final PostRestoreActions postRestoreActions)_, allows the Agent to perform the specified actions when called by the Orchestrator after the restore execution.
+The _postRestore()_ function has a default implementation which sends the stage complete message. If this is overridden to provide implementation use _postRestoreActions.sendStageComplete(success, message)_
+to send completion message after all the post restore actions are executed.
+
+The _postRestoreActions_ provides same functions as _restorePreparationActions_.
+
+=== Agent Specific Behavior - cancelAction()
+
+Implementation of the method _cancelAction(final CancelActions cancelActions)_, allows the Agent to perform its own specific actions when called by the Orchestrator to cancel the current executing restore.
+The _cancelAction()_ is invoked when the cancel message is sent by the Orchestrator in between or at the end of create backup or restore stages to indicate to all the participating agents that the operation is unsuccessful and it will not progress further.
+
+In the event that the orchestrator unexpectedly disconnects during a backup or restore operation, the Agent will automatically invoke the _cancelAction()_ during re-registration. This action will reset the Agent's state to ensure its readiness to receive messages from the newly established connection with the orchestrator.
+
+The _cancelAction()_ function has a default implementation which sends the stage complete message. If this is overridden to provide implementation use _cancelActions.sendStageComplete(success, message)_
+to send completion message after all the cancel actions are executed.
+
+The name of the backup can be accessed by using _cancelActions.getBackupName()_ function.
+
+The type of action being executed (i.e Restore) can be accessed using _cancelActions.getAction()_ function.
+
+== Orchestrator and BRO Agent API Version Compatibility Matrix
+
+[cols="1,1", options="header"]
+
+|===
+|Orchestrator | BRO Agent API
+
+| `4.1.0 onwards`| `3.0.12 onwards`
+
+|===
+
+=== Interface Fragment
+
+ADP services are required to deliver the network interfaces that they provide and use in a fragment.
+To aid with the development of this fragment for agents, an example of the content expected per library version used can be viewed https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/bro-agent-api/Documentation[here].
+A README with some additional information can be found 
+
+== Packaging
+
+The final packaging of an Agent will be a Docker image and Helm chart. However, it is necessary to also build the executable. As discussed in the project section there are a number of plugins
+included in the pom.xml to aid in the build and packaging of the test Agent executable.
+
+=== Docker
+The Docker image is created from the ADP base image with Java 11 installed in the build process, the Dockerfile also pulls in the executable.
+The Dockerfile does not contain a run command, this is supplied from the Helm chart and allows for some flexibility in the starting of the test agent.
+
+The Dockerfile of the test Agent can be viewed https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/Docker/test-agent/Dockerfile[here].
+
+=== Helm
+
+It is necessary to support a centralized Agent which handles all communication and data transfers with the Orchestrator.
+This can be realized in Helm with a StatefulSet of 1 Replica which represents the Agent.
+It is recommended to have a configurable PVC as part of this chart to hold the backup data.
+
+The Helm chart for the test Agent is set up to allow for a ConfigMap to be mounted to the container. This ConfigMap is used to create the properties used by the executable.
+
+The Helm chart used for the test Agent can be viewed https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/Helm/eric-test-service-basic[here].
+It contains an Agent StatefulSet of 1 Replica, PVC and ConfigMap for its BRO Agent
+
+=== CI/CD
+
+The full packaging process is setup such that a Jenkins server can execute a full build of the test Agent. The test Agents Jenkinsfile in the project covers several steps to perform this process.
+For reference the steps are:
+
+* Within the CI/CD pipeline, every change merged to the service is continually integrated and deployed.
+* This automated process makes use of ADP's BOB and involves building the Maven project and running tests resulting in an artifact of a packaged jar file.
+* Further quality control is then implemented via SonarQube analysis and a quality gate.
+* If all quality control passes then packaging the service begins by creating the Docker image containing the jar file created and validated in the previous steps.
+* A snapshot Helm chart containing this Docker image is then packaged and pushed to the same artifactory.
+
+The relevant Jenkinsfiles can be reviewed https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/Jenkinsfile[here].
+
+The relevant Bob rulesets for the test Agent can be reviewed https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/test-service-basic/ruleset.yaml[here].
+
+[[AdditionalInformation]]
+== Additional Information
+
+Any GS or RS services adding agents, please update your agents in the https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/adp-doc-backup-and-restore/+/refs/heads/master/backup_and_restore.md[ADP Backup and Restore End-to-End-Guide].
+
+The Orchestrator and Agents communicate via GRPC. That communication is defined in the "xxxxxx.proto" files found inside the _bro-agent-api_ project https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/microservices/backupandrestore/+/refs/heads/master/bro-agent-api/src/main/proto/[here].
+
+This guide covered how to build an Agent using the classes provided by _bro-agent-api_, which encapsulates that communication, and therefore does not cover details regarding GRPC.
+
+[bibliography]
+References
+----------
+[bibliography]
+* [[ServiceUserGuide]] Backup and Restore Service User Guide, 1/15451-APR 201 40/4
+* [[operatorEnabledPrinciples]] Operator enabled ADP services - high-level principles and recommendations, https://eteamspace.internal.ericsson.com/display/AA/Operator%2Benabled%2BADP%2Bservices%2B-%2Bhigh-level%2Bprinciples%2Band%2Brecommendations
+* [[endToEndGuide]] E2E guide, https://gerrit-gamma.gic.ericsson.se/plugins/gitiles/AIA/adp-doc-backup-and-restore/+/refs/heads/master/backup_and_restore.md
+* [[BackupAndRestoreDesignRules]] Backup and Restore Design Rules and Guidelines, https://eteamspace.internal.ericsson.com/display/AA/Kubernetes+Backup+and+Restore+Design+Rules+and+Guidelines

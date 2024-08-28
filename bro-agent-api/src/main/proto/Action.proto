@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ericsson.adp.mgmt.action";
+
+enum Action {
+    REGISTER = 0;
+    BACKUP = 1;
+    RESTORE = 2;
+    CANCEL = 3;
+}

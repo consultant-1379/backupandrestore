@@ -1,0 +1,7 @@
+documents:
+  # document name
+  - name: user-guide
+    # file names of files to be packaged in the document
+    files:
+      - BackupAndRestoreOrchestrator_User_Guide/user_guide.md
+      - BackupAndRestoreOrchestrator_User_Guide/architecture.png

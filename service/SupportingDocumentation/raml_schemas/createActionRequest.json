@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "CreateActionRequest",
+  "title": "CreateActionRequest",
+  "description": "Input needed to create an action",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "What will be performed",
+      "enum": ["CREATE_BACKUP", "DELETE_BACKUP", "RESTORE", "IMPORT", "EXPORT"]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Input of action",
+      "properties": {
+        "backupName": {
+          "type": "string",
+          "description": "Name of backup to be used by action. Used by CREATE_BACKUP_DELETE_BACKUP, RESTORE, EXPORT"
+        },
+        "uri": {
+          "type": "string",
+          "description": "URI to export/import backup to/from. Used by IMPORT, EXPORT"
+        },
+        "password": {
+          "type": "string",
+          "description": "Password to be used when exporting/importing. Used by IMPORT, EXPORT"
+        }
+      }
+    }
+  },
+  "required": [
+    "action",
+    "payload"
+  ]
+}

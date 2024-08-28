@@ -1,0 +1,35 @@
+{{- if .Values.brAgent.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-test-service-basic.agentname" . }}-properties
+  annotations:
+{{ include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4}}
+data:
+  {{- $host := toString .Values.global.adpBR.broServiceName }}
+  {{- $port := toString .Values.global.adpBR.broGrpcServicePort }}
+  {{- $agentId := toString .Values.brAgent.brLabelValue }}
+  {{ .Values.brAgent.properties.fileName }}: |
+  {{- range $propertyName, $propertyValue := .Values.brAgent.properties.applicationProperties }}
+   {{ if eq (toString $propertyName) "orchestrator.host" }} {{ $propertyName }} = {{ $host -}}
+   {{ else if eq (toString $propertyName) "orchestrator.port" }} {{ $propertyName }} = {{ $port -}}
+   {{ else if eq (toString $propertyName) "test.agent.id" }} {{ $propertyName }} = {{ $agentId -}}
+   {{ else if ne (toString $propertyName) "test.agent.scope" }} {{ $propertyName }} = {{ $propertyValue -}}
+   {{ end }}
+  {{- end }}
+  {{- if .Values.brAgent.backupTypeList }}
+    test.agent.scope = {{- template "eric-test-service-basic.backupTypes" . }}
+  {{- end }}
+    flag.global.security = {{ include "eric-test-service-basic.globalSecurity" . }}
+  {{- if (eq (include "eric-test-service-basic.globalSecurity" .) "true") }}
+    siptls.client.certificateChainFilePath=/run/sec/certs/client/clientcert.pem
+    siptls.client.privateKeyFilePath=/run/sec/certs/client/clientprivkey.pem
+    siptls.ca.path = /run/sec/cas/siptlsca/cacertbundle.pem
+    siptls.ca.name = {{ toString .Values.global.adpBR.broServiceName }}
+  {{- else }}
+    siptls.ca.path = ""
+    siptls.ca.name = ""
+  {{- end }}
+{{- end }}

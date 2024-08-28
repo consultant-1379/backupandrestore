@@ -1,0 +1,29 @@
+filegroup(
+    name = "TestFiles",
+    srcs = [
+        "test/resources/backup.txt",
+        "test/resources/CustomMetadata.txt",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+#load("@com_github_grpc_grpc//bazel:python_rules.bzl", "py_proto_library", "py_grpc_library")
+#
+#py_proto_library(
+#    name = "adp_bro_py_proto",
+#    deps = [
+#        "@adp_bro//:adp-bro-protos",
+#    ],
+#    out_path = "main/python/bro_agent/prepatched",
+#    visibility = ["//visibility:public"],
+#)
+#
+#py_grpc_library(
+#    name = "adp_bro_grpc_proto",
+#    srcs = ["@adp_bro//:adp-bro-protos"],
+#    deps = [
+#        "//:adp_bro_py_proto",
+#    ],
+#    out_path = "main/python/bro_agent/prepatched",
+#    visibility = ["//visibility:public"],
+#)

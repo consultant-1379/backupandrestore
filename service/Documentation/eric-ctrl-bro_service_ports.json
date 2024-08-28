@@ -1,0 +1,148 @@
+{
+    "metadata" : {
+      "serviceHelmChartName" : "eric-ctrl-bro",
+      "usedSchemaVersion" : "1.0",
+      "fileVersion" : "1.0",
+      "dateEdited" : "2022-05-06"
+    },
+    "internalPorts": [
+      {
+        "serviceInterfaceName": "BRO REST API server",
+        "protocol": "HTTP",
+        "ipAddressType": "OAM IP",
+        "port": 7001,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },      
+      {
+        "serviceInterfaceName": "REST API (mTLS) server",
+        "protocol": "HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 7002,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "PM Metrics (Non-TLS) with metrics.enableNewScrapePattern true, server as a client",
+        "protocol": "HTTP",
+        "ipAddressType": "OAM IP",
+        "port": 7005,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "PM Metrics (mTLS) server as a client",
+        "protocol": "HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 7003,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "CMM Notifications server as a client",
+        "protocol": "HTTP/HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 7004,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "GPRC API server",
+        "protocol": "RPC",
+        "ipAddressType": "OAM IP",
+        "port": 3000,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "Message Bus Kafka client",
+        "protocol": "HTTP",
+        "ipAddressType": "OAM IP",
+        "port": 9092,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "Message Bus Kafka (mTLS) client",
+        "protocol": "HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 9093,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "Key Value Database RD client",
+        "protocol": "HTTP",
+        "ipAddressType": "OAM IP",
+        "port": 6379,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "Key Value Database RD (mTLS) client",
+        "protocol": "HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 6380,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "CMM client",
+        "protocol": "HTTP",
+        "ipAddressType": "OAM IP",
+        "port": 5003,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "CMM (mTLS) client",
+        "protocol": "HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 5004,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "KMS client",
+        "protocol": "HTTP/HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 8200,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "Log Transformer client",
+        "protocol": "SYSLOG",
+        "ipAddressType": "OAM IP",
+        "port": 5014,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "Log Transformer (mTLS) client",
+        "protocol": "SYSLOG",
+        "ipAddressType": "OAM IP",
+        "port": 5015,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "Object Storage MN client",
+        "protocol": "HTTP/HTTPS",
+        "ipAddressType": "OAM IP",
+        "port": 9000,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      },
+      {
+        "serviceInterfaceName": "HttpProbe",
+        "protocol": "HTTP",
+        "ipAddressType": "OAM IP",
+        "port": 9005,
+        "transportProtocol": "TCP",
+        "ipVersion": ["IPv4", "IPv6"]
+      }
+    ],
+    "externalPorts": [
+    ]
+  }

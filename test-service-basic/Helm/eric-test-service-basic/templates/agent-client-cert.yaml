@@ -1,0 +1,25 @@
+{{- if (eq (include "eric-test-service-basic.globalSecurity" .) "true") }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  name: {{ template "eric-test-service-basic.name" . }}-client-cert
+  annotations:
+{{- include "eric-test-service-basic.prodInfoAnnotations" . | indent 4 }}
+  labels:
+{{ include "eric-test-service-basic.k8sLabels" . | indent 4 }}
+spec:
+  kubernetes:
+    generatedSecretName: {{ template "eric-test-service-basic.name" . }}-client-cert
+    certificateName: clientcert.pem
+    privateKeyName: clientprivkey.pem
+  certificate:
+    issuer:
+      reference: eric-ctrl-bro-ca
+    subject:
+      cn: {{ template "eric-test-service-basic.name" . }}
+    validity:
+      overrideTtl: {{ template "eric-test-service-basic.clientCertTtl" . }}
+    extendedKeyUsage:
+      tlsClientAuth: true
+      tlsServerAuth: false
+{{- end -}}

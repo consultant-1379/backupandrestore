@@ -1,0 +1,438 @@
+global:
+  adpBR:
+    broServiceName: eric-ctrl-bro
+    broGrpcServicePort: 3000
+  security:
+    tls:
+      enabled: true
+  timezone: UTC
+  networkPolicy:
+    enable: false
+  log:
+    streamingMethod: indirect
+  internalIPFamily: IPv6
+#  policyBinding:
+#    create: false
+#  policyReferenceMap:
+#    default-restricted-security-policy: "default-restricted-security-policy"
+
+tags:
+  data: true
+  datakvdb: false
+  logging: false
+  security: true
+  cmyp: true
+  pm: true
+  osmn_enabled: false
+  yang: false
+
+eric-ctrl-bro:
+  bro:
+    logging:
+      level: info
+      log4j2Level: info
+      rootLevel: info
+    enableNotifications: true
+    enableAgentDiscovery: false
+    enableConfigurationManagement: true
+    appProductInfoConfigMap: product-info-conf
+    productMatchType: LIST
+    vBRMAutoCreate: NONE
+    productNumberList:
+      - "APR XXX XX/X"
+      - "APR XXX XX/1"
+      - "abc"
+      - "xyz"
+  service:
+    endpoints:
+      server:
+        ttl: 300
+      broToAgent:
+        tls:
+          verifyClientCertificate: optional
+      restActions:
+        tls:
+          enforced: optional
+  sftp:
+    retry:
+      attempts: 2
+  keyValueDatabaseRd:
+      enabled: true
+  kafka:
+      replicationFactor: 1
+eric-data-kvdb-ag:
+  brAgent:
+    enabled: false
+  persistence:
+    data:
+      storageClass: network-block
+    backup:
+      storageClass: network-block
+      enabled: true
+  accessControl:
+    enabled: false
+eric-data-document-database-pg:
+  service:
+    endpoints:
+      postgres:
+        tls:
+          enforced: optional
+      postgresExporter:
+        tls:
+          enforced: optional
+  persistentVolumeClaim:
+    storageClassName: network-block
+  highAvailability:
+    replicaCount: 1
+  postgresDatabase: cm-db
+  credentials:
+    kubernetesSecretName: docdb-secret
+  brAgent:
+    enabled: true
+    logicalDBBackupEnable: true
+    backupDataModelConfig: eric-cm-mediator-br-agent
+    backupTypeList:
+    - "configuration-data"
+    PGAgentLogLevel: debug
+    RootLogLevel: debug
+eric-cm-mediator:
+  service:
+    endpoints:
+      restapi:
+        tls:
+          enforced: optional
+          verifyClientCertificate: optional
+  backend:
+    hostname: eric-data-document-database-pg
+    dbname: cm-db
+    dbuser: tester
+  credentials:
+    kubernetesSecretName: docdb-secret
+  dbbr:
+    enabled: true
+  cmkey:
+    enable: true
+eric-cm-yang-provider:
+  service:
+     type: ClusterIP
+  env:
+    logLevel: "debug"
+  externaldb:
+    dbname: cm-db
+    dbuser: tester
+    host: eric-data-document-database-pg
+    credentials:
+       kubernetesSecretName: docdb-secret
+       keyForUserId: custom-user
+       keyForUserPw: custom-pwd
+  ldap:
+    enabled: true
+eric-data-coordinator-zk:
+   replicaCount: 1
+eric-data-message-bus-kf:
+  service:
+    endpoints:
+      messagebuskf:
+        tls:
+          enforced: optional
+          verifyClientCertificate: optional
+  persistentVolumeClaim:
+     storageClassName: network-block
+  replicaCount: 1
+  configurationOverrides:
+     min.insync.replicas: 1
+     default.replication.factor: 1
+     offsets.topic.replication.factor: 1
+     auto.create.topics.enable: false
+eric-data-key-value-database-rd:
+  service:
+    endpoints:
+      kvdbClients:
+        tls:
+          enforced: optional
+eric-data-key-value-database-rd-operand:
+  server:
+    notifyKeySpaceEvents: K
+  service:
+    endpoints:
+      kvdbClients:
+        tls:
+          enforced: optional
+  security:
+    acl:
+      users:
+        - name: userbro
+          permissions: ~* &* +@all -@dangerous +client +cluster +config|get +info +latency +slowlog +monitor +keys +flushdb
+eric-data-search-engine:
+  autoSetRequiredWorkerNodeSysctl: true
+  index_management:
+    enabled: false
+  replicaCount:
+    ingest: 1
+    data: 1
+    master: 1
+  client:
+    jvmHeap: 1G
+    resources:
+      limits:
+        memory: 2Gi
+  data:
+    jvmHeap: 1G
+    accessMode: ReadWriteOnce
+    storageAllocation: 10Gi
+    resources:
+      limits:
+        memory: 2Gi
+  master:
+    jvmHeap: 1G
+    resources:
+      limits:
+        memory: 2Gi
+  service:
+    endpoints:
+      rest:
+        tls:
+          enforced: optional
+eric-data-visualizer-kb:
+  service:
+    type: NodePort
+    externalPort: 31000
+  ingress:
+    enabled: true
+    hosts:
+      - kb.server.ibd1.ericsson.se
+  logtransformer:
+    host: eric-log-transformer
+  branding:
+    enabled: false
+eric-log-shipper:
+  useFullCfg: true
+  additionalVolumeMounts: |
+    - name: dockerlog
+      mountPath: /var/lib/docker/
+  additionalVolumes: |
+    - name: dockerlog
+      hostPath:
+        path: /var/lib/docker/
+  logshipper:
+    serviceAccountName: monitoring
+    cfgData: |
+      filebeat.prospectors:
+      - input_type: log
+        paths:
+          - /var/lib/docker/containers/*/*.log
+        fields:
+          logplane: kubelog
+        fields_under_root: true
+        tail_files: true
+        processors:
+          - add_kubernetes_metadata:
+              in_cluster: true
+      output.logstash:
+        hosts: '${LOGSTASH_HOSTS}'
+eric-odca-diagnostic-data-collector:
+  env:
+    enableCmConfig: true
+    enableCmypConfig: true
+eric-log-transformer:
+  jvmHeap: 2G
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 4Gi
+  config:
+    syslog:
+      enableSdHandling: true
+eric-sec-sip-tls:
+  internalCertificate:
+    validLifetimeSeconds: 600
+eric-sec-access-mgmt:
+  ldap:
+    enabled: true
+eric-pm-server:
+  service:
+    endpoints:
+      scrapeTargets:
+        tls:
+          enforced: optional
+      reverseproxy:
+        tls:
+          enforced: optional
+          verifyClientCertificate: optional
+          certificateAuthorityBackwardCompatibility: false
+  rbac:
+    appMonitoring:
+      enabled: true
+      configFileCreate: false
+  server:
+    service:
+      type: NodePort
+      endpoints:
+        scrapeTargets:
+          tls:
+            enforced: optional
+        reverseproxy:
+          tls:
+            verifyClientCertificate: optional
+    serviceAccountName: monitoring
+    ingress:
+      enabled: true
+      hosts:
+        - pm.server.ieatenmpcbfl-219.athtem.eei.ericsson.se
+  clusterRoleName: bro-intchart-monitoring
+  serverFiles:
+    prometheus.yml: |
+      global:
+        scrape_interval: 15s
+        scrape_timeout: 10s
+        evaluation_interval: 1m
+      scrape_configs:
+        - job_name: prometheus
+          static_configs:
+            - targets:
+              - localhost:9090
+
+        - job_name: 'bro-metrics'
+          scheme: https
+          tls_config:
+            ca_file: /run/secrets/cacert/ca.crt
+            cert_file: /run/secrets/clicert/clicert.pem
+            key_file: /run/secrets/clicert/cliprivkey.pem
+          metrics_path: '/actuator/prometheus'
+          scrape_interval: 5s
+          static_configs:
+            - targets:
+              - eric-ctrl-bro:7003
+
+        - job_name: 'kubernetes-nodes'
+          scheme: https
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecure_skip_verify: true
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+          kubernetes_sd_configs:
+            - role: node
+
+          relabel_configs:
+            - action: labelmap
+              regex: __meta_kubernetes_node_label_(.+)
+            - target_label: __address__
+              replacement: kubernetes.default.svc:443
+            - source_labels: [__meta_kubernetes_node_name]
+              regex: (.+)
+              target_label: __metrics_path__
+              replacement: /api/v1/nodes/${1}/proxy/metrics
+
+
+        - job_name: 'kubernetes-nodes-cadvisor'
+          scheme: https
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecure_skip_verify: true
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+          kubernetes_sd_configs:
+            - role: node
+
+          relabel_configs:
+            - action: labelmap
+              regex: __meta_kubernetes_node_label_(.+)
+            - target_label: __address__
+              replacement: kubernetes.default.svc:443
+            - source_labels: [__meta_kubernetes_node_name]
+              regex: (.+)
+              target_label: __metrics_path__
+              replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+        - job_name: 'kubernetes-service-endpoints'
+
+          kubernetes_sd_configs:
+            - role: endpoints
+
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_service_name]
+              action: replace
+              target_label: job
+            - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+              action: replace
+              target_label: __scheme__
+              regex: (https?)
+            - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+              action: replace
+              target_label: __address__
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+            - action: labelmap
+              regex: __meta_kubernetes_service_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kubernetes_namespace
+            - source_labels: [__meta_kubernetes_service_name]
+              action: replace
+              target_label: kubernetes_name
+
+        - job_name: 'kubernetes-services'
+
+          metrics_path: /probe
+          params:
+            module: [http_2xx]
+
+          kubernetes_sd_configs:
+            - role: service
+
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]
+              action: keep
+              regex: true
+            - source_labels: [__address__]
+              target_label: __param_target
+            - target_label: __address__
+              replacement: blackbox
+            - source_labels: [__param_target]
+              target_label: instance
+            - action: labelmap
+              regex: __meta_kubernetes_service_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              target_label: kubernetes_namespace
+            - source_labels: [__meta_kubernetes_service_name]
+              target_label: kubernetes_name
+
+        - job_name: 'kubernetes-pods'
+
+          kubernetes_sd_configs:
+            - role: pod
+
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+            - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+              action: replace
+              target_label: __scheme__
+              regex: (https?)
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+              action: replace
+              target_label: __metrics_path__
+              regex: (.+)
+            - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              action: replace
+              regex: ([^:]+)(?::\d+)?;(\d+)
+              replacement: $1:$2
+              target_label: __address__
+            - action: labelmap
+              regex: __meta_kubernetes_pod_label_(.+)
+            - source_labels: [__meta_kubernetes_namespace]
+              action: replace
+              target_label: kubernetes_namespace
+            - source_labels: [__meta_kubernetes_pod_name]
+              action: replace
+              target_label: kubernetes_pod_name

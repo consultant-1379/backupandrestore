@@ -1,0 +1,242 @@
+= Backup and Restore Orchestrator Service Overview
+:author: Thiago Santos
+:doc-name: Service Overview
+:doc-no: 1/1551-APR 201 40/4
+:revnumber: A
+:revdate: {sys: date +%Y-%m-%d}
+:approved-by-name: Pratibha Singh E
+:approved-by-department: BDGS SA OSS
+
+== Overview
+
+This document provides an overview of the Backup and Restore Orchestrator.
+
+It gives a brief description of its main features and its interfaces.
+
+=== Description of the Service
+
+The primary goal of the Backup and Restore Orchestrator service is to provide a consistent set of API's for backup and restore operations orchestration across multiple services.
+
+This is achieved via communication between the Backup and Restore Orchestrator component and one or more application-specific Agents.
+
+=== Purpose
+
+To enable backup and restore, for an Ericsson application, within a Microservices environment.
+
+=== Main Concepts
+
+The major concepts in the Backup and Restore Orchestrator are:
+
+==== Backup
+
+Set of data for a service, stored remotely. It represents the state those services had at the time it was created, and can be used to recreate that state.
+
+==== Restore
+
+Copy data from a backup to recreate the state the affected services had at the time when the backup was created.
+
+==== Agent
+
+Part of a service that is used to integrate that service into the ADP backup and restore solution. It communicates with the BR Orchestrator, and has logic specific to the service it is bundled with to create and restore backups.
+
+==== Fragment
+
+A piece of the backup that is uploaded by an Agent to the Orchestrator during a backup operation or downloaded from the Orchestrator during a restore operation. Each backup consists of one or more backup fragments per agent.
+
+==== Backup Type
+
+Each agent can register as belonging to zero or more backup types. A backup type defines a set of agents, this allows for a backup to be taken of a subset of services.
+
+
+////
+=== Features
+
+Placeholder.
+////
+
+=== Supported Use Cases
+This chapter gives an overview of the supported use cases.
+The main use cases for the Backup and Restore Orchestrator are:
+[cols="3*",options="header"]
+|===
+| Use Case ID
+| Use Case Title
+| Compliance
+
+| [red]#<UC.BR.BACKUP>#
+| [red]#Backup#
+| [red]#Fully supported#
+
+| [red]#<UC.BR.RESTORE>#
+| [red]#Restore#
+| [red]#Fully supported#
+
+| [red]#<UC.BR.IMPORT>#
+| [red]#Import Backup from an SFTP Server#
+
+  [red]#Import Backup from an HTTP Server#
+
+| [red]#Fully Supported#
+
+  [red]#Alpha Feature#
+
+| [red]#<UC.BR.EXPORT>#
+| [red]#Export Backup to an SFTP Server#
+
+  [red]#Export Backup to an HTTP Server#
+
+| [red]#Fully Supported#
+
+  [red]#Alpha Feature#
+
+| [red]#<UC.BR.DELETE>#
+| [red]#Delete Backup#
+| [red]#Fully Supported#
+
+| [red]#<UC.BR.HOUSEKEEPING>#
+| [red]#Housekeeping#
+| [red]#Alpha Feature#
+
+|===
+
+For more details, links to service documents are provided in the <<References, References>> section.
+
+=== Features
+
+The Backup and Restore Orchestrator has a number of optional features.
+
+==== Notification
+
+The Orchestrator pushes a notification message to a Message Bus KF topic every time a backup or a restore has started, completed or failed, indicating the status of the action.
+
+A notification message example is:
+
+....
+{ "version": "1.0.0", "action": "RESTORE", "actionId":"7643", "backupManagerId":"DEFAULT", "status": "STARTED"}
+....
+
+|===
+|Field | Description | values
+
+|`version` |Indicates the version of the BR_INTERNAL_NOTIFICATION API that the notification adheres to| <BR_INTERNAL_NOTIFICATION_VERSION>
+|`action` |Indicates the action which published the notification| `CREATE_BACKUP`, `RESTORE`
+|`actionId`|Indicates the action's ID |<RANDOMLY_GENERATED_ID>
+|`backupManagerId`|Indicates the ID of the Backup Manager responsible for the action |<ID_OF_BACKUP_MANAGER>
+|`status`|Indicates the notification status |`STARTED`, `COMPLETED`, `FAILED`
+|===
+
+
+==== Agent Discovery
+
+The Orchestrator will use the Kubernetes API to find all Agents expected to participate in a backup. If the registered Agents do not match the expected agents, the backup will fail.
+
+
+==== Configuration Management
+
+The Orchestrator will push its metadata to a running instance of CM Mediator. Backup and Restore Operations can then be initiated using the CM Yang Provider service.
+For more details, see the <<CMYPOperationsGuide, Backup and Restore Operations Guide for CM Yang Provider>>.
+
+==== Immediate Deletion of Failed Backups
+
+The Orchestrator will automatically delete backups which are the result of a failed `CREATE_BACKUP` action. Disabled by default, please see the <<ServiceUserGuide, Service User Guide>>.
+
+==== Log Streaming
+
+The Orchestrator can stream log events to the Log Transformer, in the syslog format specified in RFC 5424. Disabled by default, please see the <<ServiceUserGuide, Service User Guide>>.
+
+== API
+
+The URI resources in the Backup and Restore Orchestrator REST interface can be accessed using the major version.
+
+E.g. "http://<ipaddress>:7001/v1/backup-manager/<backupManagerId>"
+
+For more details, see the <<OperationsGuide, Operations Guide>>.
+
+== Architecture
+
+The following picture shows the Backup and Restore Orchestrator and its architectural context:
+
+image::Components.png[Architecture]
+
+Backup and Restore Orchestrator provided interfaces:
+
+[cols="2*",options="header"]
+|===
+| Interface Logical Name
+| Description
+
+| INT.BR.ORCH.CTRL
+| This interface is used for control and coordination messages / events between the BR Orchestrator and Agents.
+
+| INT.BR.ORCH.DATA
+| This interface is used for two-way data transfer between the BR Orchestrator and Agents during the Backup and Restore use cases.
+|===
+
+== Deployment
+
+Backup and Restore Orchestrator is packaged as a Docker container. It supports deployment in Kubernetes using Helm.
+
+The Backup and Restore Orchestrator supports only singular replication e.g. one instance of the service.
+
+To deploy the Service, refer to the Deployment section of the Service User Guide (see <<ServiceUserGuide, Service User Guide>>). This guide:
+
+* Explains how to get started using the Backup and Restore Orchestrator in the supported environments.
+* Specifies configuration options for starting the Backup and Restore Orchestrator service.
+
+If problems occur when using the service, refer to the Troubleshooting section of the Service User Guide (see <<ServiceUserGuide, Service User Guide>>).
+
+== Dimensioning and Characteristics
+
+////
+=== Dimensioning
+To handle dimensioning configuration at deployment time, refer to the <<Deployment, Deployment Guide>>.
+////
+
+=== Scaling
+
+[cols="3*",options="header"]
+|===
+| Scaling Supported (Yes/No)
+| Minimum number of instances
+| Maximum number of recommended instances
+
+| [red]#No#
+| [red]#1#
+| [red]#1#
+|===
+
+////
+=== Resilience
+[red]#<TODO: Describe from a functional view how it is designed to support resilience. How does the service achieve high availability>#
+////
+
+=== Upgrade - In Service Software Upgrade
+
+Backup and Restore is a single instance service that is robust and can maintain state between restarts.
+During an upgrade the service will be unavailable for a short period of time.
+Upgrade should be performed when there are no ongoing backup and/or restore actions in progress or planned for the near future.
+
+////
+=== Characteristics Compliance
+This chapter gives an overview of the supported characteristics. The expected characteristics are defined in detail in the <<CD, Component Description>>).
+[cols="3*",options="header"]
+|===
+| Characteristics
+| Slogan
+| Component Description Compliance
+
+| [red]#CHAR.BRO.001#
+| [red]#The component is able to start up and provide service within 30 seconds.#
+| [red]#<Compliant, Partly Compliant or not Compliant. If not fully Compliant, list deviations>#
+|===
+////
+
+[[References]]
+[bibliography]
+References
+----------
+
+[bibliography]
+* [[ServiceUserGuide]] Backup and Restore Service User Guide, 1/15451-APR 201 40/5
+* [[OperationsGuide]] Backup and Restore Operations Guide, 2/19817-APR 201 40/5
+* [[CMYPOperationsGuide]] Backup and Restore Operations Guide for CM Yang Provider, 5/19817-APR 201 40/5

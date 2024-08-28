@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="off">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{YYYY-MM-dd'T'HH:mm:ss.sssXXX} %p %c{1}: %m%n"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </Console>
+        <BufferedSocketAppender name="BufferedSocketAppender" host="localhost" port="5015">
+            <!--            <StreamSslConfiguration privatekey="/run/secrets/certs/logtransformer/ltclientkey.pem"-->
+            <!--                                    certificate="/run/secrets/certs/logtransformer/ltclientcert.pem"-->
+            <!--                                    ca="/run/secrets/cas/siptls/cacertbundle.pem"-->
+            <!--                                    keystore="/temp/ltEndpointKeystore.12"-->
+            <!--                                    caAlias="siptls"-->
+            <!--                                    certAlias="LT"/>-->
+            <!-- Really we should use the json layout defined below but that's an interface change-->
+            <RFC5424Layout appName="eric-ctrl-bro" newLine="true" newLineEscape="\\n"/>
+            <RegexFilter regex=".*(Error reading request, ignored|Error running socket processor).*" onMatch="DENY" onMismatch="ACCEPT"/>
+        </BufferedSocketAppender>
+    </Appenders>
+    <Loggers>
+        <Logger name="com.ericsson.adp.mgmt.backupandrestore" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

@@ -1,0 +1,392 @@
+modelVersion: 2.0
+
+import:
+  common: common-properties.yaml
+
+docker-images:
+  - adp-release-auto: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-adp-release-auto:latest
+  - k8-test: armdocker.rnd.ericsson.se/sandbox/adp-staging/adp-cicd/bob-py3kubehelmbuilder:latest
+  - py3-kube-helm: armdocker.rnd.ericsson.se/proj-dgbase-cicd-drop/bob-py3kubehelmbuilder:2.0.1-latest
+  - py3-kube-helm-latest: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/bob-py3kubehelmbuilder:latest
+  - grype-scan: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/va-image-scanning-grype:latest
+  - trivy-inline-scan: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/trivy-inline-scan:latest
+  - va-scan-kubeaudit: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/va-scan-kubeaudit:latest
+  - va-scan-kubesec: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/va-scan-kubesec:latest
+  - ciscat-scanner: armdocker.rnd.ericsson.se/proj-adp-cicd-drop/va-image-scan-ciscat-assessor:latest
+
+properties:
+  - helm-chart-repo: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-eric-ctrl-bro-internal-helm
+  - service-name: eric-ctrl-bro
+  - bro-image-to-scan: armdocker.rnd.ericsson.se/proj-adp-eric-ctrl-bro-internal/eric-ctrl-bro
+  - bro-hkln-image-to-scan: armdocker.rnd.ericsson.se/proj-adp-eric-ctrl-bro-internal/eric-ctrl-bro-hooklauncher
+  - api-image-to-scan: armdocker.rnd.ericsson.se/proj-adp-eric-ctrl-bro-test-internal/bro/bro-test-service-basic/bro-test-agent-basic
+  - branch-image-path: armdocker.rnd.ericsson.se/proj-adp-eric-ctrl-bro-internal-dev
+  - ciscat-test-target-image-name: cis-cat-pro-assessor-test-target-image
+  - ciscat-benchmark: CIS_SUSE_Linux_Enterprise_15_Benchmark_v1.1.1-xccdf.xml 'Level 2 - Server'
+
+env:
+  - PWD
+  - KUBECONFIG
+  - API_TOKEN
+  - XRAY_API_TOKEN
+  - CI_USER
+  - USERS_YAML
+  - DOCKER_CONFIG
+  - RELEASE (default=true)
+  - IMAGE_VERSION
+  - AGENT_IMAGE_VERSION
+  - BRANCH_ID
+  - NAMESPACE (default=bro-security)
+  - UPLOAD_SCAN_RESULTS (default=false)
+  - VHUB_API_TOKEN
+  - VERSION_FOR_VULN_HUB
+  - DEFENSICS_HOME
+  - HOST_CIS_CAT_WS
+
+var:
+  - apiVersion
+  - released-version-without-build-number
+  - trim-version
+
+rules:
+
+  deploy-to-k8s:
+    - task: deploy-snapshot-on-k8s
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--env HELM_HOME=/home/helmuser/.helm"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--volume ${env.USERS_YAML}:${env.USERS_YAML}"
+        - "--volume ${env.DOCKER_CONFIG}:${env.DOCKER_CONFIG}"
+      cmd:
+        - kubectl -n ${env.NAMESPACE} delete --ignore-not-found secret armdocker
+        - kubectl create secret generic armdocker --from-file=.dockerconfigjson=${env.DOCKER_CONFIG} --type=kubernetes.io/dockerconfigjson --namespace ${env.NAMESPACE}
+        - python testframework/bootstrap.py --kubernetes-admin-conf="${env.KUBECONFIG}"
+                                              --kubernetes-namespace="${env.NAMESPACE}"
+                                              --chart-archive="/tmp/${service-name}-${env.IMAGE_VERSION}".tgz
+                                              --helm-repo="${helm-chart-repo}"
+                                              --baseline_chart_version="${env.IMAGE_VERSION}"
+                                              --baseline_deployment_type="deployment"
+                                              --baseline_chart_name="${service-name}"
+                                              --copy-all-pod-logs=True
+                                              --archive-files-to-copy=True
+                                              --copy-directories test/resources/schema test/resources/keys test/resources/config test/utils
+                                              --test-params unused1=1
+                                              --armuser="${env.CI_USER}"
+                                              --armpswd="${env.API_TOKEN}"
+                                              --fail-first=True
+                                              -s test_security.py
+                                              --test-runner-cmdline 'nosetests -vs --with-html --html-file=output.html
+                                                  test_security.py:test_clear_any_failed_resources
+                                                  test_security.py:test_deploy_bro_service
+                                                  test_security.py:test_deploy_test_agent
+                                                  test_security.py:test_create_backup'
+
+  defensics:
+    - task: run-defensics
+      docker-image: k8-test
+      docker-envs:
+        - "KUBECONFIG=${env.KUBECONFIG}"
+        - "DEFENSICS_HOME=/tmp/defensics/home"
+      docker-mounts:
+        - "${env.KUBECONFIG}:${env.KUBECONFIG}:ro"
+        - "${env.DEFENSICS_HOME}:/tmp/defensics/home"
+        - "${env.PWD}:${env.PWD}"
+      cmd:
+          - test.py --helm-v3 --kubernetes-admin-conf=${env.KUBECONFIG}
+            --helm-user=${env.CI_USER}
+            --arm-api-token=${env.API_TOKEN}
+            --kubernetes-namespace=${env.NAMESPACE}
+            --defensics-test
+            --defensics-test-internal-host
+            --defensics-test-suite="http-server"
+            --defensics-test-plan-dir="ci_config/fuzz/test-plan"
+            --defensics-test-report-dir="build/defensics/reports"
+            --defensics-suite-properties="uri http://eric-ctrl-bro:7001/v1/backup-manager"
+
+  cis-cat-scan:
+    # To be able to test image with CIS-CAT Assessor, we need to build a special
+    # image. Special image consists of the image we would like to test and some
+    # additional packages (util-linux, iproute2) which make possible the image
+    # to be tested.
+    - task: trim-version
+      cmd: echo '${env.IMAGE_VERSION}' | tr -d '[:space:]' > .bob/var.trim-version
+    - task: build-target-image-for-ciscat-scan
+      cmd: docker run --rm --privileged --workdir ${env.PWD}
+           --volume ${env.PWD}:${env.PWD}
+           --volume $HOME/.docker/armdocker-config.json:/armdocker-config.json
+           --volume /var/run/docker.sock:/var/run/docker.sock
+           --env ORIGINAL_IMAGE="${bro-image-to-scan}:${var.trim-version}"
+           --env CISCAT_SCAN_IMAGE="${ciscat-test-target-image-name}:${var.trim-version}"
+           --env CBO_REPO=${common.cbo-sles-repo}
+           --env CBO_DEVENV_REPO=${common.cbo-devenv-repo}
+           --env CBO_VERSION="${common.cbo-version}"
+           --env MICROCBO_IMAGE=${common.microcbo-image}:${common.cbo-version}
+           "${common.cbo-image}:${common.cbo-version}"
+           ./ci_config/cis_cat/build.sh
+    - task: execute-cis-cat-scanner
+      docker-image: ciscat-scanner
+      docker-in-docker: socket
+      cmd: cis-cat-assessor-scan
+           --target-image ${ciscat-test-target-image-name}:${var.trim-version}
+           --source-image ${bro-image-to-scan}:${var.trim-version}
+           --benchmark ${ciscat-benchmark}
+           --report-dir report
+           --report-name-prefix cis-cat-report
+           --applicability-spec ci_config/cis_cat/applicability_specification.json
+           --debug
+    - task: enriched-ciscat-report
+      cmd:
+      - "mkdir -p ${env.PWD}/build/ciscat-report"
+      - "cp -a ${env.PWD}/cis_cat_assessor/report/*_enriched.json ${env.PWD}/build/ciscat-report/"
+
+  nmap-port-scanning:
+    - task: nmap-port-scanning-test
+      docker-image: py3-kube-helm-latest
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}:ro"
+        - "--volume ${env.PWD}:${env.PWD}"
+      cmd: /test.py --kubernetes-admin-conf=${env.KUBECONFIG}
+            --helm-user=${env.CI_USER}
+            --arm-api-token=${env.API_TOKEN}
+            --kubernetes-namespace=${env.NAMESPACE}
+            --nmap-config-file=nmap/nmap_config.yaml
+            --nmap-test
+            --kube-exec-timeout=3600
+
+  cleandown-k8s-resources:
+    - task: clean-down-deployed-k8s-resources
+      docker-image: py3-kube-helm
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}:ro"
+        - "--volume ${env.PWD}:${env.PWD}"
+      cmd:
+        - python testframework/bootstrap.py --kubernetes-admin-conf="${env.KUBECONFIG}"
+                                              --kubernetes-namespace="${env.NAMESPACE}"
+                                              --chart-archive="/tmp/${service-name}-${env.IMAGE_VERSION}".tgz
+                                              --helm-repo="${helm-chart-repo}"
+                                              --baseline_chart_version="${env.IMAGE_VERSION}"
+                                              --baseline_deployment_type="deployment"
+                                              --baseline_chart_name="${service-name}"
+                                              --copy-all-pod-logs=True
+                                              --archive-files-to-copy=True
+                                              --copy-directories test/resources/schema test/resources/keys test/resources/config test/utils
+                                              --test-params unused1=1
+                                              --armuser="${env.CI_USER}"
+                                              --armpswd="${env.API_TOKEN}"
+                                              --fail-first=True
+                                              -s test_security.py
+                                              --test-runner-cmdline 'nosetests -vs --with-html --html-file=output.html test_security.py:test_remove_k8s_resources'
+
+  system-test-with-vulnerability-check:
+    - task: system-test-with-vulnerability-check
+      docker-image: py3-kube-helm-latest
+      docker-flags:
+        - "--env KUBECONFIG=${env.KUBECONFIG}"
+        - "--volume ${env.KUBECONFIG}:${env.KUBECONFIG}:ro"
+        - "--volume ${env.PWD}:${env.PWD}"
+        - "--user root"
+      cmd: /test.py --kubernetes-admin-conf=${env.KUBECONFIG}
+           --helm-user=${env.CI_USER}
+           --arm-api-token=${env.API_TOKEN}
+           --kubernetes-namespace=${env.NAMESPACE}
+           --zap-config=zap/zap_config.yaml
+           --only-zap-test
+           --kube-exec-timeout=7200
+
+  grype-scan:
+    - task: bro-grype-scan
+      docker-image: grype-scan
+      docker-in-docker: socket
+      cmd: grype_scan
+           --report-dir bro-grype-reports
+           --image ${bro-hkln-image-to-scan}:${env.IMAGE_VERSION}
+           --image ${bro-image-to-scan}:${env.IMAGE_VERSION}
+    - task: api-grype-scan
+      docker-image: grype-scan
+      docker-in-docker: socket
+      cmd: grype_scan --grype-parameters "--verbose --only-fixed " --syft-parameters "--verbose " --report-dir api-grype-reports --image ${api-image-to-scan}:${env.AGENT_IMAGE_VERSION}
+
+  grype-scan-branch:
+    - task: bro-grype-scan-branch
+      docker-image: grype-scan
+      docker-in-docker: socket
+      cmd: grype_scan --grype-parameters "--verbose --only-fixed " --syft-parameters "--verbose " --report-dir bro-branch-grype-reports --image ${branch-image-path}/${env.BRANCH_ID}/eric-ctrl-bro:${env.IMAGE_VERSION}
+
+  trivy-inline-bro-scan:
+    - task: fetch-image
+      cmd:
+      - "docker pull ${bro-image-to-scan}:${env.IMAGE_VERSION}"
+      - "docker pull ${bro-hkln-image-to-scan}:${env.IMAGE_VERSION}"
+      - mkdir -p build/trivy-reports
+    # Scan an image and print result to console
+    - task: trivy-inline-scan-bro-console-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd:  --skip-update --offline-scan ${bro-image-to-scan}:${env.IMAGE_VERSION}
+    - task: trivy-inline-scan-hkln-console-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd:  --skip-update --offline-scan ${bro-hkln-image-to-scan}:${env.IMAGE_VERSION}
+    # Scan an image and save result to json
+    - task: trivy-inline-scan-bro-json-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd:  --skip-update --offline-scan --format json --output build/trivy-reports/trivy.report.json ${bro-image-to-scan}:${env.IMAGE_VERSION}
+    - task: trivy-inline-scan-hkln-json-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd:   --skip-update --offline-scan --format json --output build/trivy-reports/bro-hkln.trivy.report.json ${bro-hkln-image-to-scan}:${env.IMAGE_VERSION}
+    - task: move-reports
+      cmd: "mv build/trivy-reports build/bro-trivy-reports"
+
+  trivy-inline-api-scan:
+    - task: fetch-image
+      cmd:
+      - "docker pull ${api-image-to-scan}:${env.AGENT_IMAGE_VERSION}"
+      - mkdir -p build/trivy-reports
+    # Scan an image and print result to console
+    - task: trivy-inline-scan-console-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd: ${api-image-to-scan}:${env.AGENT_IMAGE_VERSION}
+    # Scan an image and save result to json
+    - task: trivy-inline-scan-json-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd: --format json --output build/trivy-reports/trivy.report.json ${api-image-to-scan}:${env.AGENT_IMAGE_VERSION}
+    - task: move-reports
+      cmd: "mv build/trivy-reports build/api-trivy-reports"
+
+  trivy-inline-scan-branch:
+    - task: fetch-image
+      cmd:
+      - "docker pull ${branch-image-path}/${env.BRANCH_ID}/eric-ctrl-bro:${env.IMAGE_VERSION}"
+      - mkdir -p build/trivy-reports
+    # Scan an image and print result to console
+    - task: trivy-inline-scan-console-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd: ${branch-image-path}/${env.BRANCH_ID}/eric-ctrl-bro:${env.IMAGE_VERSION}
+    # Scan an image and save result to json
+    - task: trivy-inline-scan-json-report
+      docker-image: trivy-inline-scan
+      docker-in-docker: socket
+      cmd: --format json --output build/trivy-reports/trivy.report.json ${branch-image-path}/${env.BRANCH_ID}/eric-ctrl-bro:${env.IMAGE_VERSION}
+
+  fetch-xray-report:
+    - task: create-xray-report-directory
+      cmd:
+        - mkdir -p xray-reports
+    - task: fetch-raw-bro-xray-report
+      docker-image: adp-release-auto
+      cmd: bash -c 'fetch-xray --user eadphub --apikey ${env.XRAY_API_TOKEN} --config ./ci_config/Vulnerability_Report.config
+           --output xray-reports/xray-report.json
+           --raw-output xray-reports/raw-xray-report.json
+           --set version=${env.IMAGE_VERSION}'
+    - task: get-api-version
+      cmd:
+        - mvn -f test-service-basic/pom.xml help:evaluate -Dexpression=bro.agent.api.version -q -DforceStdout >> .bob/var.apiVersion
+    - task: fetch-raw-api-xray-report
+      docker-image: adp-release-auto
+      cmd: bash -c 'fetch-xray --user eadphub --apikey ${env.XRAY_API_TOKEN} --config ./ci_config/api_xray_report.config
+           --output xray-reports/api-xray-report.json
+           --raw-output xray-reports/raw-api-xray-report.json
+           --set version=${env.AGENT_IMAGE_VERSION}'
+
+  fetch-xray-report-branch:
+    - task: create-xray-report-directory
+      cmd:
+        - mkdir -p xray-reports
+    - task: fetch-raw-bro-xray-report
+      docker-image: adp-release-auto
+      cmd: bash -c 'fetch-xray --user eadphub --apikey ${env.XRAY_API_TOKEN} --config ./ci_config/branch_xray_report.config
+           --output xray-reports/xray-report.json
+           --raw-output xray-reports/raw-xray-report.json
+           --set branch=${env.BRANCH_ID}
+           --set version=${env.IMAGE_VERSION}'
+    - task: get-api-version
+      cmd:
+        - mvn -f test-service-basic/pom.xml help:evaluate -Dexpression=bro.agent.api.version -q -DforceStdout >> .bob/var.apiVersion
+    - task: fetch-raw-api-xray-report
+      docker-image: adp-release-auto
+      cmd: bash -c 'fetch-xray --user eadphub --apikey ${env.XRAY_API_TOKEN} --config ./ci_config/api_xray_report.config
+           --output xray-reports/api-xray-report.json
+           --raw-output xray-reports/raw-api-xray-report.json
+           --set version=${env.AGENT_IMAGE_VERSION}'
+
+  kubeaudit:
+    - task: helm-template
+      docker-image: adp-release-auto
+      cmd: "helm template service/Helm/eric-ctrl-bro --output-dir=.bob/helm_src"
+    - task: mk-report-dir
+      cmd: "mkdir -p build/kubeaudit-reports"
+    - task: kube-scan-test
+      docker-image: va-scan-kubeaudit
+      docker-flags:
+        - "--workdir /opt/va-scan-kubeaudit/"
+        - "-v ${env.PWD}/ci_config:/opt/va-scan-kubeaudit/conf"
+        - "-v ${env.PWD}/build/kubeaudit-reports/:/tmp/reports"
+        - "-v ${env.PWD}/.bob/helm_src:/tmp/src"
+      cmd: " "
+
+  kubesec:
+    - task: mk-report-dir
+      cmd:
+        - mkdir -p build/kubesec-reports
+    - task: kube-sec
+      docker-image: va-scan-kubesec
+      docker-flags:
+        - "-v ${env.PWD}/ci_config:/opt/va-scan-kubesec/conf"
+        - "-v ${env.PWD}/build/kubesec-reports:/tmp/reports"
+        - "--workdir /opt/va-scan-kubesec/"
+      cmd: " "
+
+  generate-VA-report:
+    - task: generate-bro-VA-report
+      docker-image: adp-release-auto
+      docker-flags:
+        - --env VHUB_API_TOKEN
+      cmd: bash -c 'va-report
+           --config ci_config/Vulnerability_Report.config
+           --md --debug
+           --raw-xray-report xray-reports/raw-xray-report.json
+           --xray-report xray-reports/xray-report.json
+           --output Vulnerability_Report.md
+           --zap-reports zap/reports
+           --nmap-reports nmap_reports/nmap_report
+           --anchore-reports bro-grype-reports
+           --trivy-reports build/bro-trivy-reports
+           --tenable-sc build/tenablesc-reports
+           --kubeaudit-reports build/kubeaudit-reports/eric-ctrl-bro/templates/bro-ss
+           --kubesec-reports build/kubesec-reports/eric-ctrl-bro/templates/bro-ss.json
+           --defensics-report build/defensics/reports/
+           --ciscat-reports build/ciscat-report/
+           --upload-scan-results=${env.UPLOAD_SCAN_RESULTS}
+           --set version=${env.IMAGE_VERSION}'
+    - task: generate-API-VA-report
+      docker-image: adp-release-auto
+      cmd: bash -c 'va-report
+           --config ci_config/API_Vulnerability_Report.config
+           --md --debug
+           --raw-xray-report xray-reports/raw-api-xray-report.json
+           --xray-report xray-reports/api-xray-report.json
+           --output API_Vulnerability_Report.md
+           --anchore-reports api-grype-reports
+           --trivy-reports build/api-trivy-reports
+           --tenable-sc build/tenablesc-reports
+           --set apiVersion=${var.apiVersion}
+           --set version=${env.AGENT_IMAGE_VERSION}'
+
+  upload-VA-config:
+    - task: upload-VA-config
+      docker-image: adp-release-auto
+      docker-flags:
+        - --env VHUB_API_TOKEN
+      cmd: bash -c 'va-report
+          --set version=${env.VERSION_FOR_VULN_HUB}
+          --upload-va-config ci_config/Vulnerability_Report.config'
